@@ -1,0 +1,144 @@
+openapi: 3.0.3
+info:
+  title: Car Rental Management API
+  version: "0.1.0"
+  description: |
+    API contract for the Car Rental Management System.
+    This file is a planning artifact and will be implemented by FastAPI.
+servers:
+  - url: /api
+paths:
+  /auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+  /auth/refresh:
+    post:
+      summary: Refresh token
+      responses:
+        '200':
+          description: Tokens
+  /me:
+    get:
+      summary: Current user
+      responses:
+        '200':
+          description: User
+  /customers:
+    get:
+      summary: List/search customers
+    post:
+      summary: Create customer
+  /customers/{customerId}:
+    get:
+      summary: Get customer
+    put:
+      summary: Update customer
+  /vendors:
+    get:
+      summary: List/search vendors
+    post:
+      summary: Create vendor
+  /vendors/{vendorId}:
+    get:
+      summary: Get vendor
+    put:
+      summary: Update vendor
+  /vehicles:
+    get:
+      summary: List/search vehicles
+    post:
+      summary: Create vehicle
+  /vehicles/{vehicleId}:
+    get:
+      summary: Get vehicle
+    put:
+      summary: Update vehicle
+  /vehicles/{vehicleId}/photos:
+    post:
+      summary: Upload vehicle photos
+  /availability/vehicles:
+    get:
+      summary: Get vehicles available for a given time window
+  /agreements:
+    get:
+      summary: List agreements
+    post:
+      summary: Create agreement (standard or wedding/vendor wedding)
+  /agreements/{agreementId}:
+    get:
+      summary: Get agreement detail (party, segments, ledger, computed balance)
+    put:
+      summary: Update agreement (restricted)
+  /agreements/{agreementId}/extend:
+    post:
+      summary: Extend agreement end date/time
+  /agreements/{agreementId}/replace-vehicle:
+    post:
+      summary: Replace vehicle mid-agreement (segments)
+  /agreements/{agreementId}/close:
+    post:
+      summary: Close/return agreement
+  /agreements/{agreementId}/ledger:
+    post:
+      summary: Post ledger entry (payment/adjustment/reversal)
+  /agreements/{agreementId}/documents:
+    post:
+      summary: Generate agreement document (DOCX/PDF)
+  /inspections/templates:
+    get:
+      summary: List inspection templates
+    post:
+      summary: Create inspection template
+  /inspections:
+    get:
+      summary: List inspections
+    post:
+      summary: Create inspection
+  /inspections/{inspectionId}:
+    get:
+      summary: Get inspection
+  /inspections/{inspectionId}/print:
+    post:
+      summary: Generate printable inspection report
+  /booking-requests:
+    get:
+      summary: List booking requests
+    post:
+      summary: Create booking request
+  /booking-requests/{requestId}/convert:
+    post:
+      summary: Convert booking request to agreement
+  /integrations/telegram/webhook:
+    post:
+      summary: Telegram webhook
+components:
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+    LoginResponse:
+      type: object
+      required: [access_token, refresh_token]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
