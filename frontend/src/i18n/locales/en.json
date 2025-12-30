@@ -1,0 +1,74 @@
+{
+  "common": {
+    "appName": "Car Rental",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "details": "Details",
+    "actions": "Actions",
+    "yes": "Yes",
+    "no": "No",
+    "confirm": "Confirm"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "username": "Username",
+    "password": "Password",
+    "loginButton": "Sign In",
+    "loginError": "Invalid username or password"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "customers": "Customers",
+    "vendors": "Vendors",
+    "vehicles": "Vehicles",
+    "agreements": "Agreements",
+    "inspections": "Inspections",
+    "bookings": "Bookings",
+    "payments": "Payments",
+    "reports": "Reports",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "Today's Statistics",
+    "income": "Income",
+    "expenses": "Expenses",
+    "carAvailability": "Car Availability",
+    "liveStatus": "Live Car Status",
+    "earningSummary": "Earning Summary"
+  },
+  "agreements": {
+    "title": "Agreements",
+    "createNew": "New Agreement",
+    "standard": "Standard Rental",
+    "wedding": "Wedding",
+    "vendorWedding": "Vendor Wedding",
+    "status": {
+      "draft": "Draft",
+      "active": "Active",
+      "closed": "Closed",
+      "overdue": "Overdue",
+      "cancelled": "Cancelled"
+    }
+  },
+  "vehicles": {
+    "title": "Vehicles",
+    "plateNumber": "Plate Number",
+    "model": "Model",
+    "status": {
+      "available": "Available",
+      "reserved": "Reserved",
+      "rented": "Rented",
+      "maintenance": "Maintenance",
+      "inactive": "Inactive"
+    }
+  }
+}

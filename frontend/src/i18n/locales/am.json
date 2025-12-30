@@ -1,0 +1,74 @@
+{
+  "common": {
+    "appName": "መኪና ኪራይ",
+    "loading": "በመጫን ላይ...",
+    "error": "ስህተት",
+    "success": "ተሳክቷል",
+    "save": "አስቀምጥ",
+    "cancel": "ሰርዝ",
+    "delete": "ሰርዝ",
+    "edit": "አርትዕ",
+    "create": "ፍጠር",
+    "search": "ፈልግ",
+    "filter": "አጣራ",
+    "details": "ዝርዝር",
+    "actions": "ድርጊቶች",
+    "yes": "አዎ",
+    "no": "አይ",
+    "confirm": "አረጋግጥ"
+  },
+  "auth": {
+    "login": "ግባ",
+    "logout": "ውጣ",
+    "username": "የተጠቃሚ ስም",
+    "password": "የይለፍ ቃል",
+    "loginButton": "ግባ",
+    "loginError": "የተሳሳተ የተጠቃሚ ስም ወይም የይለፍ ቃል"
+  },
+  "nav": {
+    "dashboard": "ዳሽቦርድ",
+    "customers": "ደንበኞች",
+    "vendors": "አቅራቢዎች",
+    "vehicles": "ተሽከርካሪዎች",
+    "agreements": "ስምምነቶች",
+    "inspections": "ምርመራዎች",
+    "bookings": "ቦታ ማስያዝ",
+    "payments": "ክፍያዎች",
+    "reports": "ሪፖርቶች",
+    "settings": "ቅንብሮች"
+  },
+  "dashboard": {
+    "title": "የዛሬ ስታቲስቲክስ",
+    "income": "ገቢ",
+    "expenses": "ወጪዎች",
+    "carAvailability": "የመኪና ተገኝነት",
+    "liveStatus": "የቀጥታ የመኪና ሁኔታ",
+    "earningSummary": "የገቢ ማጠቃለያ"
+  },
+  "agreements": {
+    "title": "ስምምነቶች",
+    "createNew": "አዲስ ስምምነት",
+    "standard": "መደበኛ ኪራይ",
+    "wedding": "ሰርግ",
+    "vendorWedding": "የአቅራቢ ሰርግ",
+    "status": {
+      "draft": "ረቂቅ",
+      "active": "ንቁ",
+      "closed": "ተዘግቷል",
+      "overdue": "የጊዜ ገደብ ያለፈ",
+      "cancelled": "ተሰርዟል"
+    }
+  },
+  "vehicles": {
+    "title": "ተሽከርካሪዎች",
+    "plateNumber": "ታርጋ ቁጥር",
+    "model": "ሞዴል",
+    "status": {
+      "available": "ይገኛል",
+      "reserved": "ተይዟል",
+      "rented": "ተከራይቷል",
+      "maintenance": "ጥገና",
+      "inactive": "ንቁ አይደለም"
+    }
+  }
+}

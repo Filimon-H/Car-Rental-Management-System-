@@ -10,7 +10,9 @@
  Build a complete end-to-end car rental management system (replacing legacy desktop workflows) with:
  - Role-based staff access (Admin, Sales/Front Desk, Fleet Manager, Inspector, Accountant)
  - Master data (customers, vendors, fleet)
+ - Drivers and collateral persons (linked to customers) for customer agreements
  - Agreements (standard + wedding + vendor wedding) with vehicle availability enforcement
+ - Customer agreement enhancements: agreement types (customer vehicle, customer vehicle + driver, vendor vehicle), driver selection, collateral requirement, and optional advance payment
  - Ledger-style finance (append-only, reversible via adjustments/reversals)
  - Inspections/checklists and high-quality printing (DOCX templates → PDF)
  - Booking requests (future website + Telegram) and operational notifications

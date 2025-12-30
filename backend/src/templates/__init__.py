@@ -1,0 +1,1 @@
+"""Document templates package."""
