@@ -65,6 +65,13 @@ export interface CreateCustomerData {
   notes?: string
 }
 
+export interface DuplicateCheckResult {
+  duplicate: boolean
+  customer_id: number | null
+  customer_name?: string
+  match: 'id_number' | 'license_number' | 'phone' | null
+}
+
 export const customersService = {
   async list(params?: {
     page?: number
@@ -77,6 +84,15 @@ export const customersService = {
 
   async search(q: string, limit = 10): Promise<CustomerSearchResult[]> {
     return apiClient.get('/customers/search', { q, limit })
+  },
+
+  async checkDuplicate(params: {
+    id_number?: string
+    license_number?: string
+    phone?: string
+    exclude_id?: number
+  }): Promise<DuplicateCheckResult> {
+    return apiClient.get('/customers/check-duplicate', params)
   },
 
   async getById(id: number): Promise<Customer> {
@@ -94,6 +110,62 @@ export const customersService = {
   async delete(id: number): Promise<void> {
     return apiClient.delete(`/customers/${id}`)
   },
+
+  async bulkUpload(file: File): Promise<BulkUploadResult> {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const token = localStorage.getItem('access_token')
+    const response = await fetch('/api/customers/bulk-upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    })
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Upload failed' }))
+      throw new Error(error.detail || 'Upload failed')
+    }
+    
+    return response.json()
+  },
+
+  async downloadBulkTemplate(): Promise<void> {
+    const token = localStorage.getItem('access_token')
+    const response = await fetch('/api/customers/bulk-upload/template', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+    
+    if (!response.ok) {
+      throw new Error('Failed to download template')
+    }
+    
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'customer_upload_template.csv'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  },
+}
+
+export interface BulkUploadResult {
+  total_rows: number
+  successful: number
+  failed: number
+  errors: Array<{
+    row: number
+    field: string | null
+    message: string
+  }>
+  created_ids: number[]
 }
 
 export default customersService

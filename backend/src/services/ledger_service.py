@@ -35,10 +35,14 @@ def post_charge(
     entry_type: LedgerEntryType = LedgerEntryType.CHARGE,
     created_by_id: int | None = None,
     notes: str | None = None,
+    auto_commit: bool = True,
 ) -> LedgerEntry:
     """Post a charge to the agreement ledger.
     
     Charges increase the balance (customer owes more).
+    
+    Args:
+        auto_commit: If False, caller is responsible for committing the transaction.
     """
     if amount <= 0:
         raise BusinessError(ErrorCode.INVALID_INPUT, "Charge amount must be positive")
@@ -52,8 +56,11 @@ def post_charge(
         created_by_id=created_by_id,
     )
     db.add(entry)
-    db.commit()
-    db.refresh(entry)
+    if auto_commit:
+        db.commit()
+        db.refresh(entry)
+    else:
+        db.flush()
     
     logger.info(f"Posted charge: {entry_type.value} {amount} to agreement {agreement_id}")
     return entry

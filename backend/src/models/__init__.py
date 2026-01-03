@@ -13,6 +13,7 @@ from src.models.ledger_entry import LedgerEntry, LedgerEntryType, PaymentMethod
 from src.models.inspection_template import InspectionTemplate
 from src.models.inspection import Inspection, InspectionPhoto
 from src.models.lookup import LookupValue
+from src.models.customer_document import CustomerDocument, DocumentType
 
 __all__ = [
     "StaffUser",
@@ -35,4 +36,6 @@ __all__ = [
     "Inspection",
     "InspectionPhoto",
     "LookupValue",
+    "CustomerDocument",
+    "DocumentType",
 ]

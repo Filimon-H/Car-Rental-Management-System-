@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Search, Car, User, UserCheck, Shield } from 'lucide-react'
@@ -7,18 +7,35 @@ import { agreementsService, availabilityService, AvailableVehicle } from '@/serv
 import { CustomerLookupModal } from '@/components/lookup/LookupModal'
 import { driversService, Driver } from '@/services/drivers'
 import { collateralsService, CollateralPerson } from '@/services/collaterals'
+import { customersService } from '@/services/customers'
 
 type AgreementType = 'customer_vehicle' | 'customer_vehicle_driver' | 'vendor_vehicle'
 
 export default function AgreementCreatePage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const [searchParams] = useSearchParams()
+  const prefilledCustomerId = searchParams.get('customer_id')
 
   // Form state
   const [agreementType, setAgreementType] = useState<AgreementType>('customer_vehicle')
-  const [customerId, setCustomerId] = useState<number | null>(null)
+  const [customerId, setCustomerId] = useState<number | null>(prefilledCustomerId ? parseInt(prefilledCustomerId, 10) : null)
   const [customerName, setCustomerName] = useState('')
   const [showCustomerLookup, setShowCustomerLookup] = useState(false)
+
+  // Fetch prefilled customer info if customer_id is in URL
+  const { data: prefilledCustomer } = useQuery({
+    queryKey: ['customer', prefilledCustomerId],
+    queryFn: () => customersService.getById(parseInt(prefilledCustomerId!, 10)),
+    enabled: !!prefilledCustomerId,
+  })
+
+  // Set customer name when prefilled customer is loaded
+  useEffect(() => {
+    if (prefilledCustomer) {
+      setCustomerName(prefilledCustomer.full_name)
+    }
+  }, [prefilledCustomer])
   const [vehicleId, setVehicleId] = useState<number | null>(null)
   const [selectedVehicle, setSelectedVehicle] = useState<AvailableVehicle | null>(null)
   const [driverId, setDriverId] = useState<number | null>(null)
@@ -35,6 +52,7 @@ export default function AgreementCreatePage() {
   const [pickupLocation, setPickupLocation] = useState('')
   const [returnLocation, setReturnLocation] = useState('')
   const [notes, setNotes] = useState('')
+  const [vehicleSearch, setVehicleSearch] = useState('')
 
   // Fetch available vehicles when dates are selected
   const canCheckAvailability = pickupDate && returnDate && pickupDate <= returnDate
@@ -443,7 +461,29 @@ export default function AgreementCreatePage() {
               </div>
             ) : availableVehicles && availableVehicles.length > 0 ? (
               <div className="space-y-3">
-                {availableVehicles.map((vehicle) => (
+                {/* Vehicle Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by make, model, or plate..."
+                    value={vehicleSearch}
+                    onChange={(e) => setVehicleSearch(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm"
+                  />
+                </div>
+                {availableVehicles
+                  .filter((v) => {
+                    if (!vehicleSearch.trim()) return true
+                    const search = vehicleSearch.toLowerCase()
+                    return (
+                      v.make.toLowerCase().includes(search) ||
+                      v.model.toLowerCase().includes(search) ||
+                      v.plate_number.toLowerCase().includes(search) ||
+                      v.color?.toLowerCase().includes(search)
+                    )
+                  })
+                  .map((vehicle) => (
                   <div
                     key={vehicle.id}
                     onClick={() => handleVehicleSelect(vehicle)}
@@ -491,6 +531,22 @@ export default function AgreementCreatePage() {
                     {selectedVehicle.make} {selectedVehicle.model}
                   </span>
                 </div>
+                {selectedDriver && (
+                  <div className="flex justify-between">
+                    <span>Driver:</span>
+                    <span className="font-medium">
+                      {selectedDriver.first_name} {selectedDriver.last_name}
+                    </span>
+                  </div>
+                )}
+                {selectedCollateral && (
+                  <div className="flex justify-between">
+                    <span>Collateral:</span>
+                    <span className="font-medium">
+                      {selectedCollateral.first_name} {selectedCollateral.last_name}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Rental Period:</span>
                   <span className="font-medium">{rentalDays} day{rentalDays !== 1 ? 's' : ''}</span>
@@ -510,6 +566,14 @@ export default function AgreementCreatePage() {
                     {formatCurrency(parseFloat(depositAmount) || 0)}
                   </span>
                 </div>
+                {parseFloat(advancePayment) > 0 && (
+                  <div className="flex justify-between">
+                    <span>Advance Payment:</span>
+                    <span className="font-medium text-green-600">
+                      {formatCurrency(parseFloat(advancePayment))}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}

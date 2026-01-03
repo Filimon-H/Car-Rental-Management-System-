@@ -14,3 +14,50 @@ On the agreemnt that you need to undestand is that there are diffrent types of a
 and one other important section you should add is a collateral person inforamtion filling like the customer section it nends to have all of the infroamtion to be filled like sumtomer and then it needs to be attached to a custimer since they are the collateral person when we add them we need to select a cusomer forst so it will have a relationship with them and when we have our agrement they need to show up when we chose the cusopmer name and the agreemnt for all of them above needs to have the cus,mer inforamtion ,the car information and the driver inforamtion if they have one and the collateral person information 
 and also when it shows and when we need to have also an advance payment field that will be a number field and it will be optional and it will be added to the total amount and the due amount will be the total amount minus the advance payment.
 ---
+in the agreement detail page we need to have a payment section that will show all the payments made for the agreement and the total payments and the balance due and the payment history  and for the cars we need to search the cars from a drop down list or searched what ever works best and from the agreement we have if we click on it it should show us all th edetails like the customer information, the car inforamtion the driver infomration if they have one and also the collateral erson information 
+the wedding agreement is a special agreement that will have a special fields that will be added to the agreement like the wedding date and the wedding location and the wedding time and the wedding duration and the wedding and how many cars they need so it will accept more than one car at a time and when it finishes it will calcuate the total car money and the total amount and the due amount will be the total amount minus the advance payment.
+
+
+--------
+For the Customer Form filing page insitead of popup ,can we use a separeate page that can be able to fill the page with the cusomer infomration with First Name first, then lastname, the primray phone number then secondary phone number,email,then drivers licence number then Id type as it is then fill Id number
+
+Personal & Business Identification
+Business Type
+TIN Number: A text field for the Tax Identification Number.
+
+First Name: A required text field.
+
+Last Name: A required text field.
+
+Contact Information
+Primary Phone: A required text field.
+
+Secondary Phone: An optional text field.
+
+Email: A text field for the customer's email address.
+
+Legal & Licensing
+ID Type: A required dropdown menu (currently showing "National ID").
+
+ID Number: A required text field.
+
+Driver License Number: A required text field.
+
+Address & Location
+House Number: A text field for the specific residence number.
+
+Wereda: A text field for the local administrative division.
+
+Subcity: A dropdown menu to select the specific subcity.
+
+City: A text field for the city name.
+
+Additional Information
+Notes: A large text area for any extra comments or details regarding the customer
+
+
+-----------Upgrade ideas 
+on the aggreaentn we can flag a good customer to rent a car and frequesnt if they are something to show us if they are a vip customer or if they damange a car
+
+
+just simplify it i just want to go from fillig the form of custmer infroamtion then insitead of just save and close i wnat to go save and next to collaterl form filling with conistance Ui the after that as well save and next or save and close and then after save and next the aggremnt section has to come so i can continue

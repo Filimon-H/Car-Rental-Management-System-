@@ -72,10 +72,10 @@ class CustomerResponse(BaseModel):
     phone_primary: str
     phone_secondary: Optional[str] = None
     email: Optional[str] = None
-    id_type: str
-    id_number: str
+    id_type: Optional[str] = None
+    id_number: Optional[str] = None
     id_expiry_date: Optional[datetime] = None
-    driver_license_number: str
+    driver_license_number: Optional[str] = None
     driver_license_expiry: Optional[datetime] = None
     house_number: Optional[str] = None
     wereda: Optional[str] = None
@@ -136,7 +136,7 @@ class CustomerSearchResult(BaseModel):
     id: int
     full_name: str
     phone_primary: str
-    id_number: str
+    id_number: Optional[str] = None
 
     class Config:
         from_attributes = True

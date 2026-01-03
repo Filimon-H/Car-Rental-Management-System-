@@ -19,6 +19,12 @@ from src.services import billing_service, ledger_service
 logger = get_logger(__name__)
 
 
+def _ensure_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def generate_agreement_number(db: Session) -> str:
     """Generate a unique agreement number."""
     # Format: AGR-YYYYMMDD-XXXX where XXXX is sequential
@@ -187,7 +193,14 @@ def close_agreement(
     - Late fees (if applicable)
     - Final balance
     """
-    agreement = db.query(Agreement).filter(Agreement.id == agreement_id).first()
+    from sqlalchemy.orm import joinedload
+    
+    agreement = (
+        db.query(Agreement)
+        .options(joinedload(Agreement.vehicle_segments).joinedload(AgreementVehicleSegment.vehicle))
+        .filter(Agreement.id == agreement_id)
+        .first()
+    )
     if not agreement:
         raise NotFoundError("Agreement", agreement_id)
     
@@ -196,11 +209,14 @@ def close_agreement(
             ErrorCode.AGREEMENT_ALREADY_CLOSED,
             f"Agreement is already {agreement.status.value}"
         )
+
+    actual_return_datetime = _ensure_utc(actual_return_datetime)
+    expected_return_datetime = _ensure_utc(agreement.expected_return_datetime)
     
     # Calculate late fee if applicable
-    if actual_return_datetime > agreement.expected_return_datetime:
+    if actual_return_datetime > expected_return_datetime:
         late_fee = billing_service.calculate_late_fee(
-            agreement.expected_return_datetime,
+            expected_return_datetime,
             actual_return_datetime,
             agreement.agreed_daily_rate,
         )
@@ -212,6 +228,7 @@ def close_agreement(
                 description="Late return fee",
                 entry_type=LedgerEntryType.LATE_FEE,
                 created_by_id=closed_by_id,
+                auto_commit=False,  # Let close_agreement handle the commit
             )
     
     # Update agreement

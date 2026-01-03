@@ -1,16 +1,21 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Plus, Search, Edit, Trash2, Phone, Mail } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Phone, Mail, UserPlus, FileSpreadsheet, AlertTriangle, X } from 'lucide-react'
 import { customersService, Customer, CreateCustomerData } from '@/services/customers'
+import { BulkUploadModal } from '@/components/customers/BulkUploadModal'
 
 export default function CustomersPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [showBulkUpload, setShowBulkUpload] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<Customer | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['customers', page, searchTerm],
@@ -22,28 +27,54 @@ export default function CustomersPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['customers'] }),
   })
 
-  const handleEdit = (customer: Customer) => {
-    setEditingCustomer(customer)
-    setShowModal(true)
+  const handleEdit = (customer: Customer, e: React.MouseEvent) => {
+    e.stopPropagation()
+    navigate(`/customers/${customer.id}/edit`)
   }
 
-  const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to delete this customer?')) {
-      deleteMutation.mutate(id)
+  const handleDeleteClick = (customer: Customer, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setDeleteConfirm(customer)
+  }
+
+  const handleConfirmDelete = () => {
+    if (deleteConfirm) {
+      deleteMutation.mutate(deleteConfirm.id)
+      setDeleteConfirm(null)
     }
+  }
+
+  const handleRowClick = (customer: Customer) => {
+    navigate(`/customers/${customer.id}`)
   }
 
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">{t('customers.title', 'Customers')}</h1>
-        <button
-          onClick={() => { setEditingCustomer(null); setShowModal(true) }}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary-700"
-        >
-          <Plus className="h-5 w-5" />
-          Add Customer
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => navigate('/customers/new')}
+            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+          >
+            <UserPlus className="h-5 w-5" />
+            New Customer Wizard
+          </button>
+          <button
+            onClick={() => setShowBulkUpload(true)}
+            className="flex items-center gap-2 rounded-lg border border-green-600 px-4 py-2 text-green-600 hover:bg-green-50"
+          >
+            <FileSpreadsheet className="h-5 w-5" />
+            Bulk Upload
+          </button>
+          <button
+            onClick={() => { setEditingCustomer(null); setShowModal(true) }}
+            className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+          >
+            <Plus className="h-5 w-5" />
+            Quick Add
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -79,7 +110,11 @@ export default function CustomersPage() {
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white">
               {data?.items.map((customer) => (
-                <tr key={customer.id} className="hover:bg-gray-50">
+                <tr 
+                  key={customer.id} 
+                  className="hover:bg-gray-50 cursor-pointer transition-colors"
+                  onClick={() => handleRowClick(customer)}
+                >
                   <td className="whitespace-nowrap px-6 py-4">
                     <div className="font-medium text-gray-900">{customer.full_name}</div>
                     {customer.city && <div className="text-sm text-gray-500">{customer.city}</div>}
@@ -95,7 +130,7 @@ export default function CustomersPage() {
                     )}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
-                    <div>{customer.id_type}: {customer.id_number}</div>
+                    <div>{customer.id_type || '-'}: {customer.id_number || '-'}</div>
                   </td>
                   <td className="whitespace-nowrap px-6 py-4">
                     <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
@@ -106,10 +141,10 @@ export default function CustomersPage() {
                   </td>
                   <td className="whitespace-nowrap px-6 py-4">
                     <div className="flex gap-2">
-                      <button onClick={() => handleEdit(customer)} className="text-blue-600 hover:text-blue-800">
+                      <button onClick={(e) => handleEdit(customer, e)} className="text-blue-600 hover:text-blue-800">
                         <Edit className="h-5 w-5" />
                       </button>
-                      <button onClick={() => handleDelete(customer.id)} className="text-red-600 hover:text-red-800">
+                      <button onClick={(e) => handleDeleteClick(customer, e)} className="text-red-600 hover:text-red-800">
                         <Trash2 className="h-5 w-5" />
                       </button>
                     </div>
@@ -144,6 +179,52 @@ export default function CustomersPage() {
           onClose={() => setShowModal(false)}
           onSuccess={() => { setShowModal(false); queryClient.invalidateQueries({ queryKey: ['customers'] }) }}
         />
+      )}
+
+      {/* Bulk Upload Modal */}
+      {showBulkUpload && (
+        <BulkUploadModal
+          onClose={() => setShowBulkUpload(false)}
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ['customers'] })}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">Delete Customer</h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  Are you sure you want to permanently delete <strong>{deleteConfirm.full_name}</strong>? 
+                  This action cannot be undone and will remove all associated data.
+                </p>
+              </div>
+              <button onClick={() => setDeleteConfirm(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleteMutation.isPending}
+                className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete Customer'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

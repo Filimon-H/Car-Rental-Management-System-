@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Car, CreditCard, FileText, Clock } from 'lucide-react'
+import { ArrowLeft, Car, CreditCard, FileText, User, UserCheck, Shield } from 'lucide-react'
 import { agreementsService, PostPaymentData } from '@/services/agreements'
 import LedgerTable from '@/components/ledger/LedgerTable'
 
@@ -212,41 +212,138 @@ export default function AgreementDetailPage() {
       {/* Tab Content */}
       <div className="rounded-lg bg-white p-6 shadow">
         {activeTab === 'details' && (
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div>
-              <h3 className="mb-4 font-semibold text-gray-800">Rental Period</h3>
-              <div className="space-y-3">
+          <div className="space-y-6">
+            {/* Customer Information */}
+            <div className="rounded-lg border p-4">
+              <h3 className="mb-3 flex items-center gap-2 font-semibold text-gray-800">
+                <User className="h-5 w-5 text-blue-500" />
+                Customer Information
+              </h3>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Pickup</span>
-                  <span>{formatDate(agreement.pickup_datetime)}</span>
+                  <span className="text-gray-500">Name</span>
+                  <span className="font-medium">{agreement.customer_name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Expected Return</span>
-                  <span>{formatDate(agreement.expected_return_datetime)}</span>
+                  <span className="text-gray-500">Customer ID</span>
+                  <span>#{agreement.customer_id}</span>
                 </div>
-                {agreement.actual_return_datetime && (
+              </div>
+            </div>
+
+            {/* Driver Information (if any) */}
+            {agreement.driver && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <h3 className="mb-3 flex items-center gap-2 font-semibold text-gray-800">
+                  <UserCheck className="h-5 w-5 text-blue-600" />
+                  Driver Information
+                </h3>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Actual Return</span>
-                    <span>{formatDate(agreement.actual_return_datetime)}</span>
+                    <span className="text-gray-500">Name</span>
+                    <span className="font-medium">
+                      {agreement.driver.first_name} {agreement.driver.last_name}
+                    </span>
                   </div>
-                )}
-              </div>
-            </div>
-            <div>
-              <h3 className="mb-4 font-semibold text-gray-800">Locations</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Pickup Location</span>
-                  <span>{agreement.pickup_location || '-'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Return Location</span>
-                  <span>{agreement.return_location || '-'}</span>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Phone</span>
+                    <span>{agreement.driver.phone_primary}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">License Number</span>
+                    <span>{agreement.driver.license_number}</span>
+                  </div>
                 </div>
               </div>
+            )}
+
+            {/* Collateral Person Information (if any) */}
+            {agreement.collateral_person && (
+              <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
+                <h3 className="mb-3 flex items-center gap-2 font-semibold text-gray-800">
+                  <Shield className="h-5 w-5 text-orange-600" />
+                  Collateral Person
+                </h3>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Name</span>
+                    <span className="font-medium">
+                      {agreement.collateral_person.first_name} {agreement.collateral_person.last_name}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Phone</span>
+                    <span>{agreement.collateral_person.phone_primary}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">ID Type</span>
+                    <span>{agreement.collateral_person.id_type}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">ID Number</span>
+                    <span>{agreement.collateral_person.id_number}</span>
+                  </div>
+                  {agreement.collateral_person.relationship_to_customer && (
+                    <div className="flex justify-between md:col-span-2">
+                      <span className="text-gray-500">Relationship</span>
+                      <span>{agreement.collateral_person.relationship_to_customer}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Rental Period & Locations */}
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div>
+                <h3 className="mb-4 font-semibold text-gray-800">Rental Period</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Pickup</span>
+                    <span>{formatDate(agreement.pickup_datetime)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Expected Return</span>
+                    <span>{formatDate(agreement.expected_return_datetime)}</span>
+                  </div>
+                  {agreement.actual_return_datetime && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Actual Return</span>
+                      <span>{formatDate(agreement.actual_return_datetime)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <h3 className="mb-4 font-semibold text-gray-800">Locations</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Pickup Location</span>
+                    <span>{agreement.pickup_location || '-'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Return Location</span>
+                    <span>{agreement.return_location || '-'}</span>
+                  </div>
+                </div>
+              </div>
             </div>
+
+            {/* Advance Payment (if any) */}
+            {agreement.advance_payment && agreement.advance_payment > 0 && (
+              <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-700">Advance Payment</span>
+                  <span className="text-lg font-bold text-green-700">
+                    {formatCurrency(agreement.advance_payment)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Notes */}
             {agreement.notes && (
-              <div className="md:col-span-2">
+              <div>
                 <h3 className="mb-2 font-semibold text-gray-800">Notes</h3>
                 <p className="text-gray-600">{agreement.notes}</p>
               </div>

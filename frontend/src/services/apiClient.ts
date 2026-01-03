@@ -30,8 +30,12 @@ class ApiClient {
   }
 
   private requestInterceptor(config: InternalAxiosRequestConfig) {
-    if (this.accessToken) {
-      config.headers.Authorization = `Bearer ${this.accessToken}`
+    // Always read token from localStorage to handle login after module load
+    const token = this.accessToken || localStorage.getItem('access_token')
+    if (token) {
+      // Set Authorization header - works with all Axios versions
+      config.headers = config.headers || {}
+      config.headers['Authorization'] = `Bearer ${token}`
     }
     return config
   }
@@ -49,7 +53,8 @@ class ApiClient {
           })
           const { access_token } = response.data
           this.setTokens(access_token, refreshToken)
-          originalRequest.headers.Authorization = `Bearer ${access_token}`
+          originalRequest.headers = originalRequest.headers || {}
+          originalRequest.headers['Authorization'] = `Bearer ${access_token}`
           return this.client(originalRequest)
         } catch {
           // Refresh failed, clear tokens

@@ -215,15 +215,25 @@ async def close_agreement(
     db: Annotated[Session, Depends(get_db)],
 ) -> AgreementResponse:
     """Close an agreement (vehicle returned)."""
-    agreement = agreement_service.close_agreement(
-        db=db,
-        agreement_id=agreement_id,
-        actual_return_datetime=data.actual_return_datetime,
-        return_mileage=data.return_mileage,
-        closed_by_id=current_user.id,
-        notes=data.notes,
-    )
-    return _to_agreement_response(agreement)
+    import traceback
+    from src.core.logging import get_logger
+    logger = get_logger(__name__)
+    
+    try:
+        agreement = agreement_service.close_agreement(
+            db=db,
+            agreement_id=agreement_id,
+            actual_return_datetime=data.actual_return_datetime,
+            return_mileage=data.return_mileage,
+            closed_by_id=current_user.id,
+            notes=data.notes,
+        )
+        return _to_agreement_response(agreement)
+    except Exception as e:
+        logger.error(f"Error closing agreement {agreement_id}: {e}")
+        logger.error(traceback.format_exc())
+        db.rollback()
+        raise
 
 
 @router.get("/{agreement_id}/ledger", response_model=list[LedgerEntryResponse])

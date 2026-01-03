@@ -58,3 +58,11 @@ def register_routers(app: FastAPI) -> None:
     # Collateral Persons routes
     from src.api.routers import collaterals
     app.include_router(collaterals.router, prefix=f"{settings.api_prefix}/collaterals", tags=["collaterals"])
+
+    # Customer Documents routes (nested under customers)
+    from src.api.routers import customer_documents
+    app.include_router(customer_documents.router, prefix=f"{settings.api_prefix}/customers", tags=["customer-documents"])
+
+    # Customer Bulk Upload routes
+    from src.api.routers import customer_bulk
+    app.include_router(customer_bulk.router, prefix=f"{settings.api_prefix}/customers", tags=["customer-bulk"])

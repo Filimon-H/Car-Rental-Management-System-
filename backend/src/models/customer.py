@@ -10,6 +10,7 @@ from src.core.db import Base
 
 if TYPE_CHECKING:
     from src.models.agreement import Agreement
+    from src.models.customer_document import CustomerDocument
 
 
 class Customer(Base):
@@ -65,6 +66,9 @@ class Customer(Base):
     )
     collateral_persons: Mapped[list["CollateralPerson"]] = relationship(
         "CollateralPerson", back_populates="customer", lazy="dynamic"
+    )
+    documents: Mapped[list["CustomerDocument"]] = relationship(
+        "CustomerDocument", back_populates="customer", lazy="dynamic", cascade="all, delete-orphan"
     )
 
     @property

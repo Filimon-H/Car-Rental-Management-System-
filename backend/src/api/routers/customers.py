@@ -64,6 +64,60 @@ async def list_customers(
     )
 
 
+@router.get("/check-duplicate")
+async def check_duplicate(
+    id_number: Optional[str] = Query(None),
+    license_number: Optional[str] = Query(None),
+    phone: Optional[str] = Query(None),
+    exclude_id: Optional[int] = Query(None, description="Customer ID to exclude (for updates)"),
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(require_permission(Permission.VIEW_CUSTOMERS)),
+):
+    """Check if a customer with the given ID number, license, or phone already exists."""
+    if not id_number and not license_number and not phone:
+        return {"duplicate": False, "customer_id": None, "match": None}
+    
+    query = db.query(Customer).filter(Customer.is_active == True)
+    
+    if exclude_id:
+        query = query.filter(Customer.id != exclude_id)
+    
+    # Check ID number first (most unique)
+    if id_number:
+        existing = query.filter(Customer.id_number == id_number).first()
+        if existing:
+            return {
+                "duplicate": True,
+                "customer_id": existing.id,
+                "customer_name": f"{existing.first_name} {existing.last_name}",
+                "match": "id_number"
+            }
+    
+    # Check license number
+    if license_number:
+        existing = query.filter(Customer.license_number == license_number).first()
+        if existing:
+            return {
+                "duplicate": True,
+                "customer_id": existing.id,
+                "customer_name": f"{existing.first_name} {existing.last_name}",
+                "match": "license_number"
+            }
+    
+    # Check phone
+    if phone:
+        existing = query.filter(Customer.phone_primary == phone).first()
+        if existing:
+            return {
+                "duplicate": True,
+                "customer_id": existing.id,
+                "customer_name": f"{existing.first_name} {existing.last_name}",
+                "match": "phone"
+            }
+    
+    return {"duplicate": False, "customer_id": None, "match": None}
+
+
 @router.get("/search", response_model=list[CustomerSearchResult])
 async def search_customers(
     q: str = Query(..., min_length=2),
@@ -115,13 +169,14 @@ async def create_customer(
     current_user: StaffUser = Depends(require_permission(Permission.MANAGE_CUSTOMERS)),
 ):
     """Create a new customer."""
-    # Check for duplicate ID number
-    existing = db.query(Customer).filter(Customer.id_number == data.id_number).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Customer with this ID number already exists",
-        )
+    # Check for duplicate ID number (only if provided)
+    if data.id_number:
+        existing = db.query(Customer).filter(Customer.id_number == data.id_number).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Customer with this ID number already exists",
+            )
     
     # Map schema fields to model fields
     customer_data = {
@@ -198,7 +253,7 @@ async def delete_customer(
     db: Session = Depends(get_db),
     current_user: StaffUser = Depends(require_permission(Permission.MANAGE_CUSTOMERS)),
 ):
-    """Soft-delete a customer (mark as inactive)."""
+    """Hard-delete a customer and all associated data."""
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
     if not customer:
         raise HTTPException(
@@ -206,7 +261,8 @@ async def delete_customer(
             detail="Customer not found",
         )
     
-    customer.is_active = False
+    # Hard delete - remove from database
+    db.delete(customer)
     db.commit()
     
     return None

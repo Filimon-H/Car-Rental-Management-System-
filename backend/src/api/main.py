@@ -68,6 +68,18 @@ def create_app() -> FastAPI:
             },
         )
 
+    @app.exception_handler(Exception)
+    async def general_exception_handler(request: Request, exc: Exception):
+        import traceback
+        logger.error(f"Unhandled exception: {exc}\n{traceback.format_exc()}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error_code": "INTERNAL_ERROR",
+                "detail": str(exc) if settings.is_development else "Internal server error",
+            },
+        )
+
     # Health check endpoint
     @app.get("/health")
     async def health_check():
