@@ -44,6 +44,7 @@ async def change_password(
         raise UnauthorizedError("Current password is incorrect")
 
     current_user.hashed_password = hash_password(password_data.new_password)
+    current_user.token_version += 1  # Revoke all existing tokens after password change
     db.commit()
 
     return {"message": "Password changed successfully"}
@@ -54,7 +55,9 @@ async def logout(
     current_user: CurrentUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> dict:
-    """Log out current user (audit only, client should discard tokens)."""
+    """Log out current user — increments token_version to revoke all existing tokens."""
+    current_user.token_version += 1
+    db.commit()
     audit_service.log_logout(db=db, user_id=current_user.id)
     return {"message": "Logged out successfully"}
 

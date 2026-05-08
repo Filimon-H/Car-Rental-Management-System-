@@ -191,6 +191,9 @@ class TestReturnDeposit:
 
     def test_return_deposit_positive_amount(self, db, agreement):
         """Returned deposit is positive (increases raw balance — money leaves company)."""
+        ledger_service.post_deposit(
+            db=db, agreement_id=agreement.id, amount=Decimal("5000.00"), payment_method=PaymentMethod.CASH
+        )
         entry = ledger_service.return_deposit(
             db=db, agreement_id=agreement.id, amount=Decimal("5000.00")
         )

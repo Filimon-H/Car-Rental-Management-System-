@@ -529,11 +529,11 @@ class TestActivateAgreement:
         db.refresh(vehicle)
         assert vehicle.status == VehicleStatus.RENTED
 
-    def test_activate_already_active_raises(self, db, customer, vehicle):
+    def test_activate_already_active_is_idempotent(self, db, customer, vehicle):
         ag = self._make_pending(db, customer, vehicle)
-        agreement_service.activate_agreement(db, ag.id)
-        with pytest.raises(BusinessError):
-            agreement_service.activate_agreement(db, ag.id)
+        result1 = agreement_service.activate_agreement(db, ag.id)
+        result2 = agreement_service.activate_agreement(db, ag.id)
+        assert result2.status == result1.status  # Does not raise; returns current state
 
     def test_activate_closed_agreement_raises(self, db, customer, vehicle):
         ag = self._make_pending(db, customer, vehicle)

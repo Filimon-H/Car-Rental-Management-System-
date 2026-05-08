@@ -417,6 +417,9 @@ def activate_agreement(
     if not agreement:
         raise NotFoundError("Agreement", agreement_id)
 
+    if agreement.status == AgreementStatus.ACTIVE:
+        return agreement  # Already active — idempotent
+
     if agreement.status not in (AgreementStatus.DRAFT, AgreementStatus.PENDING_PAYMENT):
         raise BusinessError(
             ErrorCode.INVALID_INPUT,
@@ -459,11 +462,18 @@ def extend_agreement(
 
     new_return_datetime = _ensure_utc(new_return_datetime)
     current_return_datetime = _ensure_utc(agreement.expected_return_datetime)
+    now = datetime.now(timezone.utc)
 
     if new_return_datetime <= current_return_datetime:
         raise BusinessError(
             ErrorCode.INVALID_INPUT,
             "New return date must be after current expected return date"
+        )
+
+    if new_return_datetime <= now:
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT,
+            "New return date must be in the future"
         )
     
     # Check availability for extension period

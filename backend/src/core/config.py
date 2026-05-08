@@ -34,7 +34,8 @@ class Settings(BaseSettings):
 
     # App
     app_env: Literal["development", "staging", "production"] = "development"
-    debug: bool = True
+    debug: bool = False
+    sql_echo: bool = False  # Separate flag — never enable in production; use DEBUG=true only locally
     app_name: str = "Car Rental Management System"
     api_prefix: str = "/api"
 

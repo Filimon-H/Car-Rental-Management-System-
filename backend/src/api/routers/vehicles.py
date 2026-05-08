@@ -2,6 +2,8 @@
 
 from typing import Optional
 
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -21,6 +23,27 @@ from src.schemas.vehicle import (
 )
 
 router = APIRouter()
+
+_PHOTO_ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+_PHOTO_ALLOWED_MIMES = {"image/jpeg", "image/png", "image/webp"}
+_PHOTO_MAX_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+def _validate_photo(file: UploadFile) -> None:
+    if not file.filename:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No filename provided")
+    ext = Path(file.filename).suffix.lower()
+    if ext not in _PHOTO_ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Photo type not allowed. Allowed: {', '.join(sorted(_PHOTO_ALLOWED_EXTENSIONS))}",
+        )
+    content_type = file.content_type or "application/octet-stream"
+    if content_type not in _PHOTO_ALLOWED_MIMES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Content type not allowed: {content_type}",
+        )
 
 
 @router.get("", response_model=VehicleListResponse)
@@ -150,8 +173,16 @@ async def upload_vehicle_photos(
         uploads.append(("right", right))
 
     for kind, file in uploads:
+        _validate_photo(file)
+        content = await file.read()
+        if len(content) > _PHOTO_MAX_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Photo too large. Maximum size: {_PHOTO_MAX_SIZE // (1024 * 1024)}MB",
+            )
+        import io
         relative_path = storage_service.save_vehicle_photo(
-            file=file.file,
+            file=io.BytesIO(content),
             original_filename=file.filename or f"{kind}.jpg",
             vehicle_id=vehicle.id,
             photo_kind=kind,
@@ -284,7 +315,29 @@ async def update_vehicle_status(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot change status of a rented vehicle. Close the agreement first.",
         )
-    
+
+    # Cannot manually clear a RESERVED vehicle to available when active/pending bookings exist
+    if (
+        vehicle.status == VehicleStatus.RESERVED
+        and data.status == VehicleStatus.AVAILABLE
+    ):
+        from src.models.agreement import Agreement, AgreementStatus
+        from src.models.agreement_vehicle_segment import AgreementVehicleSegment
+        active_booking = (
+            db.query(AgreementVehicleSegment)
+            .join(Agreement)
+            .filter(
+                AgreementVehicleSegment.vehicle_id == vehicle_id,
+                Agreement.status.in_([AgreementStatus.PENDING_PAYMENT, AgreementStatus.ACTIVE]),
+            )
+            .first()
+        )
+        if active_booking:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Vehicle has an active or pending agreement. Cancel or close the agreement before changing status.",
+            )
+
     vehicle.status = data.status
     if data.notes:
         vehicle.notes = data.notes

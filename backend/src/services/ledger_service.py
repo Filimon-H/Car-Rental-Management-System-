@@ -142,6 +142,10 @@ def return_deposit(
     """Return security deposit (or partial)."""
     if amount <= 0:
         raise BusinessError(ErrorCode.INVALID_INPUT, "Return amount must be positive")
+
+    held = get_deposit_held(db, agreement_id)
+    if amount > held:
+        raise BusinessError(ErrorCode.INVALID_INPUT, "Cannot refund more than deposit held")
     
     entry = LedgerEntry(
         agreement_id=agreement_id,

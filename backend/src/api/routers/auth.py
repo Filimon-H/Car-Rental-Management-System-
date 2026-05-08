@@ -37,10 +37,15 @@ async def login(
     ip_address = get_client_ip(request)
     user_agent = request.headers.get("User-Agent")
 
-    # Find user by username
+    # Find user by username — always run bcrypt to prevent timing-based username enumeration
     user = db.query(StaffUser).filter(StaffUser.username == login_data.username).first()
+    _DUMMY_HASH = "$2b$12$KIXn9YNPMNqAV.tIL3vMiubzQ4GBkN6J.6e5OPYC3v9iJkNJM3hNO"
+    password_ok = verify_password(
+        login_data.password,
+        user.hashed_password if user else _DUMMY_HASH,
+    )
 
-    if user is None or not verify_password(login_data.password, user.hashed_password):
+    if user is None or not password_ok:
         # Log failed attempt
         audit_service.log_login_failed(
             db=db,
@@ -65,8 +70,8 @@ async def login(
         user_agent=user_agent,
     )
 
-    # Create tokens
-    token_data = {"sub": str(user.id), "role": user.role.value}
+    # Create tokens — embed token_version so logout can invalidate all issued tokens
+    token_data = {"sub": str(user.id), "role": user.role.value, "tv": user.token_version}
     access_token = create_access_token(token_data)
     refresh_token = create_refresh_token(token_data)
 
@@ -78,7 +83,9 @@ async def login(
 
 
 @router.post("/refresh", response_model=TokenResponse)
+@limiter.limit("20/minute")
 async def refresh_token(
+    request: Request,
     refresh_data: RefreshRequest,
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenResponse:
@@ -99,8 +106,13 @@ async def refresh_token(
     if user is None or not user.is_active:
         raise UnauthorizedError("User not found or deactivated")
 
+    # Validate token version — reject if user has logged out since this token was issued
+    token_version = payload.get("tv")
+    if token_version is None or int(token_version) != user.token_version:
+        raise UnauthorizedError("Token has been revoked")
+
     # Create new tokens
-    token_data = {"sub": str(user.id), "role": user.role.value}
+    token_data = {"sub": str(user.id), "role": user.role.value, "tv": user.token_version}
     access_token = create_access_token(token_data)
     new_refresh_token = create_refresh_token(token_data)
 

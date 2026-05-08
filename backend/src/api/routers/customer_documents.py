@@ -188,11 +188,12 @@ async def get_document_file(
             detail="File not found"
         )
 
-    # Return file with proper media type
+    # Force download — prevent browser from rendering uploaded files inline (XSS risk)
     return FileResponse(
         path=document.file_path,
         filename=document.file_name,
-        media_type=document.mime_type
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{document.file_name}"'},
     )
 
 

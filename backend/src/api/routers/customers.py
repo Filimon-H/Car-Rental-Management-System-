@@ -253,16 +253,15 @@ async def delete_customer(
     db: Session = Depends(get_db),
     current_user: StaffUser = Depends(require_permission(Permission.MANAGE_CUSTOMERS)),
 ):
-    """Hard-delete a customer and all associated data."""
+    """Soft-delete a customer (mark as inactive to preserve audit trail)."""
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
     if not customer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Customer not found",
         )
-    
-    # Hard delete - remove from database
-    db.delete(customer)
+
+    customer.is_active = False
     db.commit()
-    
+
     return None

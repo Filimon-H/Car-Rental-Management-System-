@@ -189,16 +189,24 @@ async def bulk_upload_customers(
     all_errors = []
     created_ids = []
     successful = 0
-    
+    seen_id_numbers: set[str] = set()  # Track id_numbers within this batch to prevent intra-batch dupes
+
     for idx, row in enumerate(rows, start=2):  # Start at 2 (row 1 is header)
         customer_data, errors = parse_csv_row(row, idx)
-        
+
         if errors:
             all_errors.extend(errors)
             continue
-        
-        # Check for duplicate ID number
+
+        # Check for duplicate ID number — both within this batch and against existing DB records
         if customer_data.id_number:
+            if customer_data.id_number in seen_id_numbers:
+                all_errors.append({
+                    "row": idx,
+                    "field": "id_number",
+                    "message": f"Duplicate ID number '{customer_data.id_number}' in this file (already seen on an earlier row)",
+                })
+                continue
             existing = db.query(Customer).filter(
                 Customer.id_number == customer_data.id_number,
                 Customer.is_active == True
@@ -210,6 +218,7 @@ async def bulk_upload_customers(
                     "message": f"Customer with ID number '{customer_data.id_number}' already exists"
                 })
                 continue
+            seen_id_numbers.add(customer_data.id_number)
         
         # Create customer
         try:

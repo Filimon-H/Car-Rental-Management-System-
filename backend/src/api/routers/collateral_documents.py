@@ -160,7 +160,12 @@ async def get_collateral_document_file(
     if not os.path.exists(document.file_path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
-    return FileResponse(path=document.file_path, filename=document.file_name, media_type=document.mime_type)
+    return FileResponse(
+        path=document.file_path,
+        filename=document.file_name,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{document.file_name}"'},
+    )
 
 
 @router.delete("/{collateral_id}/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)

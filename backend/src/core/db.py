@@ -12,7 +12,7 @@ from src.core.config import settings
 # Configure engine based on database type
 _connect_args = {}
 _engine_kwargs = {
-    "echo": settings.debug,
+    "echo": settings.sql_echo,
 }
 
 if settings.database_url.startswith("sqlite"):

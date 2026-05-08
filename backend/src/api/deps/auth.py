@@ -55,6 +55,11 @@ async def get_current_user(
     if not user.is_active:
         raise UnauthorizedError("User is deactivated")
 
+    # Reject tokens issued before the last logout or deactivation
+    token_version = payload.get("tv")
+    if token_version is None or int(token_version) != user.token_version:
+        raise UnauthorizedError("Token has been revoked")
+
     return user
 
 
