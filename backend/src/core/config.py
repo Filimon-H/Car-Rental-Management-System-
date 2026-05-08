@@ -17,10 +17,10 @@ class Settings(BaseSettings):
     )
 
     # Database
-    database_url: str = "postgresql://postgres:postgres@localhost:5432/car_rental"
+    database_url: str
 
     # JWT
-    jwt_secret: str = "change-me-in-production"
+    jwt_secret: str
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
     jwt_refresh_token_expire_days: int = 7
@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # File Storage
     file_storage_path: str = "../uploads"
     generated_docs_path: str = "../generated_docs"
+
+    # CORS
+    cors_allowed_origins: list[str] = ["http://localhost:3000"]
 
     # App
     app_env: Literal["development", "staging", "production"] = "development"

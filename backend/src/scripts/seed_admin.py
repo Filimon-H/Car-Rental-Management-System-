@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import bcrypt
+import os
 
 from src.core.db import Base, engine, SessionLocal
 from src.models import *  # Import all models to register them
@@ -36,22 +37,26 @@ def seed_admin():
             print("✓ Admin user already exists")
             return
         
+        admin_email = os.environ.get("INITIAL_ADMIN_EMAIL", "admin@carrental.local")
+        admin_password = os.environ.get("INITIAL_ADMIN_PASSWORD")
+        if not admin_password:
+            raise RuntimeError("INITIAL_ADMIN_PASSWORD environment variable is required")
+
         # Create admin user
         admin = StaffUser(
             username="admin",
-            email="admin@carrental.local",
+            email=admin_email,
             full_name="System Administrator",
             role=Role.ADMIN,
             is_active=True,
-            hashed_password=hash_password_direct("admin123"),  # Change this in production!
+            hashed_password=hash_password_direct(admin_password),
         )
-        
+
         db.add(admin)
         db.commit()
         print("✓ Admin user created!")
-        print("  Username: admin")
-        print("  Password: admin123")
-        print("  ⚠️  Change this password in production!")
+        print(f"  Username: admin")
+        print(f"  Email: {admin_email}")
         
     finally:
         db.close()
