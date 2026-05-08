@@ -25,22 +25,36 @@ def _ensure_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
+def _calculate_balance_breakdown(db: Session, agreement_id: int) -> dict:
+    """Single source of truth for agreement balance.
+
+    Returns a dict with total_charges, total_payments, deposit_received,
+    deposit_applied, deposit_returned, deposit_held, and balance_due.
+    All callers must use this instead of implementing their own logic.
+    """
+    total_charges = ledger_service.get_total_charges(db, agreement_id)
+    total_payments = ledger_service.get_total_payments(db, agreement_id)
+    deposit_received = ledger_service.get_deposit_received(db, agreement_id)
+    deposit_applied = ledger_service.get_deposit_applied(db, agreement_id)
+    deposit_returned = ledger_service.get_deposit_returned(db, agreement_id)
+    deposit_held = max(Decimal("0"), deposit_received - deposit_applied - deposit_returned)
+    balance_due = max(Decimal("0"), total_charges - total_payments - deposit_applied)
+    return {
+        "total_charges": total_charges,
+        "total_payments": total_payments,
+        "deposit_received": deposit_received,
+        "deposit_applied": deposit_applied,
+        "deposit_returned": deposit_returned,
+        "deposit_held": deposit_held,
+        "balance_due": balance_due,
+    }
+
+
 def _get_balance_due_before_deposit(db: Session, agreement_id: int) -> Decimal:
     """Outstanding balance before applying held deposit."""
-    entries = ledger_service.get_ledger_entries(db, agreement_id)
-    balance_due = Decimal("0")
-    for entry in entries:
-        if entry.entry_type in (
-            LedgerEntryType.CHARGE,
-            LedgerEntryType.DAMAGE_CHARGE,
-            LedgerEntryType.LATE_FEE,
-        ):
-            balance_due += entry.amount
-        elif entry.entry_type == LedgerEntryType.ADJUSTMENT:
-            balance_due += entry.amount
-        elif entry.entry_type in (LedgerEntryType.PAYMENT, LedgerEntryType.DEPOSIT_APPLIED):
-            balance_due += entry.amount
-    return max(Decimal("0"), balance_due)
+    breakdown = _calculate_balance_breakdown(db, agreement_id)
+    # Balance owed excluding any held deposit offset
+    return max(Decimal("0"), breakdown["total_charges"] - breakdown["total_payments"])
 
 
 def _validate_activation_requirements(db: Session, agreement: Agreement) -> None:
@@ -69,11 +83,12 @@ def generate_agreement_number(db: Session) -> str:
     today = datetime.now(timezone.utc).strftime("%Y%m%d")
     prefix = f"AGR-{today}-"
     
-    # Find the last agreement number for today
+    # Lock last row so concurrent requests can't generate duplicate numbers
     last = (
         db.query(Agreement)
         .filter(Agreement.agreement_number.like(f"{prefix}%"))
         .order_by(Agreement.agreement_number.desc())
+        .with_for_update()
         .first()
     )
     
@@ -121,8 +136,8 @@ def create_standard_agreement(
     if not customer or not customer.is_active:
         raise NotFoundError("Customer", customer_id)
     
-    # Validate vehicle
-    vehicle = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
+    # Validate vehicle — lock row to prevent double-booking under concurrent requests
+    vehicle = db.query(Vehicle).filter(Vehicle.id == vehicle_id).with_for_update().first()
     if not vehicle or not vehicle.is_active:
         raise NotFoundError("Vehicle", vehicle_id)
     
@@ -160,7 +175,7 @@ def create_standard_agreement(
             f"Vehicle {vehicle.plate_number} is not available for the selected dates"
         )
     
-    # Generate agreement number
+    # Generate agreement number — also lock last row to prevent duplicate numbers
     agreement_number = generate_agreement_number(db)
     
     # Create agreement (starts as pending_payment until handover/activation)
@@ -193,10 +208,10 @@ def create_standard_agreement(
         daily_rate=daily_rate,
     )
     db.add(segment)
-    
-    # Update vehicle status
-    vehicle.status = VehicleStatus.RENTED
-    
+
+    # Reserve the vehicle — only move to RENTED when the agreement is activated (handover done)
+    vehicle.status = VehicleStatus.RESERVED
+
     # Calculate and post initial rental charge
     days, charge = billing_service.calculate_rental_charge(
         pickup_datetime, expected_return_datetime, daily_rate
@@ -291,20 +306,32 @@ def close_agreement(
     if notes:
         agreement.notes = (agreement.notes or "") + f"\n[Close] {notes}"
     
-    # Update vehicle segments end mileage
+    # Update vehicle segments end mileage and release vehicle
     for segment in agreement.vehicle_segments:
         if return_mileage and not segment.end_mileage:
             segment.end_mileage = return_mileage
-        
-        # Set vehicle back to available
+
         vehicle = segment.vehicle
-        vehicle.status = VehicleStatus.AVAILABLE
         if return_mileage:
             vehicle.current_mileage = return_mileage
-    
+
+        # Only mark AVAILABLE if no upcoming booking exists for this vehicle
+        has_upcoming = (
+            db.query(AgreementVehicleSegment)
+            .join(Agreement)
+            .filter(
+                AgreementVehicleSegment.vehicle_id == vehicle.id,
+                Agreement.id != agreement_id,
+                Agreement.status.in_([AgreementStatus.PENDING_PAYMENT, AgreementStatus.ACTIVE]),
+                AgreementVehicleSegment.start_datetime > actual_return_datetime,
+            )
+            .first()
+        )
+        vehicle.status = VehicleStatus.RESERVED if has_upcoming else VehicleStatus.AVAILABLE
+
     db.commit()
     db.refresh(agreement)
-    
+
     logger.info(f"Closed agreement {agreement.agreement_number}")
     return agreement
 
@@ -346,9 +373,21 @@ def mark_agreement_returned(
 
     for segment in agreement.vehicle_segments:
         vehicle = segment.vehicle
-        vehicle.status = VehicleStatus.AVAILABLE
         if return_mileage:
             segment.end_mileage = segment.end_mileage or return_mileage
+            vehicle.current_mileage = return_mileage
+        has_upcoming = (
+            db.query(AgreementVehicleSegment)
+            .join(Agreement)
+            .filter(
+                AgreementVehicleSegment.vehicle_id == vehicle.id,
+                Agreement.id != agreement_id,
+                Agreement.status.in_([AgreementStatus.PENDING_PAYMENT, AgreementStatus.ACTIVE]),
+                AgreementVehicleSegment.start_datetime > actual_return_datetime,
+            )
+            .first()
+        )
+        vehicle.status = VehicleStatus.RESERVED if has_upcoming else VehicleStatus.AVAILABLE
             vehicle.current_mileage = return_mileage
 
     db.commit()
@@ -478,54 +517,57 @@ def extend_agreement(
     return agreement
 
 
+def cancel_agreement(
+    db: Session,
+    agreement_id: int,
+    cancelled_by_id: int | None = None,
+    reason: str | None = None,
+) -> Agreement:
+    """Cancel an agreement and release the vehicle back to AVAILABLE."""
+    from sqlalchemy.orm import joinedload
+
+    agreement = (
+        db.query(Agreement)
+        .options(joinedload(Agreement.vehicle_segments).joinedload(AgreementVehicleSegment.vehicle))
+        .filter(Agreement.id == agreement_id)
+        .first()
+    )
+    if not agreement:
+        raise NotFoundError("Agreement", agreement_id)
+
+    if agreement.status not in (AgreementStatus.DRAFT, AgreementStatus.PENDING_PAYMENT):
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT,
+            f"Cannot cancel agreement with status {agreement.status.value}. Only DRAFT or PENDING_PAYMENT agreements can be cancelled.",
+        )
+
+    agreement.status = AgreementStatus.CANCELLED
+    if reason:
+        agreement.notes = (agreement.notes or "") + f"\n[Cancelled] {reason}"
+
+    # Release vehicle back to available
+    for segment in agreement.vehicle_segments:
+        segment.vehicle.status = VehicleStatus.AVAILABLE
+
+    db.commit()
+    db.refresh(agreement)
+
+    logger.info(f"Cancelled agreement {agreement.agreement_number}")
+    return agreement
+
+
 def get_agreement_summary(db: Session, agreement_id: int) -> dict[str, Any]:
     """Get agreement details with balance summary."""
     agreement = db.query(Agreement).filter(Agreement.id == agreement_id).first()
     if not agreement:
         raise NotFoundError("Agreement", agreement_id)
-    
+
+    breakdown = _calculate_balance_breakdown(db, agreement_id)
     entries = ledger_service.get_ledger_entries(db, agreement_id)
-
-    total_charges = Decimal("0")
-    total_payments = Decimal("0")
-    deposit_received = Decimal("0")
-    deposit_applied = Decimal("0")
-    deposit_returned = Decimal("0")
-
-    for e in entries:
-        if e.entry_type in (LedgerEntryType.CHARGE, LedgerEntryType.DAMAGE_CHARGE, LedgerEntryType.LATE_FEE):
-            total_charges += e.amount
-        elif e.entry_type == LedgerEntryType.ADJUSTMENT:
-            if e.amount >= 0:
-                total_charges += e.amount
-            else:
-                total_payments += abs(e.amount)
-        elif e.entry_type == LedgerEntryType.PAYMENT:
-            total_payments += abs(e.amount)
-        elif e.entry_type == LedgerEntryType.DEPOSIT:
-            deposit_received += abs(e.amount)
-        elif e.entry_type == LedgerEntryType.DEPOSIT_APPLIED:
-            deposit_applied += abs(e.amount)
-        elif e.entry_type == LedgerEntryType.DEPOSIT_RETURN:
-            deposit_returned += e.amount
-
-    deposit_held = deposit_received - deposit_applied - deposit_returned
-    if deposit_held < 0:
-        deposit_held = Decimal("0")
-
-    balance_due = total_charges - total_payments - deposit_applied
-    if balance_due < 0:
-        balance_due = Decimal("0")
 
     return {
         "agreement": agreement,
-        "balance": balance_due,
-        "total_charges": total_charges,
-        "total_payments": total_payments,
-        "deposit_received": deposit_received,
-        "deposit_applied": deposit_applied,
-        "deposit_returned": deposit_returned,
-        "deposit_held": deposit_held,
-        "balance_due": balance_due,
         "ledger_entries": entries,
+        **breakdown,
+        "balance": breakdown["balance_due"],
     }

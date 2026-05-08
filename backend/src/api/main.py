@@ -7,6 +7,9 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from src.core.config import settings
 from src.core.db import Base, engine
@@ -48,6 +51,10 @@ def create_app() -> FastAPI:
         redoc_url="/redoc" if settings.is_development else None,
         lifespan=lifespan,
     )
+
+    # Rate limiting
+    app.add_middleware(SlowAPIMiddleware)
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     # CORS middleware
     app.add_middleware(

@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from src.api.deps.auth import get_client_ip, get_user_agent
@@ -20,10 +22,12 @@ from src.models.staff_user import StaffUser
 from src.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
 from src.services import audit_service
 
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("5/minute")
 async def login(
     request: Request,
     login_data: LoginRequest,

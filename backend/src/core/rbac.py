@@ -1,12 +1,9 @@
 """Role-based access control primitives."""
 
 from enum import Enum
-from functools import wraps
-from typing import Callable, TypeVar
+from typing import Callable
 
 from src.core.errors import ForbiddenError
-
-F = TypeVar("F", bound=Callable)
 
 
 class Role(str, Enum):
@@ -77,6 +74,7 @@ ROLE_PERMISSIONS: dict[Role, set[Permission]] = {
         Permission.CLOSE_AGREEMENTS,
         Permission.VIEW_LEDGER,
         Permission.POST_PAYMENTS,
+        Permission.POST_ADJUSTMENTS,  # needed to correct late fees on agreements they close
         Permission.VIEW_BOOKINGS,
         Permission.MANAGE_BOOKINGS,
         Permission.VIEW_DASHBOARD,
@@ -129,18 +127,3 @@ def has_all_permissions(role: Role, permissions: list[Permission]) -> bool:
     return all(has_permission(role, p) for p in permissions)
 
 
-def require_permission(permission: Permission) -> Callable[[F], F]:
-    """Decorator to require a specific permission."""
-
-    def decorator(func: F) -> F:
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            # The actual check happens in the dependency
-            # This decorator is for documentation/typing purposes
-            return func(*args, **kwargs)
-
-        # Store required permission for dependency injection
-        wrapper._required_permission = permission  # type: ignore
-        return wrapper  # type: ignore
-
-    return decorator

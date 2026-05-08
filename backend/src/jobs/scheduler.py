@@ -3,13 +3,14 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
+from src.core.config import settings
 from src.core.logging import get_logger
 from src.core.rbac import Permission
 from src.services.telegram_bot_service import telegram_bot_service
 
 logger = get_logger(__name__)
 
-scheduler = AsyncIOScheduler()
+scheduler = AsyncIOScheduler(timezone=settings.scheduler_timezone)
 
 
 async def due_returns_reminder() -> None:
@@ -22,23 +23,24 @@ async def due_returns_reminder() -> None:
     db = SessionLocal()
     try:
         today = datetime.now(timezone.utc).date()
+        tomorrow = today.replace(day=today.day + 1) if today.day < 28 else (today.replace(month=today.month % 12 + 1, day=1) if today.day >= 28 else today)
+        # Filter at SQL level — don't load all active agreements into Python
+        from src.models.customer import Customer
         agreements = (
             db.query(Agreement)
-            .filter(Agreement.status == AgreementStatus.ACTIVE)
+            .join(Customer, Customer.id == Agreement.customer_id)
+            .filter(
+                Agreement.status == AgreementStatus.ACTIVE,
+                Agreement.expected_return_datetime >= datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc),
+                Agreement.expected_return_datetime < datetime.combine(today, datetime.max.time()).replace(tzinfo=timezone.utc),
+            )
             .all()
         )
-        due_today = []
-        for agreement in agreements:
-            expected_return = agreement.expected_return_datetime
-            if expected_return.tzinfo is None:
-                expected_return = expected_return.replace(tzinfo=timezone.utc)
-            else:
-                expected_return = expected_return.astimezone(timezone.utc)
-            if expected_return.date() == today:
-                due_today.append(
-                    f"{agreement.agreement_number} | {agreement.customer.full_name} | "
-                    f"{expected_return.strftime('%H:%M UTC')}"
-                )
+        due_today = [
+            f"{a.agreement_number} | {a.customer.full_name} | "
+            f"{a.expected_return_datetime.astimezone(timezone.utc).strftime('%H:%M UTC')}"
+            for a in agreements
+        ]
         logger.info("Agreements due today: %s", ", ".join(due_today) if due_today else "none")
         if due_today:
             await telegram_bot_service.send_message_to_permission(
@@ -122,38 +124,52 @@ async def insurance_expiry_check() -> None:
 
 
 async def outstanding_balance_summary() -> None:
-    """Generate outstanding balance summary."""
+    """Generate outstanding balance summary using a single SQL aggregate query."""
     from decimal import Decimal
+    from sqlalchemy import func, case
     from src.core.db import SessionLocal
-    from src.models.agreement import Agreement
-    from src.services import agreement_service
+    from src.models.agreement import Agreement, AgreementStatus
+    from src.models.ledger_entry import LedgerEntry, LedgerEntryType
+    from src.models.customer import Customer
 
     logger.info("Running outstanding balance summary job")
     db = SessionLocal()
     try:
-        total_outstanding = Decimal("0")
-        outstanding_count = 0
-        top_lines: list[str] = []
-        for agreement in db.query(Agreement).all():
-            summary = agreement_service.get_agreement_summary(db, agreement.id)
-            if summary["balance_due"] > 0:
-                outstanding_count += 1
-                total_outstanding += summary["balance_due"]
-                if len(top_lines) < 10:
-                    top_lines.append(
-                        f"{agreement.agreement_number} | {agreement.customer.full_name} | ETB {summary['balance_due']}"
-                    )
-        logger.info(
-            "Outstanding balance summary: agreements=%s total=%s",
-            outstanding_count,
-            total_outstanding,
+        # Compute per-agreement balance in SQL — no Python loops over all rows
+        balance_expr = func.sum(LedgerEntry.amount)
+        rows = (
+            db.query(
+                Agreement.agreement_number,
+                Customer.full_name,
+                balance_expr.label("balance"),
+            )
+            .join(LedgerEntry, LedgerEntry.agreement_id == Agreement.id)
+            .join(Customer, Customer.id == Agreement.customer_id)
+            .filter(Agreement.status.not_in([AgreementStatus.CLOSED, AgreementStatus.CANCELLED]))
+            .group_by(Agreement.id, Agreement.agreement_number, Customer.full_name)
+            .having(balance_expr > 0)
+            .order_by(balance_expr.desc())
+            .limit(10)
+            .all()
         )
-        if outstanding_count > 0:
+
+        # Total outstanding — single aggregate
+        total_outstanding = (
+            db.query(func.coalesce(func.sum(LedgerEntry.amount), 0))
+            .join(Agreement, Agreement.id == LedgerEntry.agreement_id)
+            .filter(Agreement.status.not_in([AgreementStatus.CLOSED, AgreementStatus.CANCELLED]))
+            .scalar()
+        )
+        total_outstanding = Decimal(str(total_outstanding))
+
+        logger.info("Outstanding balance summary: total=%s", total_outstanding)
+        if rows:
+            top_lines = [f"{r.agreement_number} | {r.full_name} | ETB {r.balance:.2f}" for r in rows]
             await telegram_bot_service.send_message_to_permission(
                 Permission.VIEW_LEDGER,
                 "Outstanding balances:\n"
                 + "\n".join(top_lines)
-                + f"\nTotal agreements: {outstanding_count}\nTotal outstanding: ETB {total_outstanding}",
+                + f"\nTotal outstanding: ETB {total_outstanding:.2f}",
             )
     finally:
         db.close()

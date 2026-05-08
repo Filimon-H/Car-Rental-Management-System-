@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     app_name: str = "Car Rental Management System"
     api_prefix: str = "/api"
 
+    # Scheduler
+    scheduler_timezone: str = "Africa/Addis_Ababa"
+
     # Telegram
     telegram_bot_enabled: bool = False
     telegram_bot_token: str | None = None
