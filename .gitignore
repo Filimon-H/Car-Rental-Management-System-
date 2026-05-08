@@ -29,7 +29,7 @@ env/
 
 # Node.js
 node_modules/
-Landing page/nod-car-rent/node_modules/
+landing/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -78,9 +78,15 @@ backend/uploads/
 backend/generated_docs/
 
 # Frontend generated artifacts
+frontend/dist/
 frontend/*.tsbuildinfo
 frontend/vite.config.js
 frontend/vite.config.d.ts
+
+# IDE tool artifacts (Windsurf / Specify)
+.windsurf/
+.specify/
+CarRental/
 
 # Local reports
 security_best_practices_report.md
