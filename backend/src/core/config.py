@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     app_name: str = "Car Rental Management System"
     api_prefix: str = "/api"
 
+    # Telegram
+    telegram_bot_enabled: bool = False
+    telegram_bot_token: str | None = None
+    telegram_bot_username: str | None = None
+    telegram_bot_mode: Literal["polling", "disabled"] = "disabled"
+    telegram_polling_timeout_seconds: int = 20
+    telegram_link_code_expiry_minutes: int = 10
+
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"

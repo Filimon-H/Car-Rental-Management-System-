@@ -34,4 +34,5 @@ export const protectedRoutes: RouteObject[] = [
   // More routes will be added as pages are implemented
 ]
 
-export const routes: RouteObject[] = [...publicRoutes, ...protectedRoutes]
+const routes: RouteObject[] = [...publicRoutes, ...protectedRoutes]
+export default routes

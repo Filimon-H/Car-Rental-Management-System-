@@ -1,9 +1,14 @@
 """Vendor model for wedding car suppliers."""
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, func
 from sqlalchemy.orm import relationship
 
 from src.core.db import Base
+
+if TYPE_CHECKING:
+    from src.models.vendor_payment import VendorPayment
 
 
 class Vendor(Base):
@@ -46,6 +51,7 @@ class Vendor(Base):
 
     # Relationships
     vehicles = relationship("Vehicle", back_populates="vendor", lazy="dynamic")
+    payments = relationship("VendorPayment", back_populates="vendor", lazy="dynamic")
 
     def __repr__(self) -> str:
         return f"<Vendor {self.id}: {self.company_name or self.contact_person}>"

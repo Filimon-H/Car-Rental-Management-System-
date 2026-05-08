@@ -8,14 +8,19 @@ import DashboardPage from '@/pages/DashboardPage'
 import AgreementsPage from '@/pages/AgreementsPage'
 import AgreementDetailPage from '@/pages/AgreementDetailPage'
 import AgreementCreatePage from '@/pages/AgreementCreatePage'
+import AgreementPrintPage from '@/pages/AgreementPrintPage'
 import CustomersPage from '@/pages/CustomersPage'
 import CustomerCreatePage from '@/pages/CustomerCreatePage'
 import CustomerEditPage from '@/pages/CustomerEditPage'
 import CustomerDetailPage from '@/pages/CustomerDetailPage'
 import CollateralCreatePage from '@/pages/CollateralCreatePage'
 import CollateralEditPage from '@/pages/CollateralEditPage'
+import CollateralDetailPage from '@/pages/CollateralDetailPage'
+import CollateralNewPage from '@/pages/CollateralNewPage'
 import VendorsPage from '@/pages/VendorsPage'
 import VehiclesPage from '@/pages/VehiclesPage'
+import VehicleUpsertPage from '@/pages/VehicleUpsertPage'
+import VehicleDetailPage from '@/pages/VehicleDetailPage'
 import DriversPage from '@/pages/DriversPage'
 import CollateralsPage from '@/pages/CollateralsPage'
 import WeddingAgreementsPage from '@/pages/WeddingAgreementsPage'
@@ -24,6 +29,8 @@ import VendorWeddingAgreementsPage from '@/pages/VendorWeddingAgreementsPage'
 import LedgerPage from '@/pages/LedgerPage'
 import InspectionTemplatesPage from '@/pages/InspectionTemplatesPage'
 import InspectionCreatePage from '@/pages/InspectionCreatePage'
+import AdminLookupsPage from '@/pages/AdminLookupsPage'
+import { ProtectedRoute, UnauthorizedPage } from '@/routes/guards'
 
 function App() {
   return (
@@ -31,6 +38,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
         
         {/* Main app with layout */}
         <Route element={<Layout />}>
@@ -40,6 +48,7 @@ function App() {
           <Route path="/agreements" element={<AgreementsPage />} />
           <Route path="/agreements/new" element={<AgreementCreatePage />} />
           <Route path="/agreements/:id" element={<AgreementDetailPage />} />
+          <Route path="/agreements/:id/print" element={<AgreementPrintPage />} />
           <Route path="/agreements/wedding" element={<WeddingAgreementsPage />} />
           <Route path="/agreements/wedding/new" element={<WeddingAgreementCreatePage />} />
           <Route path="/agreements/vendor-wedding" element={<VendorWeddingAgreementsPage />} />
@@ -50,11 +59,18 @@ function App() {
           <Route path="/customers/:customerId" element={<CustomerDetailPage />} />
           <Route path="/customers/:customerId/edit" element={<CustomerEditPage />} />
           <Route path="/customers/:customerId/collaterals/new" element={<CollateralCreatePage />} />
+          <Route path="/customers/:customerId/collaterals/:collateralId" element={<CollateralDetailPage />} />
           <Route path="/customers/:customerId/collaterals/:collateralId/edit" element={<CollateralEditPage />} />
           <Route path="/vendors" element={<VendorsPage />} />
           <Route path="/vehicles" element={<VehiclesPage />} />
+          <Route path="/vehicles/new" element={<VehicleUpsertPage />} />
+          <Route path="/vehicles/:vehicleId" element={<VehicleDetailPage />} />
+          <Route path="/vehicles/:vehicleId/edit" element={<VehicleUpsertPage />} />
           <Route path="/drivers" element={<DriversPage />} />
           <Route path="/collaterals" element={<CollateralsPage />} />
+          <Route path="/collaterals/new" element={<CollateralNewPage />} />
+          <Route path="/collaterals/:collateralId" element={<CollateralDetailPage />} />
+          <Route path="/collaterals/:collateralId/edit" element={<CollateralEditPage />} />
           
           {/* Inspections */}
           <Route path="/inspections" element={<InspectionTemplatesPage />} />
@@ -62,6 +78,16 @@ function App() {
           
           {/* Ledger */}
           <Route path="/ledger" element={<LedgerPage />} />
+
+          {/* Admin */}
+          <Route
+            path="/admin/lookups"
+            element={
+              <ProtectedRoute requiredRoles={["admin"]}>
+                <AdminLookupsPage />
+              </ProtectedRoute>
+            }
+          />
         </Route>
         
         <Route path="*" element={<div className="flex h-screen items-center justify-center">404 - Not Found</div>} />

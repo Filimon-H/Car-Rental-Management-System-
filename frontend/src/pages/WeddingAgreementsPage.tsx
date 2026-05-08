@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Plus, Search, Heart } from 'lucide-react'
-import { agreementsService, Agreement } from '@/services/agreements'
+import { agreementsService } from '@/services/agreements'
 
 const statusColors: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-800',

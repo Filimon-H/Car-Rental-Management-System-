@@ -57,7 +57,8 @@ class PostAdjustmentRequest(BaseModel):
 
 class PostDepositRequest(BaseModel):
     amount: Decimal = Field(..., gt=0)
-    description: str = "Security deposit"
+    payment_method: PaymentMethod
+    description: str = "Security deposit received"
     notes: Optional[str] = None
 
 
@@ -192,6 +193,7 @@ async def post_deposit(
         db=db,
         agreement_id=agreement_id,
         amount=data.amount,
+        payment_method=data.payment_method,
         description=data.description,
         notes=data.notes,
         created_by_id=current_user.id,

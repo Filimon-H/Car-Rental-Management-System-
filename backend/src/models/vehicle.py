@@ -25,6 +25,19 @@ class VehicleStatus(str, PyEnum):
     INACTIVE = "inactive"
 
 
+class VehicleType(str, PyEnum):
+    """Compatibility enum for common vehicle type values."""
+
+    SEDAN = "sedan"
+    SUV = "suv"
+    HATCHBACK = "hatchback"
+    VAN = "van"
+    PICKUP = "pickup"
+    BUS = "bus"
+    TRUCK = "truck"
+    OTHER = "other"
+
+
 class Vehicle(Base):
     """Vehicle model for fleet management."""
 

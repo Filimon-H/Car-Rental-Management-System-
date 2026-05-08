@@ -1,15 +1,15 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Edit, Trash2, Users, Building2 } from 'lucide-react'
-import { collateralsService, CollateralPerson, CreateCollateralData } from '@/services/collaterals'
-import { customersService, Customer } from '@/services/customers'
+import { Plus, Search, Edit, Trash2, Users, AlertTriangle, X } from 'lucide-react'
+import { collateralsService, CollateralPerson } from '@/services/collaterals'
 
 export default function CollateralsPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
-  const [showModal, setShowModal] = useState(false)
-  const [editingCollateral, setEditingCollateral] = useState<CollateralPerson | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<CollateralPerson | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['collaterals', page, searchTerm],
@@ -21,14 +21,31 @@ export default function CollateralsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['collaterals'] }),
   })
 
+  const handleDeleteClick = (collateral: CollateralPerson, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setDeleteConfirm(collateral)
+  }
+
+  const handleConfirmDelete = () => {
+    if (deleteConfirm) {
+      deleteMutation.mutate(deleteConfirm.id, {
+        onSuccess: () => {
+          setDeleteConfirm(null)
+        },
+        onError: (error: unknown) => {
+          const err = error as { response?: { data?: { detail?: string } } }
+          alert(err?.response?.data?.detail || 'Failed to delete collateral person')
+        },
+      })
+    }
+  }
+
   const handleEdit = (collateral: CollateralPerson) => {
-    setEditingCollateral(collateral)
-    setShowModal(true)
+    navigate(`/collaterals/${collateral.id}/edit`)
   }
 
   const handleAdd = () => {
-    setEditingCollateral(null)
-    setShowModal(true)
+    navigate('/collaterals/new')
   }
 
   return (
@@ -71,7 +88,11 @@ export default function CollateralsPage() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {data?.items.map((collateral) => (
-                <tr key={collateral.id} className="hover:bg-gray-50">
+                <tr
+                  key={collateral.id}
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => navigate(`/collaterals/${collateral.id}`)}
+                >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
@@ -101,10 +122,19 @@ export default function CollateralsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button onClick={() => handleEdit(collateral)} className="p-1 text-gray-400 hover:text-primary">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleEdit(collateral)
+                      }}
+                      className="p-1 text-gray-400 hover:text-primary"
+                    >
                       <Edit className="h-4 w-4" />
                     </button>
-                    <button onClick={() => deleteMutation.mutate(collateral.id)} className="p-1 text-gray-400 hover:text-red-500">
+                    <button
+                      onClick={(e) => handleDeleteClick(collateral, e)}
+                      className="p-1 text-gray-400 hover:text-red-500"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </td>
@@ -112,6 +142,44 @@ export default function CollateralsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">Delete Collateral Person</h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  Are you sure you want to permanently delete{' '}
+                  <strong>{deleteConfirm.first_name} {deleteConfirm.last_name}</strong>? This action cannot be undone.
+                </p>
+              </div>
+              <button onClick={() => setDeleteConfirm(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleteMutation.isPending}
+                className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -129,233 +197,6 @@ export default function CollateralsPage() {
         </div>
       )}
 
-      {showModal && (
-        <CollateralModal
-          collateral={editingCollateral}
-          onClose={() => setShowModal(false)}
-          onSuccess={() => { setShowModal(false); queryClient.invalidateQueries({ queryKey: ['collaterals'] }) }}
-        />
-      )}
-    </div>
-  )
-}
-
-function CollateralModal({ collateral, onClose, onSuccess }: { collateral: CollateralPerson | null; onClose: () => void; onSuccess: () => void }) {
-  const [step, setStep] = useState<'customer' | 'details'>(collateral ? 'details' : 'customer')
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-  const [customerSearch, setCustomerSearch] = useState('')
-  
-  const [formData, setFormData] = useState<CreateCollateralData>({
-    customer_id: collateral?.customer_id || 0,
-    first_name: collateral?.first_name || '',
-    last_name: collateral?.last_name || '',
-    phone_primary: collateral?.phone_primary || '',
-    phone_secondary: collateral?.phone_secondary || '',
-    email: collateral?.email || '',
-    relationship_to_customer: collateral?.relationship_to_customer || '',
-    id_type: collateral?.id_type || 'national_id',
-    id_number: collateral?.id_number || '',
-    house_number: collateral?.house_number || '',
-    wereda: collateral?.wereda || '',
-    subcity: collateral?.subcity || '',
-    city: collateral?.city || '',
-    occupation: collateral?.occupation || '',
-    employer_name: collateral?.employer_name || '',
-    employer_phone: collateral?.employer_phone || '',
-    notes: collateral?.notes || '',
-  })
-
-  // Fetch customers for selection
-  const { data: customersData } = useQuery({
-    queryKey: ['customers-search', customerSearch],
-    queryFn: () => customersService.list({ search: customerSearch || undefined, page_size: 50 }),
-  })
-
-  const createMutation = useMutation({ 
-    mutationFn: collateralsService.create, 
-    onSuccess,
-    onError: (error: any) => alert(error?.response?.data?.detail || 'Failed to create collateral person')
-  })
-  const updateMutation = useMutation({ 
-    mutationFn: (data: CreateCollateralData) => collateralsService.update(collateral!.id, data), 
-    onSuccess,
-    onError: (error: any) => alert(error?.response?.data?.detail || 'Failed to update collateral person')
-  })
-
-  const handleCustomerSelect = (customer: Customer) => {
-    setSelectedCustomer(customer)
-    setFormData({ ...formData, customer_id: customer.id })
-    setStep('details')
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (collateral) {
-      updateMutation.mutate(formData)
-    } else {
-      createMutation.mutate(formData)
-    }
-  }
-
-  const isLoading = createMutation.isPending || updateMutation.isPending
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6">
-        <h2 className="mb-4 text-xl font-bold">{collateral ? 'Edit Collateral Person' : 'Add Collateral Person'}</h2>
-        
-        {/* Step 1: Select Customer */}
-        {step === 'customer' && !collateral && (
-          <div className="space-y-4">
-            <p className="text-gray-600">First, select the customer this collateral person is for:</p>
-            <input
-              type="text"
-              placeholder="Search customers..."
-              value={customerSearch}
-              onChange={(e) => setCustomerSearch(e.target.value)}
-              className="w-full rounded-lg border px-3 py-2"
-            />
-            <div className="max-h-60 overflow-y-auto border rounded-lg">
-              {customersData?.items.map((customer) => (
-                <div
-                  key={customer.id}
-                  onClick={() => handleCustomerSelect(customer)}
-                  className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                >
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-gray-400" />
-                    <div>
-                      <div className="font-medium">{customer.first_name} {customer.last_name}</div>
-                      <div className="text-sm text-gray-500">{customer.phone_primary}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {customersData?.items.length === 0 && (
-                <div className="p-4 text-center text-gray-500">No customers found.</div>
-              )}
-            </div>
-            <div className="flex justify-end gap-3 pt-4">
-              <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 hover:bg-gray-50">Cancel</button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Collateral Details */}
-        {(step === 'details' || collateral) && (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Selected Customer Info */}
-            {(selectedCustomer || collateral?.customer) && (
-              <div className="p-3 bg-orange-50 rounded-lg mb-4">
-                <div className="text-sm font-medium text-orange-800">Customer:</div>
-                <div className="text-orange-900">
-                  {selectedCustomer ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}` : 
-                   collateral?.customer ? `${collateral.customer.first_name} ${collateral.customer.last_name}` : ''}
-                  {' • '}{selectedCustomer?.phone_primary || collateral?.customer?.phone_primary}
-                </div>
-                {!collateral && (
-                  <button type="button" onClick={() => setStep('customer')} className="text-sm text-orange-600 hover:underline mt-1">
-                    Change customer
-                  </button>
-                )}
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium">First Name *</label>
-                <input type="text" value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} required className="w-full rounded-lg border px-3 py-2" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">Last Name *</label>
-                <input type="text" value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} required className="w-full rounded-lg border px-3 py-2" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium">Primary Phone *</label>
-                <input type="tel" value={formData.phone_primary} onChange={e => setFormData({...formData, phone_primary: e.target.value})} required className="w-full rounded-lg border px-3 py-2" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">Relationship to Customer</label>
-                <select value={formData.relationship_to_customer} onChange={e => setFormData({...formData, relationship_to_customer: e.target.value})} className="w-full rounded-lg border px-3 py-2">
-                  <option value="">Select...</option>
-                  <option value="parent">Parent</option>
-                  <option value="spouse">Spouse</option>
-                  <option value="sibling">Sibling</option>
-                  <option value="friend">Friend</option>
-                  <option value="employer">Employer</option>
-                  <option value="colleague">Colleague</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Email</label>
-              <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium">ID Type *</label>
-                <select value={formData.id_type} onChange={e => setFormData({...formData, id_type: e.target.value})} className="w-full rounded-lg border px-3 py-2">
-                  <option value="national_id">National ID</option>
-                  <option value="passport">Passport</option>
-                  <option value="kebele_id">Kebele ID</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">ID Number *</label>
-                <input type="text" value={formData.id_number} onChange={e => setFormData({...formData, id_number: e.target.value})} required className="w-full rounded-lg border px-3 py-2" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium">Occupation</label>
-                <input type="text" value={formData.occupation} onChange={e => setFormData({...formData, occupation: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">Employer Name</label>
-                <input type="text" value={formData.employer_name} onChange={e => setFormData({...formData, employer_name: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium">House Number</label>
-                <input type="text" value={formData.house_number} onChange={e => setFormData({...formData, house_number: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">Wereda</label>
-                <input type="text" value={formData.wereda} onChange={e => setFormData({...formData, wereda: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium">Subcity</label>
-                <select value={formData.subcity} onChange={e => setFormData({...formData, subcity: e.target.value})} className="w-full rounded-lg border px-3 py-2">
-                  <option value="">Select Subcity</option>
-                  <option value="Bole">Bole</option>
-                  <option value="Lideta">Lideta</option>
-                  <option value="Yeka">Yeka</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">City</label>
-                <input type="text" value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Notes</label>
-              <textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} rows={2} className="w-full rounded-lg border px-3 py-2" />
-            </div>
-            <div className="flex justify-end gap-3 pt-4">
-              <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 hover:bg-gray-50">Cancel</button>
-              <button type="submit" disabled={isLoading || !formData.customer_id} className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-50">
-                {isLoading ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
     </div>
   )
 }

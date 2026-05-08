@@ -73,6 +73,21 @@ uploads/*
 !uploads/.gitkeep
 generated_docs/*
 !generated_docs/.gitkeep
+backend/uploads/
+backend/generated_docs/
+
+# Frontend generated artifacts
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+# Local reports
+security_best_practices_report.md
+
+# Stray test/temp images in backend
+backend/*.png
+backend/*.jpg
+backend/*.jpeg
 
 # Secrets
 *.pem

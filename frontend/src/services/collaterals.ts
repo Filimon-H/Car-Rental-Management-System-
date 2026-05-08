@@ -62,6 +62,7 @@ export interface CreateCollateralData {
 }
 
 export interface CollateralSearchParams {
+  [key: string]: string | number | boolean | undefined
   page?: number
   page_size?: number
   search?: string

@@ -4,13 +4,16 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.core.config import settings
+from src.core.db import Base, engine
 from src.core.errors import AppException
 from src.core.logging import get_logger, set_correlation_id, setup_logging
 from src.jobs.scheduler import setup_scheduler, shutdown_scheduler, start_scheduler
+from src.services.telegram_bot_service import telegram_bot_service
 
 logger = get_logger(__name__)
 
@@ -21,10 +24,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup
     setup_logging()
     logger.info(f"Starting {settings.app_name}")
+
+    if settings.database_url.startswith("sqlite") and settings.is_development:
+        import src.models  # noqa: F401
+        Base.metadata.create_all(bind=engine)
+
     setup_scheduler()
     start_scheduler()
+    await telegram_bot_service.start()
     yield
     # Shutdown
+    await telegram_bot_service.stop()
     shutdown_scheduler()
     logger.info(f"Shutting down {settings.app_name}")
 
@@ -89,6 +99,9 @@ def create_app() -> FastAPI:
     from src.api.routers import register_routers
 
     register_routers(app)
+
+    # Serve uploaded files (vehicle photos, etc.)
+    app.mount(f"{settings.api_prefix}/uploads", StaticFiles(directory=settings.file_storage_path), name="uploads")
 
     return app
 

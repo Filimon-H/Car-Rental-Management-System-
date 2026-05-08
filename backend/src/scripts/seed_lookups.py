@@ -63,6 +63,22 @@ DEFAULT_LOOKUPS = {
         {"value": "toyota_yaris", "label": "Toyota Yaris"},
         {"value": "hyundai_accent", "label": "Hyundai Accent"},
     ],
+    "plate_city": [
+        {"value": "AA", "label": "AA"},
+        {"value": "Oromiya", "label": "Oromiya"},
+        {"value": "Sheger city", "label": "Sheger city"},
+    ],
+    "make": [
+        {"value": "Suzuki", "label": "Suzuki"},
+        {"value": "Toyota", "label": "Toyota"},
+        {"value": "Honda", "label": "Honda"},
+        {"value": "Ford", "label": "Ford"},
+        {"value": "Chevrolet", "label": "Chevrolet"},
+        {"value": "BMW", "label": "BMW"},
+        {"value": "Mercedes-Benz", "label": "Mercedes-Benz"},
+        {"value": "Tesla", "label": "Tesla"},
+        {"value": "Nissan", "label": "Nissan"},
+    ],
 }
 
 

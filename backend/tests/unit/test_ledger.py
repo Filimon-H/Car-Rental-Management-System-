@@ -15,10 +15,12 @@ from src.services import ledger_service
 def test_customer(db: Session) -> Customer:
     """Create a test customer."""
     customer = Customer(
-        full_name="Test Customer",
+        first_name="Test",
+        last_name="Customer",
         phone_primary="0911000000",
         id_type="passport",
         id_number="AB123456",
+        is_active=True,
     )
     db.add(customer)
     db.commit()

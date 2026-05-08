@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -23,19 +23,15 @@ export default function AgreementCreatePage() {
   const [customerName, setCustomerName] = useState('')
   const [showCustomerLookup, setShowCustomerLookup] = useState(false)
 
-  // Fetch prefilled customer info if customer_id is in URL
-  const { data: prefilledCustomer } = useQuery({
-    queryKey: ['customer', prefilledCustomerId],
-    queryFn: () => customersService.getById(parseInt(prefilledCustomerId!, 10)),
-    enabled: !!prefilledCustomerId,
+  const { data: selectedCustomer } = useQuery({
+    queryKey: ['customer', customerId],
+    queryFn: () => customersService.getById(customerId as number),
+    enabled: !!customerId,
   })
 
-  // Set customer name when prefilled customer is loaded
   useEffect(() => {
-    if (prefilledCustomer) {
-      setCustomerName(prefilledCustomer.full_name)
-    }
-  }, [prefilledCustomer])
+    if (selectedCustomer?.full_name) setCustomerName(selectedCustomer.full_name)
+  }, [selectedCustomer])
   const [vehicleId, setVehicleId] = useState<number | null>(null)
   const [selectedVehicle, setSelectedVehicle] = useState<AvailableVehicle | null>(null)
   const [driverId, setDriverId] = useState<number | null>(null)
@@ -83,14 +79,30 @@ export default function AgreementCreatePage() {
     enabled: !!customerId,
   })
 
+  useEffect(() => {
+    if (!customerId) return
+    if (collateralPersonId) return
+    const first = collateralsData?.items?.[0]
+    if (first) {
+      setCollateralPersonId(first.id)
+      setSelectedCollateral(first)
+    }
+  }, [customerId, collateralPersonId, collateralsData])
+
+  const insuranceExpiryLabel = useMemo(() => {
+    if (!selectedVehicle?.insurance_expiry) return '—'
+    return selectedVehicle.insurance_expiry.split('T')[0]
+  }, [selectedVehicle?.insurance_expiry])
+
   const createMutation = useMutation({
     mutationFn: agreementsService.create,
     onSuccess: (agreement) => {
       navigate(`/agreements/${agreement.id}`)
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error('Agreement creation error:', error)
-      alert(error?.response?.data?.detail || 'Failed to create agreement')
+      const err = error as { response?: { data?: { detail?: string } } }
+      alert(err?.response?.data?.detail || t('agreementCreate.errorCreating'))
     },
   })
 
@@ -117,19 +129,19 @@ export default function AgreementCreatePage() {
     e.preventDefault()
 
     if (!customerId || !vehicleId || !pickupDate || !returnDate || !dailyRate) {
-      alert('Please fill in all required fields')
+      alert(t('agreementCreate.fillRequiredFields'))
       return
     }
 
     // Validate driver for driver agreements
     if (agreementType === 'customer_vehicle_driver' && !driverId) {
-      alert('Please select a driver for this agreement type')
+      alert(t('agreementCreate.selectDriverError'))
       return
     }
 
     // Validate collateral for customer agreements
     if (!collateralPersonId) {
-      alert('Please select a collateral person')
+      alert(t('agreementCreate.selectCollateralError'))
       return
     }
 
@@ -164,7 +176,7 @@ export default function AgreementCreatePage() {
         className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-800"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to Agreements
+        {t('agreementCreate.backToAgreements')}
       </button>
 
       <h1 className="mb-6 text-2xl font-bold text-gray-800">{t('agreements.createNew')}</h1>
@@ -174,7 +186,7 @@ export default function AgreementCreatePage() {
         <div className="space-y-6">
           {/* Agreement Type */}
           <div className="rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-semibold">Agreement Type</h2>
+            <h2 className="mb-4 text-lg font-semibold">{t('agreementCreate.agreementType')}</h2>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -185,9 +197,9 @@ export default function AgreementCreatePage() {
               >
                 <div className="flex items-center gap-2">
                   <Car className="h-5 w-5 text-primary" />
-                  <span className="font-medium">Vehicle Only</span>
+                  <span className="font-medium">{t('agreementCreate.vehicleOnly')}</span>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">Customer rents vehicle</p>
+                <p className="mt-1 text-xs text-gray-500">{t('agreementCreate.vehicleOnlyDesc')}</p>
               </button>
               <button
                 type="button"
@@ -198,21 +210,21 @@ export default function AgreementCreatePage() {
               >
                 <div className="flex items-center gap-2">
                   <UserCheck className="h-5 w-5 text-primary" />
-                  <span className="font-medium">With Driver</span>
+                  <span className="font-medium">{t('agreementCreate.withDriver')}</span>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">Vehicle + driver service</p>
+                <p className="mt-1 text-xs text-gray-500">{t('agreementCreate.withDriverDesc')}</p>
               </button>
             </div>
           </div>
 
           {/* Customer */}
           <div className="rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-semibold">Customer</h2>
+            <h2 className="mb-4 text-lg font-semibold">{t('agreementCreate.customer')}</h2>
             
             <div className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Customer *
+                  {t('agreementCreate.customerRequired')}
                 </label>
                 {customerId && customerName ? (
                   <div className="flex items-center justify-between rounded-lg border border-gray-300 px-3 py-2">
@@ -225,7 +237,7 @@ export default function AgreementCreatePage() {
                       onClick={() => { setShowCustomerLookup(true); setCollateralPersonId(null); setSelectedCollateral(null); }}
                       className="text-sm text-primary hover:underline"
                     >
-                      Change
+                      {t('agreementCreate.change')}
                     </button>
                   </div>
                 ) : (
@@ -235,10 +247,21 @@ export default function AgreementCreatePage() {
                     className="flex w-full items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-3 text-gray-500 hover:border-primary hover:text-primary"
                   >
                     <Search className="h-5 w-5" />
-                    Search and select customer...
+                    {t('agreementCreate.searchCustomer')}
                   </button>
                 )}
               </div>
+
+              {selectedCustomer && (
+                <div className="rounded-lg bg-gray-50 p-4 text-sm text-gray-700">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    <div className="flex justify-between"><span className="text-gray-500">{t('agreementCreate.phone')}</span><span className="font-medium">{selectedCustomer.phone_primary || '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t('agreementCreate.id')}</span><span className="font-medium">{selectedCustomer.id_number || '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t('agreementCreate.city')}</span><span className="font-medium">{selectedCustomer.city || '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t('agreementCreate.emergency')}</span><span className="font-medium">{selectedCustomer.emergency_contact_phone || '—'}</span></div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -247,7 +270,7 @@ export default function AgreementCreatePage() {
             <div className="rounded-lg bg-white p-6 shadow">
               <h2 className="mb-4 text-lg font-semibold flex items-center gap-2">
                 <Shield className="h-5 w-5 text-orange-500" />
-                Collateral Person *
+                {t('agreementCreate.collateralPersonRequired')}
               </h2>
               {collateralsData?.items && collateralsData.items.length > 0 ? (
                 <div className="space-y-2">
@@ -261,15 +284,26 @@ export default function AgreementCreatePage() {
                     >
                       <div className="font-medium">{collateral.first_name} {collateral.last_name}</div>
                       <div className="text-sm text-gray-500">
-                        {collateral.relationship_to_customer || 'Collateral'} • {collateral.phone_primary}
+                        {collateral.relationship_to_customer || t('agreementCreate.collateral')} • {collateral.phone_primary}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="rounded-lg bg-yellow-50 p-4 text-center text-yellow-700">
-                  No collateral persons found for this customer. <br />
-                  <a href="/collaterals" className="font-medium underline">Add a collateral person first</a>
+                  {t('agreementCreate.noCollateralFound')} <br />
+                  <a href="/collaterals" className="font-medium underline">{t('agreementCreate.addCollateralFirst')}</a>
+                </div>
+              )}
+
+              {selectedCollateral && (
+                <div className="mt-4 rounded-lg bg-orange-50 p-4 text-sm text-gray-700">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    <div className="flex justify-between"><span className="text-gray-500">{t('agreementCreate.phone')}</span><span className="font-medium">{selectedCollateral.phone_primary || '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t('agreementCreate.idType')}</span><span className="font-medium">{selectedCollateral.id_type || '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t('agreementCreate.idNumber')}</span><span className="font-medium">{selectedCollateral.id_number || '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t('agreementCreate.relationship')}</span><span className="font-medium">{selectedCollateral.relationship_to_customer || '—'}</span></div>
+                  </div>
                 </div>
               )}
             </div>
@@ -280,7 +314,7 @@ export default function AgreementCreatePage() {
             <div className="rounded-lg bg-white p-6 shadow">
               <h2 className="mb-4 text-lg font-semibold flex items-center gap-2">
                 <UserCheck className="h-5 w-5 text-blue-500" />
-                Select Driver *
+                {t('agreementCreate.selectDriverRequired')}
               </h2>
               {driversData?.items && driversData.items.length > 0 ? (
                 <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -294,26 +328,26 @@ export default function AgreementCreatePage() {
                     >
                       <div className="font-medium">{driver.first_name} {driver.last_name}</div>
                       <div className="text-sm text-gray-500">
-                        License: {driver.license_number} • {driver.phone_primary}
+                        {t('agreementCreate.license')}: {driver.license_number} • {driver.phone_primary}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="rounded-lg bg-yellow-50 p-4 text-center text-yellow-700">
-                  No active drivers found. <br />
-                  <a href="/drivers" className="font-medium underline">Add a driver first</a>
+                  {t('agreementCreate.noActiveDrivers')} <br />
+                  <a href="/drivers" className="font-medium underline">{t('agreementCreate.addDriverFirst')}</a>
                 </div>
               )}
             </div>
           )}
 
           <div className="rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-semibold">Rental Period</h2>
+            <h2 className="mb-4 text-lg font-semibold">{t('agreementCreate.rentalPeriod')}</h2>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Pickup Date *
+                  {t('agreementCreate.pickupDateRequired')}
                 </label>
                 <input
                   type="date"
@@ -325,7 +359,7 @@ export default function AgreementCreatePage() {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Pickup Time
+                  {t('agreementCreate.pickupTime')}
                 </label>
                 <input
                   type="time"
@@ -336,7 +370,7 @@ export default function AgreementCreatePage() {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Return Date *
+                  {t('agreementCreate.returnDateRequired')}
                 </label>
                 <input
                   type="date"
@@ -348,7 +382,7 @@ export default function AgreementCreatePage() {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Return Time
+                  {t('agreementCreate.returnTime')}
                 </label>
                 <input
                   type="time"
@@ -361,11 +395,11 @@ export default function AgreementCreatePage() {
           </div>
 
           <div className="rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-semibold">Pricing</h2>
+            <h2 className="mb-4 text-lg font-semibold">{t('agreementCreate.pricing')}</h2>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Daily Rate (ETB) *
+                  {t('agreementCreate.dailyRateRequired')}
                 </label>
                 <input
                   type="number"
@@ -378,7 +412,7 @@ export default function AgreementCreatePage() {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Deposit (ETB)
+                  {t('agreementCreate.deposit')}
                 </label>
                 <input
                   type="number"
@@ -390,7 +424,7 @@ export default function AgreementCreatePage() {
               </div>
               <div className="col-span-2">
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Advance Payment (ETB)
+                  {t('agreementCreate.advancePayment')}
                 </label>
                 <input
                   type="number"
@@ -398,42 +432,42 @@ export default function AgreementCreatePage() {
                   value={advancePayment}
                   onChange={(e) => setAdvancePayment(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                  placeholder="Optional advance payment"
+                  placeholder={t('agreementCreate.optionalAdvance')}
                 />
               </div>
             </div>
           </div>
 
           <div className="rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-semibold">Locations & Notes</h2>
+            <h2 className="mb-4 text-lg font-semibold">{t('agreementCreate.locationsAndNotes')}</h2>
             <div className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Pickup Location
+                  {t('agreementCreate.pickupLocation')}
                 </label>
                 <input
                   type="text"
                   value={pickupLocation}
                   onChange={(e) => setPickupLocation(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                  placeholder="e.g., Office"
+                  placeholder={t('agreementCreate.egOffice')}
                 />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Return Location
+                  {t('agreementCreate.returnLocation')}
                 </label>
                 <input
                   type="text"
                   value={returnLocation}
                   onChange={(e) => setReturnLocation(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                  placeholder="e.g., Office"
+                  placeholder={t('agreementCreate.egOffice')}
                 />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Notes
+                  {t('agreementCreate.notes')}
                 </label>
                 <textarea
                   value={notes}
@@ -449,11 +483,11 @@ export default function AgreementCreatePage() {
         {/* Right Column - Vehicle Selection */}
         <div className="space-y-6">
           <div className="rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-semibold">Select Vehicle</h2>
+            <h2 className="mb-4 text-lg font-semibold">{t('agreementCreate.selectVehicle')}</h2>
 
             {!canCheckAvailability ? (
               <div className="rounded-lg bg-gray-50 p-8 text-center text-gray-500">
-                Select pickup and return dates to see available vehicles
+                {t('agreementCreate.selectDatesFirst')}
               </div>
             ) : loadingVehicles ? (
               <div className="flex h-32 items-center justify-center">
@@ -466,7 +500,7 @@ export default function AgreementCreatePage() {
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search by make, model, or plate..."
+                    placeholder={t('agreementCreate.searchVehicle')}
                     value={vehicleSearch}
                     onChange={(e) => setVehicleSearch(e.target.value)}
                     className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-sm"
@@ -477,6 +511,7 @@ export default function AgreementCreatePage() {
                     if (!vehicleSearch.trim()) return true
                     const search = vehicleSearch.toLowerCase()
                     return (
+                      v.vendor_name?.toLowerCase().includes(search) ||
                       v.make.toLowerCase().includes(search) ||
                       v.model.toLowerCase().includes(search) ||
                       v.plate_number.toLowerCase().includes(search) ||
@@ -500,14 +535,14 @@ export default function AgreementCreatePage() {
                           {vehicle.make} {vehicle.model} ({vehicle.year})
                         </div>
                         <div className="text-sm text-gray-500">
-                          {vehicle.plate_number} • {vehicle.color} • {vehicle.seats} seats
+                          {vehicle.plate_number} • {vehicle.vendor_name} • {vehicle.color} • {vehicle.seats} {t('agreementCreate.seats')}
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="font-semibold text-primary">
                           {formatCurrency(vehicle.daily_rate)}
                         </div>
-                        <div className="text-xs text-gray-500">per day</div>
+                        <div className="text-xs text-gray-500">{t('agreementCreate.perDay')}</div>
                       </div>
                     </div>
                   </div>
@@ -515,7 +550,7 @@ export default function AgreementCreatePage() {
               </div>
             ) : (
               <div className="rounded-lg bg-yellow-50 p-8 text-center text-yellow-700">
-                No vehicles available for selected dates
+                {t('agreementCreate.noVehiclesAvailable')}
               </div>
             )}
           </div>
@@ -523,17 +558,33 @@ export default function AgreementCreatePage() {
           {/* Summary */}
           {selectedVehicle && dailyRate && pickupDate && returnDate && (
             <div className="rounded-lg bg-primary/5 p-6">
-              <h3 className="mb-3 font-semibold text-primary">Agreement Summary</h3>
+              <h3 className="mb-3 font-semibold text-primary">{t('agreementCreate.agreementSummary')}</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span>Vehicle:</span>
+                  <span>{t('agreementCreate.vehicle')}</span>
                   <span className="font-medium">
                     {selectedVehicle.make} {selectedVehicle.model}
                   </span>
                 </div>
+                <div className="flex justify-between">
+                  <span>{t('agreementCreate.plate')}</span>
+                  <span className="font-medium">{selectedVehicle.plate_number} ({selectedVehicle.plate_code})</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>{t('agreementCreate.serviceType')}</span>
+                  <span className="font-medium">{selectedVehicle.service_type || '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>{t('agreementCreate.fuelType')}</span>
+                  <span className="font-medium">{selectedVehicle.fuel_type || '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>{t('agreementCreate.insuranceExpiry')}</span>
+                  <span className="font-medium">{insuranceExpiryLabel}</span>
+                </div>
                 {selectedDriver && (
                   <div className="flex justify-between">
-                    <span>Driver:</span>
+                    <span>{t('agreementCreate.driver')}</span>
                     <span className="font-medium">
                       {selectedDriver.first_name} {selectedDriver.last_name}
                     </span>
@@ -541,34 +592,34 @@ export default function AgreementCreatePage() {
                 )}
                 {selectedCollateral && (
                   <div className="flex justify-between">
-                    <span>Collateral:</span>
+                    <span>{t('agreementCreate.collateral')}</span>
                     <span className="font-medium">
                       {selectedCollateral.first_name} {selectedCollateral.last_name}
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span>Rental Period:</span>
-                  <span className="font-medium">{rentalDays} day{rentalDays !== 1 ? 's' : ''}</span>
+                  <span>{t('agreementCreate.rentalPeriod')}</span>
+                  <span className="font-medium">{rentalDays} {rentalDays !== 1 ? t('agreementCreate.days') : t('agreementCreate.day')}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Daily Rate:</span>
+                  <span>{t('agreementCreate.dailyRate')}</span>
                   <span className="font-medium">{formatCurrency(parseFloat(dailyRate))}</span>
                 </div>
                 <hr className="my-2 border-gray-300" />
                 <div className="flex justify-between text-base font-semibold">
-                  <span>Total Rental:</span>
+                  <span>{t('agreementCreate.totalRental')}</span>
                   <span className="text-primary">{formatCurrency(totalAmount)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Deposit:</span>
+                  <span>{t('agreementCreate.deposit')}</span>
                   <span className="font-medium">
                     {formatCurrency(parseFloat(depositAmount) || 0)}
                   </span>
                 </div>
                 {parseFloat(advancePayment) > 0 && (
                   <div className="flex justify-between">
-                    <span>Advance Payment:</span>
+                    <span>{t('agreementCreate.advancePayment')}</span>
                     <span className="font-medium text-green-600">
                       {formatCurrency(parseFloat(advancePayment))}
                     </span>
@@ -584,12 +635,12 @@ export default function AgreementCreatePage() {
             disabled={createMutation.isPending || !customerId || !vehicleId}
             className="w-full rounded-lg bg-primary py-3 font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
           >
-            {createMutation.isPending ? 'Creating...' : 'Create Agreement'}
+            {createMutation.isPending ? t('agreementCreate.creating') : t('agreementCreate.createAgreement')}
           </button>
 
-          {createMutation.error && (
+          {createMutation.isError && (
             <div className="rounded-lg bg-red-50 p-4 text-red-600">
-              Error creating agreement. Please try again.
+              {t('agreementCreate.errorCreating')}
             </div>
           )}
         </div>
@@ -602,6 +653,9 @@ export default function AgreementCreatePage() {
         onSelect={(customer) => {
           setCustomerId(customer.id)
           setCustomerName(customer.full_name)
+          setCollateralPersonId(null)
+          setSelectedCollateral(null)
+          setShowCustomerLookup(false)
         }}
       />
     </div>

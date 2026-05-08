@@ -20,12 +20,18 @@ class VehicleAvailabilityResponse(BaseModel):
     """Response for available vehicles."""
 
     id: int
+    vendor_id: int
+    vendor_name: str
     plate_number: str
+    plate_code: str
     make: str
     model: str
     year: int
     color: str
     vehicle_type: str
+    service_type: str
+    fuel_type: str
+    insurance_expiry: datetime | None = None
     seats: int
     transmission: str
     daily_rate: float
@@ -79,12 +85,22 @@ async def get_available_vehicles(
     return [
         VehicleAvailabilityResponse(
             id=v.id,
+            vendor_id=v.vendor_id,
+            vendor_name=(
+                v.vendor.company_name
+                if getattr(v, "vendor", None) is not None and v.vendor.vendor_type == "company"
+                else (v.vendor.contact_person if getattr(v, "vendor", None) is not None else "")
+            ),
             plate_number=v.plate_number,
+            plate_code=v.plate_code,
             make=v.make,
             model=v.model,
             year=v.year,
             color=v.color,
             vehicle_type=v.vehicle_type,
+            service_type=v.service_type,
+            fuel_type=v.fuel_type,
+            insurance_expiry=getattr(v, "insurance_expiry", None),
             seats=v.seats,
             transmission=v.transmission,
             daily_rate=float(v.daily_rate),

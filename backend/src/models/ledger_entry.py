@@ -20,6 +20,7 @@ class LedgerEntryType(str, PyEnum):
     CHARGE = "charge"           # Rental charges, fees
     PAYMENT = "payment"         # Customer payments
     DEPOSIT = "deposit"         # Security deposit
+    DEPOSIT_APPLIED = "deposit_applied"  # Deposit applied to charges (deducted)
     DEPOSIT_RETURN = "deposit_return"  # Deposit returned
     ADJUSTMENT = "adjustment"   # Manual adjustments
     REVERSAL = "reversal"       # Reversal of previous entry

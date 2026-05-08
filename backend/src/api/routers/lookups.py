@@ -49,7 +49,17 @@ async def get_default_lookups(
     Get all default lookup values for vehicle form dropdowns.
     Returns a dict with category as key and list of values.
     """
-    categories = ["car_model", "color", "vehicle_type", "service_type", "plate_code", "fuel_type", "car_condition"]
+    categories = [
+        "car_model",
+        "color",
+        "vehicle_type",
+        "service_type",
+        "plate_code",
+        "plate_city",
+        "make",
+        "fuel_type",
+        "car_condition",
+    ]
     result = {}
     
     for category in categories:

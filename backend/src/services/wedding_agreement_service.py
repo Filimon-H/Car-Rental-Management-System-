@@ -1,6 +1,6 @@
 """Wedding agreement service for multi-vehicle wedding rentals."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -13,6 +13,12 @@ from src.models.vehicle import Vehicle, VehicleStatus
 from src.repositories import availability_repository
 from src.services import ledger_service
 from src.models.ledger_entry import LedgerEntryType
+
+
+def _ensure_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def generate_wedding_agreement_number() -> str:
@@ -75,11 +81,11 @@ def create_wedding_agreement(
     earliest_start = min(c["start"] for c in vehicle_configs)
     latest_end = max(c["end"] for c in vehicle_configs)
     
-    # Create agreement
+    # Create agreement (starts as pending_payment until handover/activation)
     agreement = Agreement(
         agreement_number=generate_wedding_agreement_number(),
         agreement_type=AgreementType.WEDDING,
-        status=AgreementStatus.ACTIVE,
+        status=AgreementStatus.PENDING_PAYMENT,
         customer_id=customer_id,
         pickup_datetime=earliest_start,
         expected_return_datetime=latest_end,
@@ -142,16 +148,6 @@ def create_wedding_agreement(
         created_by_id=created_by_id,
     )
     
-    # Post deposit if provided
-    if deposit_amount > 0:
-        ledger_service.post_deposit(
-            db=db,
-            agreement_id=agreement.id,
-            amount=deposit_amount,
-            description="Security deposit",
-            created_by_id=created_by_id,
-        )
-    
     db.commit()
     db.refresh(agreement)
     
@@ -168,6 +164,9 @@ def add_vehicle_to_wedding(
     added_by_id: Optional[int] = None,
 ) -> AgreementVehicleSegment:
     """Add another vehicle to an existing wedding agreement."""
+    start_datetime = _ensure_utc(start_datetime)
+    end_datetime = _ensure_utc(end_datetime)
+
     agreement = db.query(Agreement).filter(Agreement.id == agreement_id).first()
     if not agreement:
         raise ValueError("Agreement not found")
@@ -175,7 +174,7 @@ def add_vehicle_to_wedding(
     if agreement.agreement_type != AgreementType.WEDDING:
         raise ValueError("Can only add vehicles to wedding agreements")
     
-    if agreement.status not in [AgreementStatus.DRAFT, AgreementStatus.ACTIVE]:
+    if agreement.status not in [AgreementStatus.DRAFT, AgreementStatus.PENDING_PAYMENT, AgreementStatus.ACTIVE]:
         raise ValueError("Cannot modify a closed or cancelled agreement")
     
     if end_datetime <= start_datetime:
@@ -210,7 +209,8 @@ def add_vehicle_to_wedding(
     agreement.agreed_daily_rate += segment_charge
     
     # Update expected return if this extends beyond current
-    if end_datetime > agreement.expected_return_datetime:
+    current_return_datetime = _ensure_utc(agreement.expected_return_datetime)
+    if end_datetime > current_return_datetime:
         agreement.expected_return_datetime = end_datetime
     
     # Post additional charge
@@ -227,7 +227,7 @@ def add_vehicle_to_wedding(
     )
     
     # Update vehicle status
-    if vehicle and start_datetime <= datetime.now(start_datetime.tzinfo):
+    if vehicle and start_datetime <= datetime.now(timezone.utc):
         vehicle.status = VehicleStatus.RENTED
     elif vehicle:
         vehicle.status = VehicleStatus.RESERVED

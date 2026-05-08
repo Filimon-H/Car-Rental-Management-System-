@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { agreementsService, LedgerEntry } from '@/services/agreements'
+import { agreementsService } from '@/services/agreements'
 
 const entryTypeColors: Record<string, string> = {
   charge: 'text-red-600',

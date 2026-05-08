@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Camera, Plus, Trash2, CheckCircle, XCircle, MinusCircle } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, CheckCircle, XCircle, MinusCircle } from 'lucide-react'
 import apiClient from '@/services/apiClient'
 import { VehicleLookupModal } from '@/components/lookup/LookupModal'
 import { VehicleSearchResult } from '@/services/vehicles'
@@ -73,8 +73,8 @@ export default function InspectionCreatePage() {
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: (data: any) => apiClient.post('/inspections', data),
-    onSuccess: (data: any) => {
+    mutationFn: (data: Record<string, unknown>) => apiClient.post<{ id: number }>('/inspections', data),
+    onSuccess: (data) => {
       navigate(`/inspections/${data.id}`)
     },
   })
@@ -338,7 +338,7 @@ export default function InspectionCreatePage() {
                     />
                     <select
                       value={damage.severity}
-                      onChange={(e) => updateDamageRecord(damage.id, { severity: e.target.value as any })}
+                      onChange={(e) => updateDamageRecord(damage.id, { severity: e.target.value as 'minor' | 'moderate' | 'severe' })}
                       className="rounded border px-2 py-1"
                     >
                       <option value="minor">Minor</option>

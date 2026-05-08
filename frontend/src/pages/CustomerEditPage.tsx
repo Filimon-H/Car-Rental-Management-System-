@@ -9,7 +9,7 @@ import { DocumentDropzone } from '@/components/documents/DocumentDropzone'
 // Phone normalization: 09XXXXXXXX -> +2519XXXXXXXX
 function normalizeEthiopianPhone(phone: string): string {
   if (!phone) return phone
-  let cleaned = phone.replace(/\s+/g, '').replace(/-/g, '')
+  const cleaned = phone.replace(/\s+/g, '').replace(/-/g, '')
   if (cleaned.startsWith('09') && cleaned.length === 10) {
     return '+251' + cleaned.slice(1)
   }
@@ -105,20 +105,108 @@ export default function CustomerEditPage() {
   const [duplicateWarning, setDuplicateWarning] = useState<DuplicateCheckResult | null>(null)
   const [checkingDuplicate, setCheckingDuplicate] = useState(false)
 
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; phone_primary?: string; phone_secondary?: string }>({})
+  const [emailTouched, setEmailTouched] = useState(false)
+
+  const validateEmail = (value: string): string | undefined => {
+    if (!value) return undefined
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(value) ? undefined : 'Invalid email format. Example: name@example.com'
+  }
+
+  const validatePhone = (value: string): string | undefined => {
+    if (!value) return undefined
+    const cleaned = value.replace(/\s+/g, '').replace(/-/g, '')
+
+    const errPrefix = 'Phone must start with 09 or +2519 (or 2519)'
+    const errTooLong = 'Phone number is too long. Expected 8 digits after 09 or 2519'
+
+    if (cleaned.startsWith('09')) {
+      if (cleaned.length > 10) return errTooLong
+      if (cleaned.length < 10) return undefined
+      return /^09\d{8}$/.test(cleaned) ? undefined : 'Invalid phone number. Use 09XXXXXXXX'
+    }
+
+    if (cleaned.startsWith('+')) {
+      // Allow progressive typing for +, +2, +25, +251
+      // Accept full numbers only when they start with +2519
+      if (!cleaned.startsWith('+251')) {
+        if (!'+251'.startsWith(cleaned)) return errPrefix
+        return undefined
+      }
+      if (cleaned.length >= 5 && cleaned[4] !== '9') return errPrefix
+      if (!cleaned.startsWith('+2519')) return undefined
+      if (cleaned.length > 13) return errTooLong
+      if (cleaned.length < 13) return undefined
+      return /^\+2519\d{8}$/.test(cleaned) ? undefined : 'Invalid phone number. Use +2519XXXXXXXX'
+    }
+
+    if (cleaned.startsWith('251') || '251'.startsWith(cleaned)) {
+      if (!cleaned.startsWith('251')) return undefined
+      if (cleaned.length >= 4 && cleaned[3] !== '9') return errPrefix
+      if (!cleaned.startsWith('2519')) return undefined
+      if (cleaned.length > 12) return errTooLong
+      if (cleaned.length < 12) return undefined
+      return /^2519\d{8}$/.test(cleaned) ? undefined : 'Invalid phone number. Use 2519XXXXXXXX'
+    }
+
+    if ('09'.startsWith(cleaned) || '+2519'.startsWith(cleaned) || '2519'.startsWith(cleaned) || '+251'.startsWith(cleaned) || '251'.startsWith(cleaned)) {
+      return undefined
+    }
+
+    return errPrefix
+  }
+
   const updateMutation = useMutation({
     mutationFn: (data: CreateCustomerData) => customersService.update(customerIdNum, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] })
       queryClient.invalidateQueries({ queryKey: ['customer', customerIdNum] })
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error('Update customer error:', error)
-      alert(error?.response?.data?.detail || 'Failed to update customer')
+      const err = error as { response?: { data?: { detail?: string } } }
+      alert(err?.response?.data?.detail || 'Failed to update customer')
     },
   })
 
   const updateField = (field: keyof CreateCustomerData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+
+    if (field === 'email') {
+      if (emailTouched) {
+        setFieldErrors((prev) => ({ ...prev, email: validateEmail(value) }))
+      } else {
+        setFieldErrors((prev) => ({ ...prev, email: undefined }))
+      }
+    }
+    if (field === 'phone_primary') {
+      setFieldErrors((prev) => ({ ...prev, phone_primary: validatePhone(value) }))
+    }
+    if (field === 'phone_secondary') {
+      setFieldErrors((prev) => ({ ...prev, phone_secondary: validatePhone(value) }))
+    }
+  }
+
+  const handleEmailBlur = () => {
+    setEmailTouched(true)
+    setFieldErrors((prev) => ({ ...prev, email: validateEmail(formData.email || '') }))
+  }
+
+  const validateBeforeSave = (): boolean => {
+    const emailErr = validateEmail(formData.email || '')
+    const phonePrimaryErr = validatePhone(formData.phone_primary || '')
+    const phoneSecondaryErr = validatePhone(formData.phone_secondary || '')
+
+    setEmailTouched(true)
+    setFieldErrors((prev) => ({
+      ...prev,
+      email: emailErr,
+      phone_primary: phonePrimaryErr,
+      phone_secondary: phoneSecondaryErr,
+    }))
+
+    return !(emailErr || phonePrimaryErr || phoneSecondaryErr)
   }
 
   // Debounced duplicate check
@@ -174,6 +262,7 @@ export default function CustomerEditPage() {
 
   const handleSaveAndClose = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!validateBeforeSave()) return
     try {
       await updateMutation.mutateAsync(formData)
       navigate('/customers')
@@ -184,6 +273,7 @@ export default function CustomerEditPage() {
 
   const handleSaveAndNext = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!validateBeforeSave()) return
     try {
       await updateMutation.mutateAsync(formData)
       // Navigate to collateral create/edit page with customer ID
@@ -194,6 +284,8 @@ export default function CustomerEditPage() {
   }
 
   const isLoading = updateMutation.isPending
+  const hasValidationErrors = Boolean(fieldErrors.email || fieldErrors.phone_primary || fieldErrors.phone_secondary)
+  const canSave = !isLoading && !hasValidationErrors
 
   // Get existing documents by type
   const getDocumentByType = (docType: DocumentType): CustomerDocument | undefined => {
@@ -357,9 +449,10 @@ export default function CustomerEditPage() {
                     onBlur={() => handlePhoneBlur('phone_primary')}
                     required
                     placeholder="09XXXXXXXX or +251..."
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_primary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
                   />
                   <p className="mt-1 text-xs text-gray-500">Will auto-format to +251 format</p>
+                  {fieldErrors.phone_primary && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone_primary}</p>}
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Secondary Phone</label>
@@ -369,8 +462,9 @@ export default function CustomerEditPage() {
                     onChange={(e) => updateField('phone_secondary', e.target.value)}
                     onBlur={() => handlePhoneBlur('phone_secondary')}
                     placeholder="09XXXXXXXX or +251..."
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_secondary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
                   />
+                  {fieldErrors.phone_secondary && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone_secondary}</p>}
                 </div>
               </div>
               <div className="mt-4">
@@ -381,10 +475,12 @@ export default function CustomerEditPage() {
                     type="email"
                     value={formData.email}
                     onChange={(e) => updateField('email', e.target.value)}
+                    onBlur={handleEmailBlur}
                     placeholder="customer@example.com"
-                    className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className={`w-full rounded-lg border py-2 pl-10 pr-3 focus:outline-none focus:ring-1 ${emailTouched && fieldErrors.email ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
                   />
                 </div>
+                {emailTouched && fieldErrors.email && <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>}
               </div>
             </Section>
 
@@ -563,7 +659,7 @@ export default function CustomerEditPage() {
                 <button
                   type="button"
                   onClick={handleSaveAndClose}
-                  disabled={isLoading}
+                  disabled={!canSave}
                   className="rounded-lg border border-blue-600 px-6 py-2 text-blue-600 hover:bg-blue-50 disabled:opacity-50"
                 >
                   {isLoading ? 'Saving...' : 'Save & Close'}
@@ -571,7 +667,7 @@ export default function CustomerEditPage() {
                 <button
                   type="button"
                   onClick={handleSaveAndNext}
-                  disabled={isLoading}
+                  disabled={!canSave}
                   className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
                 >
                   {isLoading ? 'Saving...' : 'Save & Next →'}

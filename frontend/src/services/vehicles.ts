@@ -34,6 +34,10 @@ export interface Vehicle {
   status: VehicleStatus
   insurance_policy_number: string | null
   insurance_expiry: string | null
+  photo_front?: string | null
+  photo_back?: string | null
+  photo_left?: string | null
+  photo_right?: string | null
   current_mileage: number | null
   notes: string | null
   is_active: boolean
@@ -133,6 +137,23 @@ export const vehiclesService = {
 
   async delete(id: number): Promise<void> {
     return apiClient.delete(`/vehicles/${id}`)
+  },
+
+  async uploadPhotos(
+    vehicleId: number,
+    files: {
+      front?: File | null
+      back?: File | null
+      left?: File | null
+      right?: File | null
+    }
+  ): Promise<Vehicle> {
+    const formData = new FormData()
+    if (files.front) formData.append('front', files.front)
+    if (files.back) formData.append('back', files.back)
+    if (files.left) formData.append('left', files.left)
+    if (files.right) formData.append('right', files.right)
+    return apiClient.postFormData(`/vehicles/${vehicleId}/photos`, formData)
   },
 
   async getLookupDefaults(): Promise<LookupDefaults> {

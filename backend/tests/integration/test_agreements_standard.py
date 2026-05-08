@@ -12,6 +12,7 @@ from src.core.rbac import Role
 from src.models.agreement import AgreementStatus
 from src.models.customer import Customer
 from src.models.staff_user import StaffUser
+from src.models.vendor import Vendor
 from src.models.vehicle import Vehicle, VehicleStatus, VehicleType
 from src.services import agreement_service, ledger_service
 
@@ -37,7 +38,8 @@ def sales_user(db: Session) -> StaffUser:
 def test_customer(db: Session) -> Customer:
     """Create a test customer."""
     customer = Customer(
-        full_name="John Doe",
+        first_name="John",
+        last_name="Doe",
         phone_primary="0911123456",
         id_type="passport",
         id_number="EP123456",
@@ -50,15 +52,19 @@ def test_customer(db: Session) -> Customer:
 
 
 @pytest.fixture
-def test_vehicle(db: Session) -> Vehicle:
+def test_vehicle(db: Session, vendor: Vendor) -> Vehicle:
     """Create a test vehicle."""
     vehicle = Vehicle(
+        vendor_id=vendor.id,
         plate_number="AA-12345",
+        plate_code="01",
+        plate_city="AA",
         make="Toyota",
         model="Corolla",
         year=2022,
         color="Silver",
         vehicle_type=VehicleType.SEDAN,
+        service_type="business",
         daily_rate=Decimal("1500.00"),
         status=VehicleStatus.AVAILABLE,
         is_active=True,
@@ -107,7 +113,7 @@ class TestCreateStandardAgreement:
         
         assert agreement.id is not None
         assert agreement.agreement_number.startswith("AGR-")
-        assert agreement.status == AgreementStatus.ACTIVE
+        assert agreement.status == AgreementStatus.PENDING_PAYMENT  # service creates as PENDING_PAYMENT
         assert agreement.customer_id == test_customer.id
         
         # Check vehicle segment created
@@ -195,6 +201,7 @@ class TestCloseAgreement:
             expected_return_datetime=expected_return,
             daily_rate=Decimal("1500.00"),
         )
+        agreement_service.activate_agreement(db, agreement.id)
         
         # Close on time
         closed = agreement_service.close_agreement(
@@ -205,7 +212,7 @@ class TestCloseAgreement:
         )
         
         assert closed.status == AgreementStatus.CLOSED
-        assert closed.actual_return_datetime == expected_return
+        assert closed.actual_return_datetime.replace(tzinfo=timezone.utc) == expected_return
         
         # Vehicle should be available again
         db.refresh(test_vehicle)
@@ -231,6 +238,7 @@ class TestCloseAgreement:
             expected_return_datetime=expected_return,
             daily_rate=Decimal("1500.00"),
         )
+        agreement_service.activate_agreement(db, agreement.id)
         
         balance_before = ledger_service.get_agreement_balance(db, agreement.id)
         
@@ -343,6 +351,7 @@ class TestDoubleBookingPrevention:
             expected_return_datetime=return1,
             daily_rate=Decimal("1500.00"),
         )
+        agreement_service.activate_agreement(db, first.id)
         
         # Close first agreement
         agreement_service.close_agreement(

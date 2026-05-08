@@ -53,6 +53,7 @@ export interface CreateDriverData {
 }
 
 export interface DriverSearchParams {
+  [key: string]: string | number | boolean | undefined
   page?: number
   page_size?: number
   search?: string

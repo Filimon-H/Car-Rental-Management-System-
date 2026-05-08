@@ -48,7 +48,7 @@ def check_vehicle_available(
         .join(Agreement)
         .filter(
             AgreementVehicleSegment.vehicle_id == vehicle_id,
-            Agreement.status.not_in([AgreementStatus.CANCELLED, AgreementStatus.CLOSED]),
+            Agreement.status.not_in([AgreementStatus.CANCELLED, AgreementStatus.CLOSED, AgreementStatus.RETURNED]),
             # Overlap condition: NOT (segment ends before start OR segment starts after end)
             # Which is equivalent to: segment starts before end AND segment ends after start
             AgreementVehicleSegment.start_datetime < end_datetime,
@@ -84,7 +84,7 @@ def get_available_vehicles(
         db.query(AgreementVehicleSegment.vehicle_id)
         .join(Agreement)
         .filter(
-            Agreement.status.not_in([AgreementStatus.CANCELLED, AgreementStatus.CLOSED]),
+            Agreement.status.not_in([AgreementStatus.CANCELLED, AgreementStatus.CLOSED, AgreementStatus.RETURNED]),
             AgreementVehicleSegment.start_datetime < end_datetime,
             AgreementVehicleSegment.end_datetime > start_datetime,
         )

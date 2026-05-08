@@ -35,7 +35,7 @@ export interface Agreement {
   id: number
   agreement_number: string
   agreement_type: AgreementType
-  status: 'draft' | 'active' | 'closed' | 'overdue' | 'cancelled'
+  status: 'draft' | 'pending_payment' | 'active' | 'returned' | 'closed' | 'overdue' | 'cancelled'
   customer_id: number
   customer_name: string
   driver_id?: number
@@ -60,6 +60,36 @@ export interface AgreementDetail extends Agreement {
   balance: number
   total_charges: number
   total_payments: number
+
+  deposit_received?: number
+  deposit_applied?: number
+  deposit_returned?: number
+  deposit_held?: number
+  balance_due?: number
+}
+
+export type PaymentMethod = 'cash' | 'bank_transfer' | 'telebirr' | 'cbe_birr' | 'check' | 'other'
+
+export interface PostDepositData {
+  amount: number
+  payment_method: PaymentMethod
+  notes?: string
+}
+
+export interface ApplyDepositData {
+  amount: number
+  notes?: string
+}
+
+export interface RefundDepositData {
+  amount: number
+  notes?: string
+}
+
+export interface PostChargeData {
+  amount: number
+  description?: string
+  notes?: string
 }
 
 export interface AgreementListResponse {
@@ -99,7 +129,7 @@ export interface CreateAgreementData {
 
 export interface PostPaymentData {
   amount: number
-  payment_method: 'cash' | 'bank_transfer' | 'telebirr' | 'cbe_birr' | 'check' | 'other'
+  payment_method: PaymentMethod
   description?: string
   payment_reference?: string
   notes?: string
@@ -148,22 +178,59 @@ export const agreementsService = {
     return apiClient.post(`/agreements/${id}/payments`, data)
   },
 
+  async receiveDeposit(id: number, data: PostDepositData): Promise<LedgerEntry> {
+    return apiClient.post(`/agreements/${id}/deposits`, data)
+  },
+
+  async applyDeposit(id: number, data: ApplyDepositData): Promise<LedgerEntry> {
+    return apiClient.post(`/agreements/${id}/deposits/apply`, data)
+  },
+
+  async refundDeposit(id: number, data: RefundDepositData): Promise<LedgerEntry> {
+    return apiClient.post(`/agreements/${id}/deposits/refund`, data)
+  },
+
+  async postDamageCharge(id: number, data: PostChargeData): Promise<LedgerEntry> {
+    return apiClient.post(`/agreements/${id}/charges/damage`, data)
+  },
+
+  async postLateFee(id: number, data: PostChargeData): Promise<LedgerEntry> {
+    return apiClient.post(`/agreements/${id}/charges/late`, data)
+  },
+
   async postAdjustment(
     id: number,
     data: { amount: number; description: string; notes?: string }
   ): Promise<LedgerEntry> {
     return apiClient.post(`/agreements/${id}/adjustments`, data)
   },
+
+  async activate(id: number): Promise<Agreement> {
+    return apiClient.post(`/agreements/${id}/activate`)
+  },
+
+  async markReturned(
+    id: number,
+    data: { actual_return_datetime: string; return_mileage?: number; notes?: string }
+  ): Promise<Agreement> {
+    return apiClient.post(`/agreements/${id}/return`, data)
+  },
 }
 
 export interface AvailableVehicle {
   id: number
+  vendor_id: number
+  vendor_name: string
   plate_number: string
+  plate_code: string
   make: string
   model: string
   year: number
   color: string
   vehicle_type: string
+  service_type: string
+  fuel_type: string
+  insurance_expiry: string | null
   seats: number
   transmission: string
   daily_rate: number

@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -10,6 +10,7 @@ from src.api.deps import get_current_user, get_db, require_permission
 from src.core.rbac import Permission
 from src.models.vehicle import Vehicle, VehicleStatus
 from src.models.staff_user import StaffUser
+from src.core.storage import storage_service
 from src.schemas.vehicle import (
     VehicleCreate,
     VehicleListResponse,
@@ -120,6 +121,48 @@ async def get_vehicle(
     return VehicleResponse.model_validate(vehicle)
 
 
+@router.post("/{vehicle_id}/photos", response_model=VehicleResponse)
+async def upload_vehicle_photos(
+    vehicle_id: int,
+    front: UploadFile | None = File(None),
+    back: UploadFile | None = File(None),
+    left: UploadFile | None = File(None),
+    right: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(require_permission(Permission.MANAGE_VEHICLES)),
+):
+    """Upload optional vehicle photos (front/back/left/right)."""
+    vehicle = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
+    if not vehicle:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Vehicle not found",
+        )
+
+    uploads: list[tuple[str, UploadFile]] = []
+    if front is not None:
+        uploads.append(("front", front))
+    if back is not None:
+        uploads.append(("back", back))
+    if left is not None:
+        uploads.append(("left", left))
+    if right is not None:
+        uploads.append(("right", right))
+
+    for kind, file in uploads:
+        relative_path = storage_service.save_vehicle_photo(
+            file=file.file,
+            original_filename=file.filename or f"{kind}.jpg",
+            vehicle_id=vehicle.id,
+            photo_kind=kind,
+        )
+        setattr(vehicle, f"photo_{kind}", relative_path)
+
+    db.commit()
+    db.refresh(vehicle)
+    return VehicleResponse.model_validate(vehicle)
+
+
 @router.post("", response_model=VehicleResponse, status_code=status.HTTP_201_CREATED)
 async def create_vehicle(
     data: VehicleCreate,
@@ -206,6 +249,11 @@ async def update_vehicle(
     
     # Update fields
     update_data = data.model_dump(exclude_unset=True)
+
+    # Map API field name to model field name
+    if "insurance_policy_number" in update_data:
+        vehicle.insurance_policy = update_data.pop("insurance_policy_number")
+
     for field, value in update_data.items():
         setattr(vehicle, field, value)
     

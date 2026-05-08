@@ -12,11 +12,15 @@ from src.models.vendor import Vendor
 from src.models.staff_user import StaffUser
 from src.schemas.vendor import (
     VendorCreate,
+    VendorPayableSummaryResponse,
+    VendorPaymentCreate,
+    VendorPaymentResponse,
     VendorListResponse,
     VendorResponse,
     VendorSearchResult,
     VendorUpdate,
 )
+from src.services import vendor_service
 
 router = APIRouter()
 
@@ -104,6 +108,49 @@ async def get_vendor(
             detail="Vendor not found",
         )
     return VendorResponse.model_validate(vendor)
+
+
+@router.get("/{vendor_id}/summary", response_model=VendorPayableSummaryResponse)
+async def get_vendor_summary(
+    vendor_id: int,
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(require_permission(Permission.VIEW_VENDORS)),
+):
+    """Get vendor payable summary based on vehicle usage."""
+    summary = vendor_service.get_vendor_payable_summary(db, vendor_id)
+    return VendorPayableSummaryResponse(**summary)
+
+
+@router.get("/{vendor_id}/payments", response_model=list[VendorPaymentResponse])
+async def get_vendor_payments(
+    vendor_id: int,
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(require_permission(Permission.VIEW_VENDORS)),
+):
+    """List payments made to a vendor."""
+    payments = vendor_service.list_vendor_payments(db, vendor_id)
+    return [VendorPaymentResponse.model_validate(payment) for payment in payments]
+
+
+@router.post("/{vendor_id}/payments", response_model=VendorPaymentResponse, status_code=status.HTTP_201_CREATED)
+async def create_vendor_payment(
+    vendor_id: int,
+    data: VendorPaymentCreate,
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(require_permission(Permission.POST_PAYMENTS)),
+):
+    """Record a payment made to a vendor."""
+    payment = vendor_service.post_vendor_payment(
+        db=db,
+        vendor_id=vendor_id,
+        amount=data.amount,
+        payment_method=data.payment_method,
+        payment_reference=data.payment_reference,
+        notes=data.notes,
+        agreement_id=data.agreement_id,
+        created_by_id=current_user.id,
+    )
+    return VendorPaymentResponse.model_validate(payment)
 
 
 @router.post("", response_model=VendorResponse, status_code=status.HTTP_201_CREATED)

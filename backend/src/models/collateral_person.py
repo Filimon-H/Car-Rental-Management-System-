@@ -1,11 +1,15 @@
 """CollateralPerson model for storing collateral/guarantor information linked to customers."""
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.db import Base
+
+if TYPE_CHECKING:
+    from src.models.collateral_document import CollateralDocument
 
 
 class CollateralPerson(Base):
@@ -62,6 +66,9 @@ class CollateralPerson(Base):
 
     # Relationships
     customer = relationship("Customer", back_populates="collateral_persons")
+    documents: Mapped[list["CollateralDocument"]] = relationship(
+        "CollateralDocument", back_populates="collateral", lazy="dynamic", cascade="all, delete-orphan"
+    )
 
     @property
     def full_name(self) -> str:

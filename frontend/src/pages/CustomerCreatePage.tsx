@@ -1,15 +1,16 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, User, Phone, Mail, MapPin, FileText, Building2, CheckCircle, AlertTriangle, ExternalLink, Upload, X } from 'lucide-react'
 import { customersService, CreateCustomerData, DuplicateCheckResult } from '@/services/customers'
 import { DocumentDropzone } from '@/components/documents/DocumentDropzone'
-import { DocumentType } from '@/services/customerDocuments'
+import { customerDocumentsService, DocumentType } from '@/services/customerDocuments'
 
 // Phone normalization: 09XXXXXXXX -> +2519XXXXXXXX
 function normalizeEthiopianPhone(phone: string): string {
   if (!phone) return phone
-  let cleaned = phone.replace(/\s+/g, '').replace(/-/g, '')
+  const cleaned = phone.replace(/\s+/g, '').replace(/-/g, '')
   if (cleaned.startsWith('09') && cleaned.length === 10) {
     return '+251' + cleaned.slice(1)
   }
@@ -89,6 +90,7 @@ function clearDraft(): void {
 
 export default function CustomerCreatePage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   // Initialize form with draft or defaults
   const [formData, setFormData] = useState<CreateCustomerData>(() => {
@@ -132,16 +134,114 @@ export default function CustomerCreatePage() {
   const [showPhoneDuplicateModal, setShowPhoneDuplicateModal] = useState(false)
   const [pendingSaveAction, setPendingSaveAction] = useState<'close' | 'next' | null>(null)
 
+  // Staged documents (Create page has no customerId yet)
+  const [stagedDocuments, setStagedDocuments] = useState<Partial<Record<DocumentType, File>>>({})
+
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; phone_primary?: string; phone_secondary?: string }>({})
+  const [emailTouched, setEmailTouched] = useState(false)
+
+  const validateEmail = (value: string): string | undefined => {
+    if (!value) return undefined
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(value) ? undefined : 'Invalid email format. Example: name@example.com'
+  }
+
+  const validatePhone = (value: string): string | undefined => {
+    if (!value) return undefined
+    const cleaned = value.replace(/\s+/g, '').replace(/-/g, '')
+
+    // Progressive validation:
+    // - Allow typing if starts with 09, 2519, or +2519
+    // - Show error only if prefix is wrong or number is too long
+    // - Only fully validate when expected length is reached
+    const errPrefix = 'Phone must start with 09 or +2519 (or 2519)'
+    const errTooLong = 'Phone number is too long. Expected 8 digits after 09 or 2519'
+
+    if (cleaned.startsWith('09')) {
+      if (cleaned.length > 10) return errTooLong
+      if (cleaned.length < 10) return undefined
+      return /^09\d{8}$/.test(cleaned) ? undefined : 'Invalid phone number. Use 09XXXXXXXX'
+    }
+
+    if (cleaned.startsWith('+')) {
+      // Allow progressive typing for +, +2, +25, +251
+      // Accept full numbers only when they start with +2519
+      if (!cleaned.startsWith('+251')) {
+        if (!'+251'.startsWith(cleaned)) return errPrefix
+        return undefined
+      }
+      // If user typed +251X... where X is not 9, show error once that digit exists
+      if (cleaned.length >= 5 && cleaned[4] !== '9') return errPrefix
+      if (!cleaned.startsWith('+2519')) return undefined
+      if (cleaned.length > 13) return errTooLong
+      if (cleaned.length < 13) return undefined
+      return /^\+2519\d{8}$/.test(cleaned) ? undefined : 'Invalid phone number. Use +2519XXXXXXXX'
+    }
+
+    if (cleaned.startsWith('251') || '251'.startsWith(cleaned)) {
+      // Allow progressive typing for 2, 25, 251
+      if (!cleaned.startsWith('251')) return undefined
+      if (cleaned.length >= 4 && cleaned[3] !== '9') return errPrefix
+      if (!cleaned.startsWith('2519')) return undefined
+      if (cleaned.length > 12) return errTooLong
+      if (cleaned.length < 12) return undefined
+      return /^2519\d{8}$/.test(cleaned) ? undefined : 'Invalid phone number. Use 2519XXXXXXXX'
+    }
+
+    // If user is still typing the first digit(s) but it's not clearly wrong, allow until it diverges
+    if ('09'.startsWith(cleaned) || '+2519'.startsWith(cleaned) || '2519'.startsWith(cleaned) || '+251'.startsWith(cleaned) || '251'.startsWith(cleaned)) {
+      return undefined
+    }
+
+    return errPrefix
+  }
+
   const createMutation = useMutation({
     mutationFn: customersService.create,
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error('Create customer error:', error)
-      alert(error?.response?.data?.detail || 'Failed to create customer')
+      const err = error as { response?: { data?: { detail?: string } } }
+      alert(err?.response?.data?.detail || t('customerCreate.errorCreating'))
     },
   })
 
   const updateField = (field: keyof CreateCustomerData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+
+    if (field === 'email') {
+      if (emailTouched) {
+        setFieldErrors((prev) => ({ ...prev, email: validateEmail(value) }))
+      } else {
+        setFieldErrors((prev) => ({ ...prev, email: undefined }))
+      }
+    }
+    if (field === 'phone_primary') {
+      setFieldErrors((prev) => ({ ...prev, phone_primary: validatePhone(value) }))
+    }
+    if (field === 'phone_secondary') {
+      setFieldErrors((prev) => ({ ...prev, phone_secondary: validatePhone(value) }))
+    }
+  }
+
+  const handleEmailBlur = () => {
+    setEmailTouched(true)
+    setFieldErrors((prev) => ({ ...prev, email: validateEmail(formData.email || '') }))
+  }
+
+  const validateBeforeSave = (): boolean => {
+    const emailErr = validateEmail(formData.email || '')
+    const phonePrimaryErr = validatePhone(formData.phone_primary || '')
+    const phoneSecondaryErr = validatePhone(formData.phone_secondary || '')
+
+    setEmailTouched(true)
+    setFieldErrors((prev) => ({
+      ...prev,
+      email: emailErr,
+      phone_primary: phonePrimaryErr,
+      phone_secondary: phoneSecondaryErr,
+    }))
+
+    return !(emailErr || phonePrimaryErr || phoneSecondaryErr)
   }
 
   // Debounced duplicate check
@@ -203,6 +303,7 @@ export default function CustomerCreatePage() {
   // Check if there's a phone duplicate and show modal, otherwise proceed with save
   const handleSaveAndClose = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!validateBeforeSave()) return
     if (duplicateWarning?.match === 'phone') {
       setPendingSaveAction('close')
       setShowPhoneDuplicateModal(true)
@@ -213,6 +314,7 @@ export default function CustomerCreatePage() {
 
   const handleSaveAndNext = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!validateBeforeSave()) return
     if (duplicateWarning?.match === 'phone') {
       setPendingSaveAction('next')
       setShowPhoneDuplicateModal(true)
@@ -224,7 +326,16 @@ export default function CustomerCreatePage() {
   const performSave = async (action: 'close' | 'next') => {
     try {
       const customer = await createMutation.mutateAsync(formData)
+
+      // Upload staged documents after customer is created
+      const uploads = Object.entries(stagedDocuments) as Array<[DocumentType, File]>
+      for (const [docType, file] of uploads) {
+        if (!file) continue
+        await customerDocumentsService.upload(customer.id, docType, file)
+      }
+
       clearDraft() // Clear draft on successful save
+      setStagedDocuments({})
       if (action === 'close') {
         navigate('/customers')
       } else {
@@ -249,6 +360,8 @@ export default function CustomerCreatePage() {
   }
 
   const isLoading = createMutation.isPending
+  const hasValidationErrors = Boolean(fieldErrors.email || fieldErrors.phone_primary || fieldErrors.phone_secondary)
+  const canSave = !isLoading && !hasValidationErrors
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -259,8 +372,8 @@ export default function CustomerCreatePage() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">New Customer</h1>
-            <p className="text-sm text-gray-500">Step 1 of 3: Customer Information</p>
+            <h1 className="text-xl font-bold text-gray-900">{t('customerCreate.title')}</h1>
+            <p className="text-sm text-gray-500">{t('customerCreate.step1')}</p>
           </div>
         </div>
       </div>
@@ -268,28 +381,28 @@ export default function CustomerCreatePage() {
       <div className="flex">
         {/* Left Sidebar - Progress Checklist */}
         <div className="w-64 border-r bg-white p-6">
-          <h3 className="mb-4 text-sm font-semibold text-gray-500 uppercase">Progress</h3>
+          <h3 className="mb-4 text-sm font-semibold text-gray-500 uppercase">{t('customerCreate.progress')}</h3>
           <div className="space-y-3">
-            <ChecklistItem label="Personal Info" complete={isPersonalComplete} />
-            <ChecklistItem label="Contact Info" complete={isContactComplete} />
-            {isIndividual && <ChecklistItem label="ID & License" complete={isIdComplete} />}
-            <ChecklistItem label="Address" complete={isAddressComplete} />
+            <ChecklistItem label={t('customerCreate.personalInfo')} complete={isPersonalComplete} />
+            <ChecklistItem label={t('customerCreate.contactInfo')} complete={isContactComplete} />
+            {isIndividual && <ChecklistItem label={t('customerCreate.idAndLicense')} complete={isIdComplete} />}
+            <ChecklistItem label={t('customerCreate.address')} complete={isAddressComplete} />
           </div>
 
           <div className="mt-8 border-t pt-6">
-            <h3 className="mb-4 text-sm font-semibold text-gray-500 uppercase">Wizard Steps</h3>
+            <h3 className="mb-4 text-sm font-semibold text-gray-500 uppercase">{t('customerCreate.wizardSteps')}</h3>
             <div className="space-y-2">
               <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-blue-700">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs text-white">1</div>
-                <span className="text-sm font-medium">Customer</span>
+                <span className="text-sm font-medium">{t('customerCreate.customer')}</span>
               </div>
               <div className="flex items-center gap-2 px-3 py-2 text-gray-400">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs">2</div>
-                <span className="text-sm">Collateral</span>
+                <span className="text-sm">{t('customerCreate.collateral')}</span>
               </div>
               <div className="flex items-center gap-2 px-3 py-2 text-gray-400">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs">3</div>
-                <span className="text-sm">Agreement</span>
+                <span className="text-sm">{t('customerCreate.agreement')}</span>
               </div>
             </div>
           </div>
@@ -305,7 +418,7 @@ export default function CustomerCreatePage() {
                   <div className="flex items-center gap-2">
                     <FileText className="h-5 w-5 text-blue-600" />
                     <span className="text-sm text-blue-800">
-                      <strong>Draft recovered!</strong> Your previous work has been restored.
+                      <strong>{t('customerCreate.draftRecovered')}</strong> {t('customerCreate.draftRestored')}
                     </span>
                   </div>
                   <button
@@ -313,17 +426,17 @@ export default function CustomerCreatePage() {
                     onClick={handleClearDraft}
                     className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
                   >
-                    Clear draft & start fresh
+                    {t('customerCreate.clearDraft')}
                   </button>
                 </div>
               </div>
             )}
 
             {/* Business Type Section */}
-            <Section icon={<Building2 className="h-5 w-5" />} title="Business Type">
+            <Section icon={<Building2 className="h-5 w-5" />} title={t('customerCreate.businessType')}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Business Type *</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.businessTypeRequired')}</label>
                   <select
                     value={formData.business_type}
                     onChange={(e) => {
@@ -334,17 +447,17 @@ export default function CustomerCreatePage() {
                     }}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   >
-                    <option value="individual">Individual</option>
-                    <option value="company">Company</option>
-                    <option value="government">Government</option>
-                    <option value="embassy">Embassy</option>
-                    <option value="ngo">NGO</option>
-                    <option value="church">Church</option>
+                    <option value="individual">{t('customerCreate.individual')}</option>
+                    <option value="company">{t('customerCreate.company')}</option>
+                    <option value="government">{t('customerCreate.government')}</option>
+                    <option value="embassy">{t('customerCreate.embassy')}</option>
+                    <option value="ngo">{t('customerCreate.ngo')}</option>
+                    <option value="church">{t('customerCreate.church')}</option>
                   </select>
                 </div>
                 {!isIndividual && (
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">Company/Organization Name *</label>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.companyNameRequired')}</label>
                     <input
                       type="text"
                       value={formData.company_name}
@@ -356,12 +469,12 @@ export default function CustomerCreatePage() {
                 )}
                 {!isIndividual && (
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">TIN Number</label>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.tinNumber')}</label>
                     <input
                       type="text"
                       value={formData.tin_number}
                       onChange={(e) => updateField('tin_number', e.target.value)}
-                      placeholder="Tax Identification Number"
+                      placeholder={t('customerCreate.tinPlaceholder')}
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
@@ -370,10 +483,10 @@ export default function CustomerCreatePage() {
             </Section>
 
             {/* Personal Info Section */}
-            <Section icon={<User className="h-5 w-5" />} title="Personal Information">
+            <Section icon={<User className="h-5 w-5" />} title={t('customerCreate.personalInformation')}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">First Name *</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.firstNameRequired')}</label>
                   <input
                     type="text"
                     value={formData.first_name}
@@ -384,7 +497,7 @@ export default function CustomerCreatePage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Last Name *</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.lastNameRequired')}</label>
                   <input
                     type="text"
                     value={formData.last_name}
@@ -398,45 +511,49 @@ export default function CustomerCreatePage() {
             </Section>
 
             {/* Contact Info Section */}
-            <Section icon={<Phone className="h-5 w-5" />} title="Contact Information">
+            <Section icon={<Phone className="h-5 w-5" />} title={t('customerCreate.contactInformation')}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Primary Phone *</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.primaryPhoneRequired')}</label>
                   <input
                     type="tel"
                     value={formData.phone_primary}
                     onChange={(e) => updateField('phone_primary', e.target.value)}
                     onBlur={() => handlePhoneBlur('phone_primary')}
                     required
-                    placeholder="09XXXXXXXX or +251..."
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder={t('customerCreate.phonePlaceholder')}
+                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_primary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
                   />
-                  <p className="mt-1 text-xs text-gray-500">Will auto-format to +251 format</p>
+                  <p className="mt-1 text-xs text-gray-500">{t('customerCreate.phoneFormatHint')}</p>
+                  {fieldErrors.phone_primary && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone_primary}</p>}
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Secondary Phone</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.secondaryPhone')}</label>
                   <input
                     type="tel"
                     value={formData.phone_secondary}
                     onChange={(e) => updateField('phone_secondary', e.target.value)}
                     onBlur={() => handlePhoneBlur('phone_secondary')}
-                    placeholder="09XXXXXXXX or +251..."
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder={t('customerCreate.phonePlaceholder')}
+                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_secondary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
                   />
+                  {fieldErrors.phone_secondary && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone_secondary}</p>}
                 </div>
               </div>
               <div className="mt-4">
-                <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.email')}</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => updateField('email', e.target.value)}
-                    placeholder="customer@example.com"
-                    className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    onBlur={handleEmailBlur}
+                    placeholder={t('customerCreate.emailPlaceholder')}
+                    className={`w-full rounded-lg border py-2 pl-10 pr-3 focus:outline-none focus:ring-1 ${emailTouched && fieldErrors.email ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
                   />
                 </div>
+                {emailTouched && fieldErrors.email && <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>}
               </div>
             </Section>
 
@@ -446,16 +563,16 @@ export default function CustomerCreatePage() {
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
                   <div className="flex-1">
-                    <h3 className="font-medium text-yellow-800">Possible Duplicate Customer</h3>
+                    <h3 className="font-medium text-yellow-800">{t('customerCreate.possibleDuplicate')}</h3>
                     <p className="mt-1 text-sm text-yellow-700">
-                      A customer with this {duplicateWarning.match === 'id_number' ? 'ID number' : duplicateWarning.match === 'license_number' ? 'license number' : 'phone number'} already exists: <strong>{duplicateWarning.customer_name}</strong>
+                      {t('customerCreate.duplicateExists', { type: duplicateWarning.match === 'id_number' ? t('customerCreate.idAndLicense') : duplicateWarning.match === 'license_number' ? t('customerCreate.idAndLicense') : t('customerCreate.contactInfo') })} <strong>{duplicateWarning.customer_name}</strong>
                     </p>
                     <button
                       type="button"
                       onClick={() => window.open(`/customers`, '_blank')}
                       className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-yellow-800 hover:text-yellow-900"
                     >
-                      View existing customers <ExternalLink className="h-4 w-4" />
+                      {t('customerCreate.viewExisting')} <ExternalLink className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -464,25 +581,25 @@ export default function CustomerCreatePage() {
 
             {/* ID & License Section - Only for Individual */}
             {isIndividual && (
-              <Section icon={<FileText className="h-5 w-5" />} title="ID & License">
+              <Section icon={<FileText className="h-5 w-5" />} title={t('customerCreate.idAndLicense')}>
                 {checkingDuplicate && (
                   <div className="mb-4 text-sm text-gray-500">Checking for duplicates...</div>
                 )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">ID Type *</label>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.idTypeRequired')}</label>
                     <select
                       value={formData.id_type}
                       onChange={(e) => updateField('id_type', e.target.value)}
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
-                      <option value="passport">Passport</option>
-                      <option value="national_id">National ID</option>
-                      <option value="kebele_id">Kebele ID</option>
+                      <option value="passport">{t('customerCreate.passport')}</option>
+                      <option value="national_id">{t('customerCreate.nationalId')}</option>
+                      <option value="kebele_id">{t('customerCreate.kebeleId')}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">ID Number *</label>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.idNumberRequired')}</label>
                     <input
                       type="text"
                       value={formData.id_number}
@@ -494,7 +611,7 @@ export default function CustomerCreatePage() {
                   </div>
                 </div>
                 <div className="mt-4">
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Driver License Number *</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.driverLicenseRequired')}</label>
                   <input
                     type="text"
                     value={formData.driver_license_number}
@@ -509,9 +626,9 @@ export default function CustomerCreatePage() {
 
             {/* Document Upload Section - Only for Individual */}
             {isIndividual && (
-              <Section icon={<Upload className="h-5 w-5" />} title="Document Uploads">
+              <Section icon={<Upload className="h-5 w-5" />} title={t('customerCreate.documentUploads')}>
                 <p className="mb-4 text-sm text-gray-500">
-                  Upload photos or scans of ID documents. Documents will be saved after customer is created.
+                  {t('customerCreate.uploadHint')}
                 </p>
                 <div className="grid grid-cols-2 gap-6">
                   {/* ID Document based on selected type */}
@@ -520,6 +637,17 @@ export default function CustomerCreatePage() {
                     docType={formData.id_type as DocumentType}
                     label={`${formData.id_type === 'passport' ? 'Passport' : formData.id_type === 'national_id' ? 'National ID' : 'Kebele ID'} Document`}
                     disabled={false}
+                    onFileSelected={(file) =>
+                      setStagedDocuments((prev) => {
+                        const key = formData.id_type as DocumentType
+                        if (!file) {
+                          const next = { ...prev }
+                          delete next[key]
+                          return next
+                        }
+                        return { ...prev, [key]: file }
+                      })
+                    }
                   />
                   
                   {/* Driver License */}
@@ -528,16 +656,26 @@ export default function CustomerCreatePage() {
                     docType="driver_license"
                     label="Driver License"
                     disabled={false}
+                    onFileSelected={(file) =>
+                      setStagedDocuments((prev) => {
+                        if (!file) {
+                          const next = { ...prev }
+                          delete next.driver_license
+                          return next
+                        }
+                        return { ...prev, driver_license: file }
+                      })
+                    }
                   />
                 </div>
               </Section>
             )}
 
             {/* Address Section */}
-            <Section icon={<MapPin className="h-5 w-5" />} title="Address">
+            <Section icon={<MapPin className="h-5 w-5" />} title={t('customerCreate.address')}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">House Number</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.houseNumber')}</label>
                   <input
                     type="text"
                     value={formData.house_number}
@@ -546,7 +684,7 @@ export default function CustomerCreatePage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Wereda</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.wereda')}</label>
                   <input
                     type="text"
                     value={formData.wereda}
@@ -558,20 +696,20 @@ export default function CustomerCreatePage() {
               </div>
               <div className="mt-4 grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Subcity</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.subcity')}</label>
                   <select
                     value={formData.subcity}
                     onChange={(e) => updateField('subcity', e.target.value)}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   >
-                    <option value="">Select Subcity</option>
+                    <option value="">{t('customerCreate.selectSubcity')}</option>
                     {SUBCITIES.map((sc) => (
                       <option key={sc} value={sc}>{sc}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">City</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.city')}</label>
                   <input
                     type="text"
                     value={formData.city}
@@ -584,12 +722,12 @@ export default function CustomerCreatePage() {
             </Section>
 
             {/* Notes Section */}
-            <Section icon={<FileText className="h-5 w-5" />} title="Additional Notes">
+            <Section icon={<FileText className="h-5 w-5" />} title={t('customerCreate.additionalNotes')}>
               <textarea
                 value={formData.notes}
                 onChange={(e) => updateField('notes', e.target.value)}
                 rows={3}
-                placeholder="Any additional notes about this customer..."
+                placeholder={t('customerCreate.notesPlaceholder')}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </Section>
@@ -601,24 +739,24 @@ export default function CustomerCreatePage() {
                 onClick={() => navigate('/customers')}
                 className="rounded-lg border border-gray-300 px-6 py-2 text-gray-700 hover:bg-gray-50"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={handleSaveAndClose}
-                  disabled={isLoading}
+                  disabled={!canSave}
                   className="rounded-lg border border-blue-600 px-6 py-2 text-blue-600 hover:bg-blue-50 disabled:opacity-50"
                 >
-                  {isLoading ? 'Saving...' : 'Save & Close'}
+                  {isLoading ? t('customerCreate.saving') : t('customerCreate.saveAndClose')}
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveAndNext}
-                  disabled={isLoading}
+                  disabled={!canSave}
                   className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isLoading ? 'Saving...' : 'Save & Next →'}
+                  {isLoading ? t('customerCreate.saving') : t('customerCreate.saveAndNext')}
                 </button>
               </div>
             </div>
@@ -635,12 +773,12 @@ export default function CustomerCreatePage() {
                 <AlertTriangle className="h-6 w-6 text-yellow-600" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900">Duplicate Phone Number</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{t('customerCreate.duplicatePhone')}</h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  A customer with this phone number already exists: <strong>{duplicateWarning.customer_name}</strong>
+                  {t('customerCreate.duplicatePhoneDesc')} <strong>{duplicateWarning.customer_name}</strong>
                 </p>
                 <p className="mt-2 text-sm text-gray-600">
-                  Do you want to proceed with creating this customer anyway? This action will be logged for review.
+                  {t('customerCreate.proceedDuplicate')}
                 </p>
               </div>
               <button onClick={handleCancelDuplicate} className="text-gray-400 hover:text-gray-600">
@@ -652,14 +790,14 @@ export default function CustomerCreatePage() {
                 onClick={handleCancelDuplicate}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleProceedWithDuplicate}
                 disabled={isLoading}
                 className="rounded-lg bg-yellow-600 px-4 py-2 text-white hover:bg-yellow-700 disabled:opacity-50"
               >
-                {isLoading ? 'Saving...' : 'Proceed Anyway'}
+                {isLoading ? t('customerCreate.saving') : t('customerCreate.proceedAnyway')}
               </button>
             </div>
           </div>

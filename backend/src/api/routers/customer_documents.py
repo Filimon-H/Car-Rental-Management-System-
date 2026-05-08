@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from src.api.deps import get_current_user, get_db, require_permission
@@ -29,6 +30,14 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 def ensure_upload_dir():
     """Ensure upload directory exists."""
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def ensure_upload_subdir(doc_type: DocumentType) -> Path:
+    """Ensure per-document-type subdirectory exists and return it."""
+    ensure_upload_dir()
+    subdir = UPLOAD_DIR / doc_type.value
+    subdir.mkdir(parents=True, exist_ok=True)
+    return subdir
 
 
 def validate_file(file: UploadFile) -> tuple[str, str]:
@@ -119,11 +128,11 @@ async def upload_customer_document(
     unique_id = uuid.uuid4().hex[:12]
     safe_filename = f"{customer_id}_{doc_type.value}_{unique_id}{ext}"
     
-    # Ensure upload directory exists
-    ensure_upload_dir()
+    # Ensure upload directory exists (per doc type)
+    upload_dir = ensure_upload_subdir(doc_type)
     
     # Save file
-    file_path = UPLOAD_DIR / safe_filename
+    file_path = upload_dir / safe_filename
     with open(file_path, "wb") as f:
         f.write(content)
     
@@ -142,6 +151,49 @@ async def upload_customer_document(
     db.refresh(document)
     
     return CustomerDocumentResponse.model_validate(document)
+
+
+@router.get("/{customer_id}/documents/{document_id}/file")
+async def get_document_file(
+    customer_id: int,
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(require_permission(Permission.VIEW_CUSTOMERS)),
+):
+    """Serve a customer document file."""
+    # Verify customer exists
+    customer = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not customer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer not found"
+        )
+
+    # Get document
+    document = db.query(CustomerDocument).filter(
+        CustomerDocument.id == document_id,
+        CustomerDocument.customer_id == customer_id
+    ).first()
+
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found"
+        )
+
+    # Check if file exists
+    if not os.path.exists(document.file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found"
+        )
+
+    # Return file with proper media type
+    return FileResponse(
+        path=document.file_path,
+        filename=document.file_name,
+        media_type=document.mime_type
+    )
 
 
 @router.delete("/{customer_id}/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -143,7 +143,7 @@ class TestMeEndpoint:
     def test_get_me_unauthenticated(self, client: TestClient):
         """Unauthenticated request returns 401."""
         response = client.get("/api/me")
-        assert response.status_code == 403  # No auth header
+        assert response.status_code == 401
 
     def test_get_me_invalid_token(self, client: TestClient):
         """Invalid token returns 401."""

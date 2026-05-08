@@ -44,8 +44,9 @@ export function BulkUploadModal({ onClose, onSuccess }: BulkUploadModalProps) {
   const handleDownloadTemplate = async () => {
     try {
       await customersService.downloadBulkTemplate()
-    } catch (err: any) {
-      setError(err.message || 'Failed to download template')
+    } catch (err: unknown) {
+      const error = err as Error
+      setError(error.message || 'Failed to download template')
     }
   }
 
@@ -62,8 +63,9 @@ export function BulkUploadModal({ onClose, onSuccess }: BulkUploadModalProps) {
       if (uploadResult.successful > 0) {
         onSuccess()
       }
-    } catch (err: any) {
-      setError(err.message || 'Upload failed')
+    } catch (err: unknown) {
+      const error = err as Error
+      setError(error.message || 'Upload failed')
     } finally {
       setIsUploading(false)
     }

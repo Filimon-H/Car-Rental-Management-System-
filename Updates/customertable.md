@@ -28,3 +28,11 @@ The collateral form should also have the same document upload sections as the cu
 
 ------
 i am not seeing the uploaded picture when i click on a customer row in the customer table.where it is stored?
+
+i noticing that when i fillout the customer form in the email field if it is not saved wrongly it tells me at the end when i try to save it just shows system eroror but before that can we make it show us in red wrong format error when the email format is invalid. Also, the phone number field should validate the format and show an error in red if it's not valid. The validation should happen in real-time as the user types. The validation messages should be clear and helpful to guide the user to correct their input. The validation should also apply to the collateral form's email and phone number fields.
+
+The system should provide clear feedback when validation fails, including specific error messages that explain what is wrong with the input and how to fix it.
+
+0923677823
+-----
+okay now can we change this form to the same as customer form with the fields intact but the form be like customer form in diffrent form not pop out and the drop downs are empty ?for the plate code field(01 ,02,03,05,Daily,Temporary,Other) ,Plate city field(AA,Oromiya,shegercity)for now,service type field(Business,Field,WEDDING,lUXURY,oTHER) ,FUEL type(Benzin,Disel,Electric,Hybrid,Gas,Natural Gas) ,color(fill it your slef the drop downs),Vecicle type field(Standard,Compact,Sport Car,Luxury,convertable,Pickup Truck,Van,Truck,SUV,Minivan,Other). Also add a field for vehicle make and model with appropriate dropdowns.,condition(Excellent,Good,Fair,Poor,Risky)Model field(Suzuki desire,Colloral,Vitz,Minibus, Suzuki swift, Toyota Corolla, Honda Civic, Ford F-150, Chevrolet Silverado, BMW X5, Mercedes-Benz C-Class, Tesla Model 3, Nissan Altima) and for all the drp down list also the field has to accept user inputs but only allow specific values from the dropdowns, ensuring data consistency and preventing invalid entries.

@@ -59,6 +59,10 @@ def register_routers(app: FastAPI) -> None:
     from src.api.routers import collaterals
     app.include_router(collaterals.router, prefix=f"{settings.api_prefix}/collaterals", tags=["collaterals"])
 
+    # Collateral Documents routes (nested under collaterals)
+    from src.api.routers import collateral_documents
+    app.include_router(collateral_documents.router, prefix=f"{settings.api_prefix}/collaterals", tags=["collateral-documents"])
+
     # Customer Documents routes (nested under customers)
     from src.api.routers import customer_documents
     app.include_router(customer_documents.router, prefix=f"{settings.api_prefix}/customers", tags=["customer-documents"])

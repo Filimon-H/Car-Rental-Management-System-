@@ -1,9 +1,12 @@
 """Pydantic schemas for vendor operations."""
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field
+
+from src.models.ledger_entry import PaymentMethod
 
 
 class VendorBase(BaseModel):
@@ -81,6 +84,48 @@ class VendorSearchResult(BaseModel):
     company_name: str
     contact_person: Optional[str]
     phone_primary: str
+
+    class Config:
+        from_attributes = True
+
+
+class VendorAgreementPayableResponse(BaseModel):
+    agreement_id: int
+    agreement_number: str
+    agreement_status: str
+    payable_amount: Decimal
+    segment_count: int
+
+
+class VendorPayableSummaryResponse(BaseModel):
+    vendor_id: int
+    vendor_name: str
+    reserved_amount: Decimal
+    earned_amount: Decimal
+    paid_amount: Decimal
+    outstanding_payable: Decimal
+    agreement_count: int
+    agreements: list[VendorAgreementPayableResponse]
+
+
+class VendorPaymentCreate(BaseModel):
+    amount: Decimal = Field(..., gt=0)
+    payment_method: PaymentMethod
+    payment_reference: Optional[str] = None
+    notes: Optional[str] = None
+    agreement_id: Optional[int] = None
+
+
+class VendorPaymentResponse(BaseModel):
+    id: int
+    vendor_id: int
+    agreement_id: Optional[int] = None
+    amount: Decimal
+    payment_method: PaymentMethod
+    payment_reference: Optional[str] = None
+    notes: Optional[str] = None
+    created_by_id: Optional[int] = None
+    created_at: datetime
 
     class Config:
         from_attributes = True

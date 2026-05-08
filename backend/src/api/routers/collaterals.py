@@ -4,6 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from src.api.deps import get_db, require_permission
@@ -171,14 +172,21 @@ async def delete_collateral_person(
     db: Session = Depends(get_db),
     current_user: StaffUser = Depends(require_permission(Permission.MANAGE_CUSTOMERS)),
 ):
-    """Delete a collateral person (soft delete by setting is_active=False)."""
+    """Hard-delete a collateral person and all associated data."""
     collateral = db.query(CollateralPerson).filter(CollateralPerson.id == collateral_id).first()
     if not collateral:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Collateral person not found",
         )
-    
-    collateral.is_active = False
-    db.commit()
+
+    try:
+        db.delete(collateral)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete collateral person because it is linked to other records (e.g., agreements).",
+        )
     return None

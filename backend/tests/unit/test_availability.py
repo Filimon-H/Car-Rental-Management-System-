@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from src.models.agreement import Agreement, AgreementStatus, AgreementType
 from src.models.agreement_vehicle_segment import AgreementVehicleSegment
 from src.models.customer import Customer
+from src.models.vendor import Vendor
 from src.models.vehicle import Vehicle, VehicleStatus, VehicleType
 from src.repositories import availability_repository
 
@@ -16,10 +17,12 @@ from src.repositories import availability_repository
 def test_customer(db: Session) -> Customer:
     """Create a test customer."""
     customer = Customer(
-        full_name="Test Customer",
+        first_name="Test",
+        last_name="Customer",
         phone_primary="0911000000",
         id_type="passport",
         id_number="AB123456",
+        is_active=True,
     )
     db.add(customer)
     db.commit()
@@ -28,15 +31,19 @@ def test_customer(db: Session) -> Customer:
 
 
 @pytest.fixture
-def test_vehicle(db: Session) -> Vehicle:
+def test_vehicle(db: Session, vendor: Vendor) -> Vehicle:
     """Create a test vehicle."""
     vehicle = Vehicle(
+        vendor_id=vendor.id,
         plate_number="TEST-001",
+        plate_code="01",
+        plate_city="AA",
         make="Toyota",
         model="Corolla",
         year=2022,
         color="White",
         vehicle_type=VehicleType.SEDAN,
+        service_type="business",
         daily_rate=1500.00,
         status=VehicleStatus.AVAILABLE,
         is_active=True,
@@ -48,15 +55,19 @@ def test_vehicle(db: Session) -> Vehicle:
 
 
 @pytest.fixture
-def test_vehicle_rented(db: Session) -> Vehicle:
+def test_vehicle_rented(db: Session, vendor: Vendor) -> Vehicle:
     """Create a rented vehicle."""
     vehicle = Vehicle(
+        vendor_id=vendor.id,
         plate_number="TEST-002",
+        plate_code="01",
+        plate_city="AA",
         make="Honda",
         model="Civic",
         year=2021,
         color="Blue",
         vehicle_type=VehicleType.SEDAN,
+        service_type="business",
         daily_rate=1400.00,
         status=VehicleStatus.RENTED,
         is_active=True,

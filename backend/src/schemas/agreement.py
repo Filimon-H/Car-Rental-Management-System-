@@ -116,6 +116,50 @@ class AgreementDetailResponse(AgreementResponse):
     total_charges: Decimal
     total_payments: Decimal
 
+    deposit_received: Decimal = Decimal("0")
+    deposit_applied: Decimal = Decimal("0")
+    deposit_returned: Decimal = Decimal("0")
+    deposit_held: Decimal = Decimal("0")
+    balance_due: Decimal = Decimal("0")
+
+
+class PostDepositRequest(BaseModel):
+    """Request to receive a security deposit."""
+
+    amount: Decimal = Field(..., gt=0)
+    payment_method: PaymentMethod
+    notes: str | None = None
+
+
+class ApplyDepositRequest(BaseModel):
+    """Request to apply (deduct) held deposit to outstanding charges."""
+
+    amount: Decimal = Field(..., gt=0)
+    notes: str | None = None
+
+
+class RefundDepositRequest(BaseModel):
+    """Request to refund deposit back to customer."""
+
+    amount: Decimal = Field(..., gt=0)
+    notes: str | None = None
+
+
+class PostDamageChargeRequest(BaseModel):
+    """Request to post a damage charge."""
+
+    amount: Decimal = Field(..., gt=0)
+    description: str = "Damage charge"
+    notes: str | None = None
+
+
+class PostLateFeeRequest(BaseModel):
+    """Request to post an overdue/late fee."""
+
+    amount: Decimal = Field(..., gt=0)
+    description: str = "Late fee"
+    notes: str | None = None
+
 
 class AgreementListResponse(BaseModel):
     """Paginated list of agreements."""

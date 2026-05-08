@@ -34,7 +34,9 @@ class AgreementStatus(str, PyEnum):
     """Agreement status enumeration."""
 
     DRAFT = "draft"
+    PENDING_PAYMENT = "pending_payment"
     ACTIVE = "active"
+    RETURNED = "returned"
     CLOSED = "closed"
     OVERDUE = "overdue"
     CANCELLED = "cancelled"

@@ -1,23 +1,32 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Upload, X, FileText, Image, Loader2, CheckCircle } from 'lucide-react'
 import { DocumentType, CustomerDocument, customerDocumentsService } from '@/services/customerDocuments'
+import { CollateralDocument, collateralDocumentsService } from '@/services/collateralDocuments'
+import { ImageLightbox } from '@/components/ui/ImageLightbox'
+import { useProtectedFileUrl } from '@/hooks/use-protected-file-url'
 
 interface DocumentDropzoneProps {
-  customerId: number | null
+  ownerType?: 'customer' | 'collateral'
+  customerId?: number | null
+  collateralId?: number | null
   docType: DocumentType
   label: string
-  existingDocument?: CustomerDocument | null
-  onUploadComplete?: (doc: CustomerDocument) => void
+  existingDocument?: CustomerDocument | CollateralDocument | null
+  onUploadComplete?: (doc: CustomerDocument | CollateralDocument) => void
+  onFileSelected?: (file: File | null) => void
   onDelete?: () => void
   disabled?: boolean
 }
 
 export function DocumentDropzone({
-  customerId,
+  ownerType = 'customer',
+  customerId = null,
+  collateralId = null,
   docType,
   label,
   existingDocument,
   onUploadComplete,
+  onFileSelected,
   onDelete,
   disabled = false,
 }: DocumentDropzoneProps) {
@@ -25,8 +34,20 @@ export function DocumentDropzone({
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [uploadedDoc, setUploadedDoc] = useState<CustomerDocument | null>(existingDocument || null)
+  const [uploadedDoc, setUploadedDoc] = useState<CustomerDocument | CollateralDocument | null>(
+    existingDocument || null
+  )
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const ownerId = ownerType === 'customer' ? customerId : collateralId
+
+  // Sync with existingDocument prop when it changes
+  useEffect(() => {
+    if (existingDocument) {
+      setUploadedDoc(existingDocument)
+    }
+  }, [existingDocument])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -49,7 +70,7 @@ export function DocumentDropzone({
     return null
   }
 
-  const handleFile = async (file: File) => {
+  const handleFile = useCallback(async (file: File) => {
     const error = validateFile(file)
     if (error) {
       setUploadError(error)
@@ -67,11 +88,11 @@ export function DocumentDropzone({
       setPreviewUrl(null)
     }
 
-    // If no customer ID yet (new customer), just show preview
-    if (!customerId) {
+    // If no owner ID yet (new entity), just show preview
+    if (!ownerId) {
       setUploadedDoc({
         id: 0,
-        customer_id: 0,
+        ...(ownerType === 'customer' ? { customer_id: 0 } : { collateral_id: 0 }),
         doc_type: docType,
         file_name: file.name,
         file_path: '',
@@ -79,22 +100,31 @@ export function DocumentDropzone({
         mime_type: file.type,
         created_at: new Date().toISOString(),
       })
+      onFileSelected?.(file)
       return
     }
 
     // Upload to server
     setIsUploading(true)
     try {
-      const doc = await customerDocumentsService.upload(customerId, docType, file)
+      console.log('Uploading document:', { ownerType, ownerId, docType, fileName: file.name })
+      const doc =
+        ownerType === 'customer'
+          ? await customerDocumentsService.upload(ownerId, docType, file)
+          : await collateralDocumentsService.upload(ownerId, docType, file)
+      console.log('Upload successful:', doc)
       setUploadedDoc(doc)
       onUploadComplete?.(doc)
-    } catch (err: any) {
-      setUploadError(err.message || 'Upload failed')
+      onFileSelected?.(null)
+    } catch (err: unknown) {
+      console.error('Upload failed:', err)
+      const error = err as Error
+      setUploadError(error.message || 'Upload failed')
       setPreviewUrl(null)
     } finally {
       setIsUploading(false)
     }
-  }
+  }, [docType, onFileSelected, onUploadComplete, ownerId, ownerType])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -104,7 +134,7 @@ export function DocumentDropzone({
     
     const file = e.dataTransfer.files[0]
     if (file) handleFile(file)
-  }, [disabled, customerId, docType])
+  }, [disabled, handleFile])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -112,19 +142,41 @@ export function DocumentDropzone({
   }
 
   const handleRemove = async () => {
-    if (uploadedDoc && uploadedDoc.id && customerId) {
+    if (uploadedDoc && uploadedDoc.id && ownerId) {
       try {
-        await customerDocumentsService.delete(customerId, uploadedDoc.id)
+        if (ownerType === 'customer') {
+          await customerDocumentsService.delete(ownerId, uploadedDoc.id)
+        } else {
+          await collateralDocumentsService.delete(ownerId, uploadedDoc.id)
+        }
       } catch (err) {
         console.error('Failed to delete document:', err)
       }
     }
     setUploadedDoc(null)
     setPreviewUrl(null)
+    onFileSelected?.(null)
     onDelete?.()
   }
 
-  const isImage = uploadedDoc?.mime_type?.startsWith('image/') || previewUrl
+  const isImage = uploadedDoc?.mime_type?.startsWith('image/') || !!previewUrl
+  const serverImagePath = (() => {
+    if (!uploadedDoc?.id) return ''
+    if (ownerType === 'customer' && (uploadedDoc as CustomerDocument).customer_id) {
+      const doc = uploadedDoc as CustomerDocument
+      return `/api/customers/${doc.customer_id}/documents/${doc.id}/file`
+    }
+    if (ownerType === 'collateral' && (uploadedDoc as CollateralDocument).collateral_id) {
+      const doc = uploadedDoc as CollateralDocument
+      return `/api/collaterals/${doc.collateral_id}/documents/${doc.id}/file`
+    }
+    return ''
+  })()
+  const { fileUrl: serverImageSrc, isLoading: isServerImageLoading } = useProtectedFileUrl(
+    previewUrl ? null : serverImagePath,
+    !previewUrl && isImage
+  )
+  const lightboxSrc = previewUrl || serverImageSrc
 
   return (
     <div className="space-y-2">
@@ -132,12 +184,35 @@ export function DocumentDropzone({
       
       {uploadedDoc ? (
         // Show uploaded document
-        <div className="relative rounded-lg border border-green-200 bg-green-50 p-4">
-          <div className="flex items-start gap-3">
+        <>
+          <div className="relative rounded-lg border border-green-200 bg-green-50 p-4">
+            <div className="flex items-start gap-3">
             {previewUrl || isImage ? (
               <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border bg-white">
                 {previewUrl ? (
-                  <img src={previewUrl} alt="Preview" className="h-full w-full object-cover" />
+                  <img
+                    src={previewUrl}
+                    alt="Preview"
+                    className="h-full w-full cursor-zoom-in object-cover"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setLightboxOpen(true)
+                    }}
+                  />
+                ) : serverImageSrc ? (
+                  <img
+                    src={serverImageSrc}
+                    alt={uploadedDoc.file_name}
+                    className="h-full w-full cursor-zoom-in object-cover"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setLightboxOpen(true)
+                    }}
+                  />
+                ) : isServerImageLoading ? (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                  </div>
                 ) : (
                   <Image className="h-full w-full p-3 text-gray-400" />
                 )}
@@ -166,8 +241,18 @@ export function DocumentDropzone({
                 <X className="h-5 w-5" />
               </button>
             )}
+            </div>
           </div>
-        </div>
+
+          {isImage && lightboxSrc && (
+            <ImageLightbox
+              open={lightboxOpen}
+              src={lightboxSrc}
+              alt={uploadedDoc?.file_name || label}
+              onClose={() => setLightboxOpen(false)}
+            />
+          )}
+        </>
       ) : (
         // Show dropzone
         <div
@@ -211,9 +296,9 @@ export function DocumentDropzone({
         <p className="text-sm text-red-600">{uploadError}</p>
       )}
       
-      {!customerId && uploadedDoc && (
+      {!ownerId && uploadedDoc && (
         <p className="text-xs text-amber-600">
-          Document will be uploaded after customer is saved
+          Document will be uploaded after save
         </p>
       )}
     </div>

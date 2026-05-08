@@ -107,6 +107,10 @@ class VehicleResponse(BaseModel):
     daily_rate: Decimal
     insurance_policy_number: Optional[str] = None
     insurance_expiry: Optional[datetime] = None
+    photo_front: Optional[str] = None
+    photo_back: Optional[str] = None
+    photo_left: Optional[str] = None
+    photo_right: Optional[str] = None
     current_mileage: Optional[int] = None
     notes: Optional[str] = None
     status: VehicleStatus
@@ -152,6 +156,10 @@ class VehicleResponse(BaseModel):
             daily_rate=obj.daily_rate,
             insurance_policy_number=obj.insurance_policy,
             insurance_expiry=obj.insurance_expiry,
+            photo_front=getattr(obj, "photo_front", None),
+            photo_back=getattr(obj, "photo_back", None),
+            photo_left=getattr(obj, "photo_left", None),
+            photo_right=getattr(obj, "photo_right", None),
             current_mileage=obj.current_mileage,
             notes=obj.notes,
             status=obj.status,

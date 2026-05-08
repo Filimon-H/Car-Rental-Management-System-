@@ -12,6 +12,7 @@ from src.core.db import get_db
 from src.core.rbac import Permission
 from src.models.inspection import Inspection, InspectionPhoto
 from src.models.inspection_template import InspectionTemplate
+from src.services import inspection_service
 
 router = APIRouter()
 
@@ -259,8 +260,8 @@ async def complete_inspection(
     if not inspection:
         raise HTTPException(status_code=404, detail="Inspection not found")
     
-    if inspection.status == "signed":
-        raise HTTPException(status_code=400, detail="Inspection already signed")
+    if inspection.status in {"completed", "signed"}:
+        raise HTTPException(status_code=400, detail="Inspection already completed")
     
     inspection.status = "completed"
     inspection.completed_at = datetime.now()
@@ -286,14 +287,11 @@ async def sign_inspection(
     inspection = db.query(Inspection).filter(Inspection.id == inspection_id).first()
     if not inspection:
         raise HTTPException(status_code=404, detail="Inspection not found")
-    
-    inspection.status = "signed"
-    inspection.customer_name = data.customer_name
-    inspection.customer_signature = data.customer_signature
-    if not inspection.completed_at:
-        inspection.completed_at = datetime.now()
-    
-    db.commit()
-    db.refresh(inspection)
-    
+
+    inspection = inspection_service.sign_inspection(
+        db=db,
+        inspection=inspection,
+        customer_name=data.customer_name,
+        customer_signature=data.customer_signature,
+    )
     return InspectionResponse.model_validate(inspection)

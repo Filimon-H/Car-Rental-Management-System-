@@ -106,7 +106,9 @@ def post_deposit(
     agreement_id: int,
     amount: Decimal,
     payment_method: PaymentMethod,
+    description: str = "Security deposit received",
     created_by_id: int | None = None,
+    notes: str | None = None,
 ) -> LedgerEntry:
     """Post a security deposit."""
     if amount <= 0:
@@ -116,8 +118,9 @@ def post_deposit(
         agreement_id=agreement_id,
         entry_type=LedgerEntryType.DEPOSIT,
         amount=-amount,  # Negative = credit (held)
-        description="Security deposit received",
+        description=description,
         payment_method=payment_method,
+        notes=notes,
         created_by_id=created_by_id,
     )
     db.add(entry)
@@ -134,6 +137,7 @@ def return_deposit(
     amount: Decimal,
     created_by_id: int | None = None,
     notes: str | None = None,
+    auto_commit: bool = True,
 ) -> LedgerEntry:
     """Return security deposit (or partial)."""
     if amount <= 0:
@@ -148,10 +152,52 @@ def return_deposit(
         created_by_id=created_by_id,
     )
     db.add(entry)
-    db.commit()
-    db.refresh(entry)
+    if auto_commit:
+        db.commit()
+        db.refresh(entry)
+    else:
+        db.flush()
     
     logger.info(f"Returned deposit: {amount} from agreement {agreement_id}")
+    return entry
+
+
+def apply_deposit(
+    db: Session,
+    agreement_id: int,
+    amount: Decimal,
+    created_by_id: int | None = None,
+    notes: str | None = None,
+    auto_commit: bool = True,
+) -> LedgerEntry:
+    """Apply (deduct) held deposit to cover charges.
+
+    This records that some/all of the deposit is being used to pay outstanding charges.
+    We model it as a PAYMENT-like entry (negative) but keep a separate entry_type for reporting.
+    """
+    if amount <= 0:
+        raise BusinessError(ErrorCode.INVALID_INPUT, "Apply amount must be positive")
+
+    held = get_deposit_held(db, agreement_id)
+    if amount > held:
+        raise BusinessError(ErrorCode.INVALID_INPUT, "Cannot apply more than deposit held")
+
+    entry = LedgerEntry(
+        agreement_id=agreement_id,
+        entry_type=LedgerEntryType.DEPOSIT_APPLIED,
+        amount=-amount,  # Negative = reduces balance
+        description="Deposit applied to charges",
+        notes=notes,
+        created_by_id=created_by_id,
+    )
+    db.add(entry)
+    if auto_commit:
+        db.commit()
+        db.refresh(entry)
+    else:
+        db.flush()
+
+    logger.info(f"Applied deposit: {amount} to agreement {agreement_id}")
     return entry
 
 
@@ -246,12 +292,60 @@ def get_total_charges(db: Session, agreement_id: int) -> Decimal:
 
 
 def get_total_payments(db: Session, agreement_id: int) -> Decimal:
-    """Get total payments (negative amounts, returned as positive) for an agreement."""
+    """Get total payments (excluding deposits).
+
+    Payments are negative amounts recorded with entry_type PAYMENT.
+    """
     from sqlalchemy import func
     result = (
         db.query(func.sum(LedgerEntry.amount))
         .filter(LedgerEntry.agreement_id == agreement_id)
-        .filter(LedgerEntry.amount < 0)
+        .filter(LedgerEntry.entry_type == LedgerEntryType.PAYMENT)
         .scalar()
     )
     return abs(Decimal(str(result))) if result else Decimal("0")
+
+
+def get_deposit_received(db: Session, agreement_id: int) -> Decimal:
+    """Total deposit received."""
+    result = (
+        db.query(func.coalesce(func.sum(LedgerEntry.amount), 0))
+        .filter(LedgerEntry.agreement_id == agreement_id)
+        .filter(LedgerEntry.entry_type == LedgerEntryType.DEPOSIT)
+        .scalar()
+    )
+    # Deposits are stored as negative amounts
+    return abs(Decimal(str(result)))
+
+
+def get_deposit_returned(db: Session, agreement_id: int) -> Decimal:
+    """Total deposit refunded to the customer."""
+    result = (
+        db.query(func.coalesce(func.sum(LedgerEntry.amount), 0))
+        .filter(LedgerEntry.agreement_id == agreement_id)
+        .filter(LedgerEntry.entry_type == LedgerEntryType.DEPOSIT_RETURN)
+        .scalar()
+    )
+    # Deposit returns are stored as positive amounts (increase balance)
+    return Decimal(str(result))
+
+
+def get_deposit_applied(db: Session, agreement_id: int) -> Decimal:
+    """Total deposit applied to charges (deducted)."""
+    result = (
+        db.query(func.coalesce(func.sum(LedgerEntry.amount), 0))
+        .filter(LedgerEntry.agreement_id == agreement_id)
+        .filter(LedgerEntry.entry_type == LedgerEntryType.DEPOSIT_APPLIED)
+        .scalar()
+    )
+    # Deposit applied is stored as negative amounts
+    return abs(Decimal(str(result)))
+
+
+def get_deposit_held(db: Session, agreement_id: int) -> Decimal:
+    """Deposit currently held (received - applied - returned)."""
+    received = get_deposit_received(db, agreement_id)
+    applied = get_deposit_applied(db, agreement_id)
+    returned = get_deposit_returned(db, agreement_id)
+    held = received - applied - returned
+    return max(Decimal("0"), held)

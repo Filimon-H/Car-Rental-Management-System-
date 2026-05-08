@@ -11,6 +11,7 @@ from src.core.rbac import Role
 
 if TYPE_CHECKING:
     from src.models.audit_event import AuditEvent
+    from src.models.telegram import TelegramLinkCode, TelegramStaffLink
 
 
 class StaffUser(Base):
@@ -36,6 +37,18 @@ class StaffUser(Base):
     # Relationships
     audit_events: Mapped[list["AuditEvent"]] = relationship(
         "AuditEvent", back_populates="actor", lazy="dynamic"
+    )
+    telegram_link: Mapped["TelegramStaffLink | None"] = relationship(
+        "TelegramStaffLink",
+        back_populates="staff_user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    telegram_link_codes: Mapped[list["TelegramLinkCode"]] = relationship(
+        "TelegramLinkCode",
+        back_populates="staff_user",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { type FormEvent, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Plus, Search, Building2, Heart, Link2 } from 'lucide-react'
@@ -18,7 +18,6 @@ const statusColors: Record<string, string> = {
 export default function VendorWeddingAgreementsPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -221,7 +220,6 @@ export default function VendorWeddingAgreementsPage() {
 }
 
 function CreateVendorSupplyModal({ onClose }: { onClose: () => void }) {
-  const navigate = useNavigate()
   const [showVendorLookup, setShowVendorLookup] = useState(false)
   const [selectedVendor, setSelectedVendor] = useState<VendorSearchResult | null>(null)
   const [formData, setFormData] = useState({
@@ -237,7 +235,7 @@ function CreateVendorSupplyModal({ onClose }: { onClose: () => void }) {
     setSelectedVendor(vendor)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     // For now, just close and navigate - full implementation would create the agreement
     alert('Vendor supply agreement creation would be submitted here')

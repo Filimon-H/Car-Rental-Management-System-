@@ -88,6 +88,14 @@ class ApiClient {
     return response.data
   }
 
+  async getBlob(url: string, params?: Record<string, unknown>) {
+    const response = await this.client.get<Blob>(url, {
+      params,
+      responseType: 'blob',
+    })
+    return response.data
+  }
+
   async post<T>(url: string, data?: unknown) {
     const response = await this.client.post<T>(url, data)
     return response.data
@@ -111,6 +119,13 @@ class ApiClient {
   async uploadFile<T>(url: string, file: File, fieldName = 'file') {
     const formData = new FormData()
     formData.append(fieldName, file)
+    const response = await this.client.post<T>(url, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  }
+
+  async postFormData<T>(url: string, formData: FormData) {
     const response = await this.client.post<T>(url, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })

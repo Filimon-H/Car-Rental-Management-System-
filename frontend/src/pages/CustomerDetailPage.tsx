@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, User, Phone, Mail, MapPin, FileText, Edit, Users, Image, Loader2, Calendar, Shield } from 'lucide-react'
 import { customersService } from '@/services/customers'
 import { customerDocumentsService, CustomerDocument } from '@/services/customerDocuments'
 import { collateralsService, CollateralPerson } from '@/services/collaterals'
+import { ImageLightbox } from '@/components/ui/ImageLightbox'
+import { useProtectedFileUrl } from '@/hooks/use-protected-file-url'
 
 export default function CustomerDetailPage() {
   const navigate = useNavigate()
@@ -251,19 +254,30 @@ function DocumentCard({ document }: { document: CustomerDocument }) {
     driver_license: 'Driver License',
   }
 
+  const [open, setOpen] = useState(false)
+  const imagePath = `/api/customers/${document.customer_id}/documents/${document.id}/file`
+  const { fileUrl: imageSrc, isLoading } = useProtectedFileUrl(imagePath, isImage)
+
   return (
     <div className="rounded-lg border bg-gray-50 p-3">
       <div className="mb-2 aspect-square overflow-hidden rounded-lg bg-white">
         {isImage ? (
-          <img
-            src={`/api/customers/${document.customer_id}/documents/${document.id}/file`}
-            alt={document.file_name}
-            className="h-full w-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = ''
-              ;(e.target as HTMLImageElement).style.display = 'none'
-            }}
-          />
+          imageSrc ? (
+            <img
+              src={imageSrc}
+              alt={document.file_name}
+              className="h-full w-full cursor-zoom-in object-cover"
+              onClick={() => setOpen(true)}
+            />
+          ) : isLoading ? (
+            <div className="flex h-full items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            </div>
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <FileText className="h-12 w-12 text-gray-400" />
+            </div>
+          )
         ) : (
           <div className="flex h-full items-center justify-center">
             <FileText className="h-12 w-12 text-gray-400" />
@@ -272,6 +286,15 @@ function DocumentCard({ document }: { document: CustomerDocument }) {
       </div>
       <p className="text-xs font-medium text-gray-700">{docTypeLabels[document.doc_type] || document.doc_type}</p>
       <p className="truncate text-xs text-gray-500">{document.file_name}</p>
+
+      {isImage && imageSrc && (
+        <ImageLightbox
+          open={open}
+          src={imageSrc}
+          alt={document.file_name}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </div>
   )
 }
@@ -281,7 +304,7 @@ function CollateralCard({ collateral, customerId }: { collateral: CollateralPers
   
   return (
     <div 
-      onClick={() => navigate(`/customers/${customerId}/collaterals/${collateral.id}/edit`)}
+      onClick={() => navigate(`/customers/${customerId}/collaterals/${collateral.id}`)}
       className="flex items-center justify-between rounded-lg border bg-gray-50 p-4 cursor-pointer hover:bg-gray-100 transition-colors"
     >
       <div className="flex items-center gap-4">

@@ -10,6 +10,7 @@ from src.core.db import get_db
 from src.core.errors import NotFoundError
 from src.core.rbac import Permission
 from src.models.agreement import Agreement, AgreementStatus
+from src.models.ledger_entry import LedgerEntryType
 from src.schemas.agreement import (
     AddWeddingVehicleRequest,
     AgreementClose,
@@ -21,6 +22,11 @@ from src.schemas.agreement import (
     CollateralSummary,
     DriverSummary,
     LedgerEntryResponse,
+    ApplyDepositRequest,
+    PostDamageChargeRequest,
+    PostDepositRequest,
+    PostLateFeeRequest,
+    RefundDepositRequest,
     PostAdjustmentRequest,
     PostPaymentRequest,
     VehicleSegmentResponse,
@@ -187,6 +193,154 @@ async def get_agreement(
         balance=summary["balance"],
         total_charges=summary["total_charges"],
         total_payments=summary["total_payments"],
+        deposit_received=summary.get("deposit_received"),
+        deposit_applied=summary.get("deposit_applied"),
+        deposit_returned=summary.get("deposit_returned"),
+        deposit_held=summary.get("deposit_held"),
+        balance_due=summary.get("balance_due"),
+    )
+
+
+@router.post("/{agreement_id}/deposits", response_model=LedgerEntryResponse, status_code=201)
+async def receive_deposit(
+    agreement_id: int,
+    data: PostDepositRequest,
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.POST_PAYMENTS))],
+    db: Annotated[Session, Depends(get_db)],
+) -> LedgerEntryResponse:
+    """Receive a deposit (held liability)."""
+    entry = ledger_service.post_deposit(
+        db=db,
+        agreement_id=agreement_id,
+        amount=data.amount,
+        payment_method=data.payment_method,
+        created_by_id=current_user.id,
+    )
+    if data.notes:
+        entry.notes = data.notes
+        db.commit()
+        db.refresh(entry)
+    return LedgerEntryResponse(
+        id=entry.id,
+        entry_type=entry.entry_type,
+        amount=entry.amount,
+        description=entry.description,
+        payment_method=entry.payment_method,
+        payment_reference=entry.payment_reference,
+        notes=entry.notes,
+        created_at=entry.created_at,
+    )
+
+
+@router.post("/{agreement_id}/deposits/apply", response_model=LedgerEntryResponse, status_code=201)
+async def apply_deposit(
+    agreement_id: int,
+    data: ApplyDepositRequest,
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.POST_PAYMENTS))],
+    db: Annotated[Session, Depends(get_db)],
+) -> LedgerEntryResponse:
+    """Apply (deduct) held deposit to outstanding charges."""
+    entry = ledger_service.apply_deposit(
+        db=db,
+        agreement_id=agreement_id,
+        amount=data.amount,
+        created_by_id=current_user.id,
+        notes=data.notes,
+    )
+    return LedgerEntryResponse(
+        id=entry.id,
+        entry_type=entry.entry_type,
+        amount=entry.amount,
+        description=entry.description,
+        payment_method=entry.payment_method,
+        payment_reference=entry.payment_reference,
+        notes=entry.notes,
+        created_at=entry.created_at,
+    )
+
+
+@router.post("/{agreement_id}/deposits/refund", response_model=LedgerEntryResponse, status_code=201)
+async def refund_deposit(
+    agreement_id: int,
+    data: RefundDepositRequest,
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.POST_PAYMENTS))],
+    db: Annotated[Session, Depends(get_db)],
+) -> LedgerEntryResponse:
+    """Refund deposit back to the customer (or partial)."""
+    entry = ledger_service.return_deposit(
+        db=db,
+        agreement_id=agreement_id,
+        amount=data.amount,
+        created_by_id=current_user.id,
+        notes=data.notes,
+    )
+    return LedgerEntryResponse(
+        id=entry.id,
+        entry_type=entry.entry_type,
+        amount=entry.amount,
+        description=entry.description,
+        payment_method=entry.payment_method,
+        payment_reference=entry.payment_reference,
+        notes=entry.notes,
+        created_at=entry.created_at,
+    )
+
+
+@router.post("/{agreement_id}/charges/damage", response_model=LedgerEntryResponse, status_code=201)
+async def post_damage_charge(
+    agreement_id: int,
+    data: PostDamageChargeRequest,
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.POST_PAYMENTS))],
+    db: Annotated[Session, Depends(get_db)],
+) -> LedgerEntryResponse:
+    """Post a damage charge (eligible to be covered by deposit)."""
+    entry = ledger_service.post_charge(
+        db=db,
+        agreement_id=agreement_id,
+        amount=data.amount,
+        description=data.description,
+        entry_type=LedgerEntryType.DAMAGE_CHARGE,
+        created_by_id=current_user.id,
+        notes=data.notes,
+    )
+    return LedgerEntryResponse(
+        id=entry.id,
+        entry_type=entry.entry_type,
+        amount=entry.amount,
+        description=entry.description,
+        payment_method=entry.payment_method,
+        payment_reference=entry.payment_reference,
+        notes=entry.notes,
+        created_at=entry.created_at,
+    )
+
+
+@router.post("/{agreement_id}/charges/late", response_model=LedgerEntryResponse, status_code=201)
+async def post_late_fee(
+    agreement_id: int,
+    data: PostLateFeeRequest,
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.POST_PAYMENTS))],
+    db: Annotated[Session, Depends(get_db)],
+) -> LedgerEntryResponse:
+    """Post an overdue/late fee (eligible to be covered by deposit)."""
+    entry = ledger_service.post_charge(
+        db=db,
+        agreement_id=agreement_id,
+        amount=data.amount,
+        description=data.description,
+        entry_type=LedgerEntryType.LATE_FEE,
+        created_by_id=current_user.id,
+        notes=data.notes,
+    )
+    return LedgerEntryResponse(
+        id=entry.id,
+        entry_type=entry.entry_type,
+        amount=entry.amount,
+        description=entry.description,
+        payment_method=entry.payment_method,
+        payment_reference=entry.payment_reference,
+        notes=entry.notes,
+        created_at=entry.created_at,
     )
 
 
@@ -234,6 +388,40 @@ async def close_agreement(
         logger.error(traceback.format_exc())
         db.rollback()
         raise
+
+
+@router.post("/{agreement_id}/activate", response_model=AgreementResponse)
+async def activate_agreement(
+    agreement_id: int,
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.MANAGE_AGREEMENTS))],
+    db: Annotated[Session, Depends(get_db)],
+) -> AgreementResponse:
+    """Activate an agreement (handover complete)."""
+    agreement = agreement_service.activate_agreement(
+        db=db,
+        agreement_id=agreement_id,
+        activated_by_id=current_user.id,
+    )
+    return _to_agreement_response(agreement)
+
+
+@router.post("/{agreement_id}/return", response_model=AgreementResponse)
+async def return_agreement(
+    agreement_id: int,
+    data: AgreementClose,
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.CLOSE_AGREEMENTS))],
+    db: Annotated[Session, Depends(get_db)],
+) -> AgreementResponse:
+    """Mark agreement as returned (car is back, settlement may still be pending)."""
+    agreement = agreement_service.mark_agreement_returned(
+        db=db,
+        agreement_id=agreement_id,
+        actual_return_datetime=data.actual_return_datetime,
+        return_mileage=data.return_mileage,
+        returned_by_id=current_user.id,
+        notes=data.notes,
+    )
+    return _to_agreement_response(agreement)
 
 
 @router.get("/{agreement_id}/ledger", response_model=list[LedgerEntryResponse])
