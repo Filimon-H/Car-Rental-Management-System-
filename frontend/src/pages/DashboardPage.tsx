@@ -34,7 +34,9 @@ const toneMap = {
 
 const statusMap: Record<string, { dot: string; text: string; bg: string }> = {
   draft: { dot: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-100' },
+  pending_payment: { dot: 'bg-amber-400', text: 'text-amber-700', bg: 'bg-amber-50' },
   active: { dot: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50' },
+  returned: { dot: 'bg-sky-500', text: 'text-sky-700', bg: 'bg-sky-50' },
   closed: { dot: 'bg-blue-500', text: 'text-blue-700', bg: 'bg-blue-50' },
   overdue: { dot: 'bg-red-500', text: 'text-red-700', bg: 'bg-red-50' },
   cancelled: { dot: 'bg-slate-300', text: 'text-slate-500', bg: 'bg-slate-50' },
@@ -175,7 +177,7 @@ export default function DashboardPage() {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
 
-  const { data: agreementsData } = useQuery({
+  const { data: agreementsData, isError: agreementsError } = useQuery({
     queryKey: ['agreements', 'all'],
     queryFn: () => agreementsService.list({ page_size: 100 }),
   })
@@ -187,14 +189,15 @@ export default function DashboardPage() {
     queryKey: ['agreements', 'overdue'],
     queryFn: () => agreementsService.list({ status: 'overdue', page_size: 100 }),
   })
-  const { data: vehiclesData } = useQuery({
+  const { data: vehiclesData, isError: vehiclesError } = useQuery({
     queryKey: ['vehicles', 'all'],
     queryFn: () => vehiclesService.list({ page_size: 100 }),
   })
-  const { data: customersData } = useQuery({
+  const { data: customersData, isError: customersError } = useQuery({
     queryKey: ['customers', 'all'],
     queryFn: () => customersService.list({ page_size: 100 }),
   })
+  const hasDataError = agreementsError || vehiclesError || customersError
   const { data: telegramStatus, isLoading: isTelegramLoading } = useQuery({
     queryKey: ['me', 'telegram'],
     queryFn: () => telegramService.getStatus(),
@@ -250,11 +253,15 @@ export default function DashboardPage() {
   ).length
   const recentAgreements = agreementsData?.items?.slice(0, 5) || []
 
-  const today = new Date().toISOString().split('T')[0]
+  // Use local date (not UTC) so "today" matches the business timezone
+  const todayLocal = new Intl.DateTimeFormat('en-CA').format(new Date()) // YYYY-MM-DD in local tz
   const dueToday =
     activeAgreements?.items?.filter((agreement: Agreement) => {
-      const returnDate = agreement.expected_return_datetime?.split('T')[0]
-      return returnDate === today
+      if (!agreement.expected_return_datetime) return false
+      const returnLocal = new Intl.DateTimeFormat('en-CA').format(
+        new Date(agreement.expected_return_datetime)
+      )
+      return returnLocal === todayLocal
     }) || []
   const activeLinkCode = createLinkCodeMutation.data
   const botUsername = activeLinkCode?.bot_username || telegramStatus?.bot_username
@@ -279,6 +286,12 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 page-fade">
+      {hasDataError && (
+        <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          Could not load some dashboard data. Check your connection or refresh the page.
+        </div>
+      )}
       <section className="app-panel p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>

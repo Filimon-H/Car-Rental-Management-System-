@@ -114,37 +114,11 @@ export const customersService = {
   async bulkUpload(file: File): Promise<BulkUploadResult> {
     const formData = new FormData()
     formData.append('file', file)
-    
-    const token = localStorage.getItem('access_token')
-    const response = await fetch('/api/customers/bulk-upload', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    })
-    
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Upload failed' }))
-      throw new Error(error.detail || 'Upload failed')
-    }
-    
-    return response.json()
+    return apiClient.postFormData('/customers/bulk-upload', formData)
   },
 
   async downloadBulkTemplate(): Promise<void> {
-    const token = localStorage.getItem('access_token')
-    const response = await fetch('/api/customers/bulk-upload/template', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    })
-    
-    if (!response.ok) {
-      throw new Error('Failed to download template')
-    }
-    
-    const blob = await response.blob()
+    const blob = await apiClient.getBlob('/customers/bulk-upload/template')
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

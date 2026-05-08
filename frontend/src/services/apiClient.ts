@@ -41,10 +41,11 @@ class ApiClient {
   }
 
   private async responseErrorInterceptor(error: AxiosError<ApiError>) {
-    const originalRequest = error.config
+    const originalRequest = error.config as (typeof error.config & { _retried?: boolean }) | undefined
 
-    // Handle 401 - try to refresh token
-    if (error.response?.status === 401 && originalRequest) {
+    // Handle 401 - try to refresh token once, then redirect to login
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retried) {
+      originalRequest._retried = true
       const refreshToken = localStorage.getItem('refresh_token')
       if (refreshToken) {
         try {
@@ -57,9 +58,14 @@ class ApiClient {
           originalRequest.headers['Authorization'] = `Bearer ${access_token}`
           return this.client(originalRequest)
         } catch {
-          // Refresh failed, clear tokens
+          // Refresh failed — clear tokens and force re-login
           this.clearTokens()
+          window.location.href = '/login'
         }
+      } else {
+        // No refresh token at all — send to login
+        this.clearTokens()
+        window.location.href = '/login'
       }
     }
 

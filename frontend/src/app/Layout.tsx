@@ -24,31 +24,31 @@ import { useAuthStore } from '@/services/auth'
 const navGroups = [
   {
     label: 'Overview',
-    items: [{ path: '/dashboard', icon: Home, label: 'Dashboard' }],
+    items: [{ path: '/dashboard', icon: Home, label: 'Dashboard', adminOnly: false }],
   },
   {
     label: 'Rentals',
     items: [
-      { path: '/agreements', icon: FileText, label: 'Agreements' },
-      { path: '/agreements/wedding', icon: Heart, label: 'Wedding' },
+      { path: '/agreements', icon: FileText, label: 'Agreements', adminOnly: false },
+      { path: '/agreements/wedding', icon: Heart, label: 'Wedding', adminOnly: false },
     ],
   },
   {
     label: 'Fleet & People',
     items: [
-      { path: '/vehicles', icon: Car, label: 'Vehicles' },
-      { path: '/drivers', icon: UserCheck, label: 'Drivers' },
-      { path: '/customers', icon: Users, label: 'Customers' },
-      { path: '/vendors', icon: Building2, label: 'Vendors' },
-      { path: '/collaterals', icon: Shield, label: 'Collaterals' },
+      { path: '/vehicles', icon: Car, label: 'Vehicles', adminOnly: false },
+      { path: '/drivers', icon: UserCheck, label: 'Drivers', adminOnly: false },
+      { path: '/customers', icon: Users, label: 'Customers', adminOnly: false },
+      { path: '/vendors', icon: Building2, label: 'Vendors', adminOnly: false },
+      { path: '/collaterals', icon: Shield, label: 'Collaterals', adminOnly: false },
     ],
   },
   {
     label: 'Finance & Ops',
     items: [
-      { path: '/ledger', icon: DollarSign, label: 'Ledger' },
-      { path: '/inspections', icon: ClipboardList, label: 'Inspections' },
-      { path: '/admin/lookups', icon: Settings, label: 'Admin Settings' },
+      { path: '/ledger', icon: DollarSign, label: 'Ledger', adminOnly: false },
+      { path: '/inspections', icon: ClipboardList, label: 'Inspections', adminOnly: false },
+      { path: '/admin/lookups', icon: Settings, label: 'Admin Settings', adminOnly: true },
     ],
   },
 ]
@@ -208,7 +208,12 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 overflow-y-auto px-2 py-4">
-          {navGroups.map((group) => (
+          {navGroups.map((group) => {
+            const visibleItems = group.items.filter(
+              (item) => !item.adminOnly || user?.role === 'admin'
+            )
+            if (visibleItems.length === 0) return null
+            return (
             <div key={group.label} className="mb-4">
               {sidebarOpen && (
                 <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
@@ -216,7 +221,7 @@ export default function Layout() {
                 </p>
               )}
               <div className="space-y-1">
-                {group.items.map((item) => (
+                {visibleItems.map((item) => (
                   <NavLink
                     key={item.path}
                     to={item.path}
@@ -242,7 +247,8 @@ export default function Layout() {
                 ))}
               </div>
             </div>
-          ))}
+            )
+          })}
         </nav>
 
         <div className="border-t border-white/10 p-3">
