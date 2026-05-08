@@ -7,6 +7,10 @@ from src.core.config import settings
 
 def register_routers(app: FastAPI) -> None:
     """Register all API routers."""
+    # Dashboard stats
+    from src.api.routers import dashboard
+    app.include_router(dashboard.router, prefix=f"{settings.api_prefix}/dashboard", tags=["dashboard"])
+
     # Auth routes
     from src.api.routers import auth
     app.include_router(auth.router, prefix=f"{settings.api_prefix}/auth", tags=["auth"])

@@ -20,7 +20,7 @@ export default function LoginPage() {
     setIsLoading(true)
     try {
       await login(username, password)
-      navigate('/agreements')
+      navigate('/dashboard')
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } }, message?: string }
       const message =
