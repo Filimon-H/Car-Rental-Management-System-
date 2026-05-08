@@ -222,7 +222,8 @@ class TestCreateStandardAgreement:
         seg = agreement.vehicle_segments[0]
         assert seg.vehicle_id == vehicle.id
 
-    def test_vehicle_set_to_rented(self, db, customer, vehicle):
+    def test_vehicle_set_to_reserved_on_create(self, db, customer, vehicle):
+        """Vehicle is RESERVED after agreement creation (not RENTED — that happens on activate)."""
         agreement_service.create_standard_agreement(
             db=db,
             customer_id=customer.id,
@@ -232,7 +233,7 @@ class TestCreateStandardAgreement:
             daily_rate=Decimal("1500.00"),
         )
         db.refresh(vehicle)
-        assert vehicle.status == VehicleStatus.RENTED
+        assert vehicle.status == VehicleStatus.RESERVED
 
     def test_initial_charge_posted_to_ledger(self, db, customer, vehicle):
         """3-day rental @ 1500/day → 4500 charge."""
@@ -1022,9 +1023,10 @@ class TestGetAgreementSummary:
         summary_after = agreement_service.get_agreement_summary(db, ag.id)
         assert summary_after["balance"] == summary_before["balance"] - Decimal("500.00")
 
-    def test_summary_negative_adjustment_reduces_charges(self, db, customer, vehicle):
-        """A negative (discount) adjustment is counted as a payment-side reduction."""
+    def test_summary_negative_adjustment_reduces_balance_due(self, db, customer, vehicle):
+        """A negative (discount) adjustment reduces the balance_due via net_adjustments."""
         ag = self._create_and_activate(db, customer, vehicle)
+        summary_before = agreement_service.get_agreement_summary(db, ag.id)
         ledger_service.post_adjustment(
             db=db,
             agreement_id=ag.id,
@@ -1032,12 +1034,12 @@ class TestGetAgreementSummary:
             description="Discount",
         )
         summary = agreement_service.get_agreement_summary(db, ag.id)
-        # Negative adjustment contributes to total_payments
-        assert summary["total_payments"] == Decimal("200.00")
+        assert summary["net_adjustments"] == Decimal("-200.00")
+        assert summary["balance_due"] == summary_before["balance_due"] - Decimal("200.00")
 
-    def test_summary_positive_adjustment_increases_charges(self, db, customer, vehicle):
+    def test_summary_positive_adjustment_increases_balance_due(self, db, customer, vehicle):
         ag = self._create_and_activate(db, customer, vehicle)
-        charges_before = agreement_service.get_agreement_summary(db, ag.id)["total_charges"]
+        summary_before = agreement_service.get_agreement_summary(db, ag.id)
         ledger_service.post_adjustment(
             db=db,
             agreement_id=ag.id,
@@ -1045,7 +1047,8 @@ class TestGetAgreementSummary:
             description="Extra charge",
         )
         summary = agreement_service.get_agreement_summary(db, ag.id)
-        assert summary["total_charges"] == charges_before + Decimal("300.00")
+        assert summary["net_adjustments"] == Decimal("300.00")
+        assert summary["balance_due"] == summary_before["balance_due"] + Decimal("300.00")
 
     def test_summary_nonexistent_agreement_raises(self, db):
         with pytest.raises(NotFoundError):
@@ -1113,3 +1116,179 @@ class TestGenerateAgreementNumber:
         seq1 = int(ag1.agreement_number.split("-")[-1])
         seq2 = int(ag2.agreement_number.split("-")[-1])
         assert seq2 == seq1 + 1
+
+
+# ---------------------------------------------------------------------------
+# cancel_agreement
+# ---------------------------------------------------------------------------
+
+class TestCancelAgreement:
+
+    def _pending(self, db, customer, vehicle) -> Agreement:
+        return agreement_service.create_standard_agreement(
+            db=db,
+            customer_id=customer.id,
+            vehicle_id=vehicle.id,
+            pickup_datetime=future(1),
+            expected_return_datetime=future(4),
+            daily_rate=Decimal("1500.00"),
+        )
+
+    def test_cancel_pending_payment_sets_cancelled(self, db, customer, vehicle):
+        ag = self._pending(db, customer, vehicle)
+        assert ag.status == AgreementStatus.PENDING_PAYMENT
+        cancelled = agreement_service.cancel_agreement(db, ag.id)
+        assert cancelled.status == AgreementStatus.CANCELLED
+
+    def test_cancel_releases_vehicle_to_available(self, db, customer, vehicle):
+        ag = self._pending(db, customer, vehicle)
+        db.refresh(vehicle)
+        assert vehicle.status == VehicleStatus.RESERVED
+        agreement_service.cancel_agreement(db, ag.id)
+        db.refresh(vehicle)
+        assert vehicle.status == VehicleStatus.AVAILABLE
+
+    def test_cancel_appends_reason_to_notes(self, db, customer, vehicle):
+        ag = self._pending(db, customer, vehicle)
+        agreement_service.cancel_agreement(db, ag.id, reason="Customer changed plans")
+        db.refresh(ag)
+        assert "[Cancelled]" in ag.notes
+        assert "Customer changed plans" in ag.notes
+
+    def test_cancel_without_reason_does_not_add_notes(self, db, customer, vehicle):
+        ag = self._pending(db, customer, vehicle)
+        original_notes = ag.notes
+        agreement_service.cancel_agreement(db, ag.id)
+        db.refresh(ag)
+        assert ag.notes == original_notes
+
+    def test_cancel_nonexistent_raises(self, db):
+        with pytest.raises(NotFoundError):
+            agreement_service.cancel_agreement(db, 99999)
+
+    def test_cancel_active_agreement_raises(self, db, customer, vehicle):
+        ag = self._pending(db, customer, vehicle)
+        agreement_service.activate_agreement(db, ag.id)
+        with pytest.raises(BusinessError) as exc_info:
+            agreement_service.cancel_agreement(db, ag.id)
+        assert "PENDING_PAYMENT" in str(exc_info.value) or "cancel" in str(exc_info.value).lower()
+
+    def test_cancel_closed_agreement_raises(self, db, customer, vehicle):
+        ag = self._pending(db, customer, vehicle)
+        activated = agreement_service.activate_agreement(db, ag.id)
+        agreement_service.close_agreement(
+            db=db,
+            agreement_id=activated.id,
+            actual_return_datetime=future(4),
+        )
+        with pytest.raises(BusinessError):
+            agreement_service.cancel_agreement(db, ag.id)
+
+    def test_cancel_already_cancelled_raises(self, db, customer, vehicle):
+        ag = self._pending(db, customer, vehicle)
+        agreement_service.cancel_agreement(db, ag.id)
+        with pytest.raises(BusinessError):
+            agreement_service.cancel_agreement(db, ag.id)
+
+
+# ---------------------------------------------------------------------------
+# Vehicle status chain — RESERVED when upcoming booking exists
+# ---------------------------------------------------------------------------
+
+class TestVehicleStatusOnReturn:
+    """When an agreement is closed or returned, the vehicle should stay RESERVED
+    if another active booking for it starts in the future."""
+
+    def _make_active(self, db, customer, vehicle) -> Agreement:
+        ag = agreement_service.create_standard_agreement(
+            db=db,
+            customer_id=customer.id,
+            vehicle_id=vehicle.id,
+            pickup_datetime=past(3),
+            expected_return_datetime=datetime.now(timezone.utc) + timedelta(hours=1),
+            daily_rate=Decimal("1500.00"),
+        )
+        return agreement_service.activate_agreement(db, ag.id)
+
+    def test_close_sets_available_when_no_upcoming_booking(self, db, customer, vehicle):
+        ag = self._make_active(db, customer, vehicle)
+        agreement_service.close_agreement(
+            db=db, agreement_id=ag.id, actual_return_datetime=datetime.now(timezone.utc)
+        )
+        db.refresh(vehicle)
+        assert vehicle.status == VehicleStatus.AVAILABLE
+
+    def test_close_stays_reserved_when_upcoming_booking_exists(self, db, customer, vehicle):
+        """Closing ag1 must leave vehicle RESERVED because a future booking exists."""
+        ag1 = self._make_active(db, customer, vehicle)
+
+        # Directly insert a future PENDING_PAYMENT agreement + segment to simulate
+        # a booking that starts after ag1's return without triggering availability checks.
+        future_ag = Agreement(
+            agreement_number="AGR-FUTURE-CLOSE",
+            agreement_type=AgreementType.CUSTOMER_VEHICLE,
+            status=AgreementStatus.PENDING_PAYMENT,
+            customer_id=customer.id,
+            pickup_datetime=future(2),
+            expected_return_datetime=future(5),
+            agreed_daily_rate=Decimal("1500.00"),
+        )
+        db.add(future_ag)
+        db.flush()
+        seg = AgreementVehicleSegment(
+            agreement_id=future_ag.id,
+            vehicle_id=vehicle.id,
+            start_datetime=future(2),
+            end_datetime=future(5),
+            daily_rate=Decimal("1500.00"),
+        )
+        db.add(seg)
+        db.commit()
+
+        # Close ag1 — vehicle should stay RESERVED because future_ag is pending
+        agreement_service.close_agreement(
+            db=db, agreement_id=ag1.id, actual_return_datetime=datetime.now(timezone.utc)
+        )
+        db.refresh(vehicle)
+        assert vehicle.status == VehicleStatus.RESERVED
+
+    def test_mark_returned_sets_available_when_no_upcoming(self, db, customer, vehicle):
+        ag = self._make_active(db, customer, vehicle)
+        agreement_service.mark_agreement_returned(
+            db=db, agreement_id=ag.id, actual_return_datetime=datetime.now(timezone.utc)
+        )
+        db.refresh(vehicle)
+        assert vehicle.status == VehicleStatus.AVAILABLE
+
+    def test_mark_returned_stays_reserved_when_upcoming_booking_exists(self, db, customer, vehicle):
+        """Marking ag1 returned must leave vehicle RESERVED because ag2 starts later."""
+        ag1 = self._make_active(db, customer, vehicle)
+
+        # Create a future booking — bypass status constraints by direct DB manipulation
+        future_ag = Agreement(
+            agreement_number="AGR-FUTURE-001",
+            agreement_type=AgreementType.CUSTOMER_VEHICLE,
+            status=AgreementStatus.PENDING_PAYMENT,
+            customer_id=customer.id,
+            pickup_datetime=future(2),
+            expected_return_datetime=future(5),
+            agreed_daily_rate=Decimal("1500.00"),
+        )
+        db.add(future_ag)
+        db.flush()
+        from src.models.agreement_vehicle_segment import AgreementVehicleSegment
+        seg = AgreementVehicleSegment(
+            agreement_id=future_ag.id,
+            vehicle_id=vehicle.id,
+            start_datetime=future(2),
+            end_datetime=future(5),
+            daily_rate=Decimal("1500.00"),
+        )
+        db.add(seg)
+        db.commit()
+
+        agreement_service.mark_agreement_returned(
+            db=db, agreement_id=ag1.id, actual_return_datetime=datetime.now(timezone.utc)
+        )
+        db.refresh(vehicle)
+        assert vehicle.status == VehicleStatus.RESERVED

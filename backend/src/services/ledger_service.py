@@ -280,15 +280,32 @@ def get_ledger_entries(
 
 
 def get_total_charges(db: Session, agreement_id: int) -> Decimal:
-    """Get total charges (positive amounts) for an agreement."""
+    """Get total charges (CHARGE, LATE_FEE, DAMAGE_CHARGE entry types) for an agreement."""
     from sqlalchemy import func
+    charge_types = [
+        LedgerEntryType.CHARGE,
+        LedgerEntryType.LATE_FEE,
+        LedgerEntryType.DAMAGE_CHARGE,
+    ]
     result = (
         db.query(func.sum(LedgerEntry.amount))
         .filter(LedgerEntry.agreement_id == agreement_id)
-        .filter(LedgerEntry.amount > 0)
+        .filter(LedgerEntry.entry_type.in_(charge_types))
         .scalar()
     )
     return Decimal(str(result)) if result else Decimal("0")
+
+
+def get_net_adjustments(db: Session, agreement_id: int) -> Decimal:
+    """Get net adjustments (positive = extra charge, negative = discount)."""
+    from sqlalchemy import func
+    result = (
+        db.query(func.coalesce(func.sum(LedgerEntry.amount), 0))
+        .filter(LedgerEntry.agreement_id == agreement_id)
+        .filter(LedgerEntry.entry_type == LedgerEntryType.ADJUSTMENT)
+        .scalar()
+    )
+    return Decimal(str(result))
 
 
 def get_total_payments(db: Session, agreement_id: int) -> Decimal:

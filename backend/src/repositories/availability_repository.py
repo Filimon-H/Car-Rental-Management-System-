@@ -80,8 +80,9 @@ def get_available_vehicles(
         List of available vehicles
     """
     # Get IDs of vehicles with overlapping bookings
-    booked_vehicle_ids = (
-        db.query(AgreementVehicleSegment.vehicle_id)
+    from sqlalchemy import select
+    booked_vehicle_ids_sq = (
+        select(AgreementVehicleSegment.vehicle_id)
         .join(Agreement)
         .filter(
             Agreement.status.not_in([AgreementStatus.CANCELLED, AgreementStatus.CLOSED, AgreementStatus.RETURNED]),
@@ -89,14 +90,13 @@ def get_available_vehicles(
             AgreementVehicleSegment.end_datetime > start_datetime,
         )
         .distinct()
-        .subquery()
     )
-    
+
     # Query available vehicles
     query = db.query(Vehicle).filter(
         Vehicle.is_active == True,
         Vehicle.status == VehicleStatus.AVAILABLE,
-        Vehicle.id.not_in(booked_vehicle_ids),
+        Vehicle.id.not_in(booked_vehicle_ids_sq),
     )
     
     if vehicle_type:

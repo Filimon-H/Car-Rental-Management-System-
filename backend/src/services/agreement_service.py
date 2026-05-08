@@ -34,14 +34,19 @@ def _calculate_balance_breakdown(db: Session, agreement_id: int) -> dict:
     """
     total_charges = ledger_service.get_total_charges(db, agreement_id)
     total_payments = ledger_service.get_total_payments(db, agreement_id)
+    net_adjustments = ledger_service.get_net_adjustments(db, agreement_id)
     deposit_received = ledger_service.get_deposit_received(db, agreement_id)
     deposit_applied = ledger_service.get_deposit_applied(db, agreement_id)
     deposit_returned = ledger_service.get_deposit_returned(db, agreement_id)
     deposit_held = max(Decimal("0"), deposit_received - deposit_applied - deposit_returned)
-    balance_due = max(Decimal("0"), total_charges - total_payments - deposit_applied)
+    balance_due = max(
+        Decimal("0"),
+        total_charges + net_adjustments - total_payments - deposit_applied,
+    )
     return {
         "total_charges": total_charges,
         "total_payments": total_payments,
+        "net_adjustments": net_adjustments,
         "deposit_received": deposit_received,
         "deposit_applied": deposit_applied,
         "deposit_returned": deposit_returned,
@@ -388,7 +393,6 @@ def mark_agreement_returned(
             .first()
         )
         vehicle.status = VehicleStatus.RESERVED if has_upcoming else VehicleStatus.AVAILABLE
-            vehicle.current_mileage = return_mileage
 
     db.commit()
     db.refresh(agreement)
