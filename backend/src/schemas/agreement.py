@@ -41,6 +41,12 @@ class AgreementClose(BaseModel):
     notes: str | None = None
 
 
+class AgreementCancel(BaseModel):
+    """Schema for cancelling an agreement."""
+
+    reason: str | None = None
+
+
 class VehicleSegmentResponse(BaseModel):
     """Response schema for vehicle segment."""
 

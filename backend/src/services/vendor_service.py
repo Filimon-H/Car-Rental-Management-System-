@@ -35,13 +35,13 @@ class VendorAgreementPayable:
     segment_count: int
 
 
-def _segment_payable_amount(segment: AgreementVehicleSegment) -> Decimal:
+def _segment_payable_amount(segment: AgreementVehicleSegment, commission_rate: Decimal) -> Decimal:
     _, charge = billing_service.calculate_rental_charge(
         segment.start_datetime,
         segment.end_datetime,
         segment.daily_rate,
     )
-    return charge
+    return (charge * commission_rate / Decimal("100")).quantize(Decimal("0.01"))
 
 
 def get_vendor_payable_summary(db: Session, vendor_id: int) -> dict:
@@ -66,7 +66,7 @@ def get_vendor_payable_summary(db: Session, vendor_id: int) -> dict:
         if agreement is None or agreement.status == AgreementStatus.CANCELLED:
             continue
 
-        segment_amount = _segment_payable_amount(segment)
+        segment_amount = _segment_payable_amount(segment, vendor.commission_rate)
         if agreement.status in RESERVED_STATUSES:
             reserved_amount += segment_amount
         elif agreement.status in EARNED_STATUSES:
@@ -103,6 +103,7 @@ def get_vendor_payable_summary(db: Session, vendor_id: int) -> dict:
     return {
         "vendor_id": vendor.id,
         "vendor_name": vendor.company_name or vendor.contact_person or f"Vendor {vendor.id}",
+        "commission_rate": vendor.commission_rate,
         "reserved_amount": reserved_amount,
         "earned_amount": earned_amount,
         "paid_amount": total_paid,

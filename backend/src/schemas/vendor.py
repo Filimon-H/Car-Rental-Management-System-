@@ -22,6 +22,7 @@ class VendorBase(BaseModel):
     bank_name: Optional[str] = Field(None, max_length=100)
     bank_account_number: Optional[str] = Field(None, max_length=50)
     bank_account_holder: Optional[str] = Field(None, max_length=100)
+    commission_rate: Decimal = Field(default=Decimal("70.00"), ge=0, le=100)
     notes: Optional[str] = None
 
 
@@ -43,6 +44,7 @@ class VendorUpdate(BaseModel):
     bank_name: Optional[str] = Field(None, max_length=100)
     bank_account_number: Optional[str] = Field(None, max_length=50)
     bank_account_holder: Optional[str] = Field(None, max_length=100)
+    commission_rate: Optional[Decimal] = Field(None, ge=0, le=100)
     notes: Optional[str] = None
     is_active: Optional[bool] = None
 
@@ -61,6 +63,7 @@ class VendorResponse(BaseModel):
     bank_name: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_account_holder: Optional[str] = None
+    commission_rate: Decimal = Decimal("70.00")
     notes: Optional[str] = None
     is_active: bool
     created_at: datetime
@@ -100,6 +103,7 @@ class VendorAgreementPayableResponse(BaseModel):
 class VendorPayableSummaryResponse(BaseModel):
     vendor_id: int
     vendor_name: str
+    commission_rate: Decimal
     reserved_amount: Decimal
     earned_amount: Decimal
     paid_amount: Decimal

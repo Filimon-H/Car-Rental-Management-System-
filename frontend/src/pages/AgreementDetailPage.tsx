@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Car, CreditCard, FileText, User, UserCheck, Shield, Printer } from 'lucide-react'
+import { ArrowLeft, Ban, Car, CreditCard, FileText, User, UserCheck, Shield, Printer } from 'lucide-react'
 import { agreementsService, PostChargeData, PostDepositData, PostPaymentData, AgreementDetail } from '@/services/agreements'
 import { customersService } from '@/services/customers'
 import { collateralsService } from '@/services/collaterals'
@@ -30,6 +30,7 @@ export default function AgreementDetailPage() {
   const [showChargeModal, setShowChargeModal] = useState<null | 'damage' | 'late'>(null)
   const [showReturnModal, setShowReturnModal] = useState(false)
   const [showSettlementModal, setShowSettlementModal] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [pageError, setPageError] = useState<string | null>(null)
 
   const idString = id ?? ''
@@ -142,6 +143,18 @@ export default function AgreementDetailPage() {
     },
   })
 
+  const cancelMutation = useMutation({
+    mutationFn: (reason: string) => agreementsService.cancel(agreementId as number, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
+      setShowCancelConfirm(false)
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { detail?: string } }, message?: string }
+      setPageError(error?.response?.data?.detail || error?.message || 'Failed to cancel agreement')
+    },
+  })
+
   const paymentMutation = useMutation({
     mutationFn: (data: PostPaymentData) => agreementsService.postPayment(agreementId as number, data),
     onSuccess: () => {
@@ -248,12 +261,21 @@ export default function AgreementDetailPage() {
             </span>
             {/* Workflow buttons based on status */}
             {(agreement.status === 'draft' || agreement.status === 'pending_payment') && (
-              <button
-                onClick={handleActivate}
-                className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
-              >
-                Activate (Handover)
-              </button>
+              <>
+                <button
+                  onClick={handleActivate}
+                  className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+                >
+                  Activate (Handover)
+                </button>
+                <button
+                  onClick={() => setShowCancelConfirm(true)}
+                  className="flex items-center gap-2 rounded-lg border border-red-300 px-4 py-2 text-red-600 hover:bg-red-50"
+                >
+                  <Ban className="h-4 w-4" />
+                  Cancel
+                </button>
+              </>
             )}
             {(agreement.status === 'active' || agreement.status === 'overdue') && (
               <button
@@ -716,6 +738,15 @@ export default function AgreementDetailPage() {
         />
       )}
 
+      {showCancelConfirm && (
+        <CancelConfirmModal
+          agreementNumber={agreement.agreement_number}
+          onClose={() => setShowCancelConfirm(false)}
+          onConfirm={(reason) => cancelMutation.mutate(reason)}
+          isLoading={cancelMutation.isPending}
+        />
+      )}
+
       {showSettlementModal && (
         <SettlementModal
           agreement={agreement}
@@ -1146,6 +1177,52 @@ function SettlementModal({
             Balance must be zero before closing. Apply deposit or record payment first.
           </p>
         )}
+      </div>
+    </div>
+  )
+}
+
+function CancelConfirmModal({
+  agreementNumber,
+  onClose,
+  onConfirm,
+  isLoading,
+}: {
+  agreementNumber: string
+  onClose: () => void
+  onConfirm: (reason: string) => void
+  isLoading: boolean
+}) {
+  const [reason, setReason] = useState('')
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <h2 className="mb-1 text-lg font-bold text-gray-900">Cancel Agreement</h2>
+        <p className="mb-4 text-sm text-gray-500">
+          Cancel <span className="font-medium">{agreementNumber}</span>? The vehicle will be released back to available. This cannot be undone.
+        </p>
+        <div className="mb-4">
+          <label className="mb-1 block text-sm font-medium text-gray-700">Reason (optional)</label>
+          <input
+            type="text"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Customer changed mind"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
+            Go Back
+          </button>
+          <button
+            onClick={() => onConfirm(reason)}
+            disabled={isLoading}
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {isLoading ? 'Cancelling...' : 'Yes, Cancel Agreement'}
+          </button>
+        </div>
       </div>
     </div>
   )

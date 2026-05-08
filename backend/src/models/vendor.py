@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, func
+from sqlalchemy import Boolean, Column, DateTime, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import relationship
 
 from src.core.db import Base
@@ -39,6 +39,9 @@ class Vendor(Base):
     bank_account_number = Column(String(50), nullable=True)
     bank_account_holder = Column(String(100), nullable=True)
     
+    # Revenue share: percentage of rental income paid to vendor (0-100)
+    commission_rate = Column(Numeric(5, 2), nullable=False, default=70.00)
+
     # Notes
     notes = Column(Text, nullable=True)
     

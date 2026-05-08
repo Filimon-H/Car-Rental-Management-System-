@@ -7,9 +7,10 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import _rate_limit_exceeded_handler
+from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
 
 from src.core.config import settings
 from src.core.db import Base, engine
@@ -52,7 +53,9 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Rate limiting
+    # Rate limiting — limiter must be on app.state before SlowAPIMiddleware
+    limiter = Limiter(key_func=get_remote_address)
+    app.state.limiter = limiter
     app.add_middleware(SlowAPIMiddleware)
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

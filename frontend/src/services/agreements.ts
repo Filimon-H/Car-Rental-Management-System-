@@ -109,6 +109,7 @@ export interface LedgerEntry {
   notes: string | null
   created_at: string
   created_by_name: string | null
+  reversed_entry_id: number | null
 }
 
 export interface CreateAgreementData {
@@ -214,6 +215,16 @@ export const agreementsService = {
     data: { actual_return_datetime: string; return_mileage?: number; notes?: string }
   ): Promise<Agreement> {
     return apiClient.post(`/agreements/${id}/return`, data)
+  },
+
+  async cancel(id: number, reason?: string): Promise<Agreement> {
+    return apiClient.post(`/agreements/${id}/cancel`, { reason: reason || null })
+  },
+}
+
+export const ledgerService = {
+  async reverseEntry(entryId: number, reason: string): Promise<LedgerEntry> {
+    return apiClient.post(`/ledger/entries/${entryId}/reverse`, { reason })
   },
 }
 

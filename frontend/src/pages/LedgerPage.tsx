@@ -1,25 +1,92 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { DollarSign, TrendingUp, TrendingDown, Search, Filter } from 'lucide-react'
-import { agreementsService, LedgerEntry } from '@/services/agreements'
+import { DollarSign, TrendingUp, TrendingDown, Search, Filter, RotateCcw, X } from 'lucide-react'
+import { agreementsService, ledgerService, LedgerEntry } from '@/services/agreements'
+
+function ReverseModal({
+  entry,
+  onClose,
+  onConfirm,
+  isLoading,
+}: {
+  entry: LedgerEntry
+  onClose: () => void
+  onConfirm: (reason: string) => void
+  isLoading: boolean
+}) {
+  const [reason, setReason] = useState('')
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">Reverse Ledger Entry</h3>
+          <button onClick={onClose} className="rounded-md p-1 text-gray-400 hover:text-gray-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          <p className="font-medium">Entry to reverse:</p>
+          <p className="mt-1">{entry.description} — {entry.amount > 0 ? '+' : ''}{entry.amount.toLocaleString()} ETB</p>
+        </div>
+        <div className="mb-4">
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            Reason <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+            placeholder="Explain why this entry is being reversed..."
+            className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(reason)}
+            disabled={!reason.trim() || isLoading}
+            className="flex-1 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+          >
+            {isLoading ? 'Reversing...' : 'Confirm Reversal'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function LedgerPage() {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedAgreement, setSelectedAgreement] = useState<number | null>(null)
+  const [reversingEntry, setReversingEntry] = useState<LedgerEntry | null>(null)
 
-  // Fetch agreements for selection
   const { data: agreements } = useQuery({
     queryKey: ['agreements'],
     queryFn: () => agreementsService.list({ page_size: 100 }),
   })
 
-  // Fetch ledger entries for selected agreement
   const { data: ledgerEntries, isLoading } = useQuery({
     queryKey: ['ledger', selectedAgreement],
     queryFn: () => agreementsService.getLedger(selectedAgreement!),
     enabled: !!selectedAgreement,
+  })
+
+  const reverseMutation = useMutation({
+    mutationFn: ({ entryId, reason }: { entryId: number; reason: string }) =>
+      ledgerService.reverseEntry(entryId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ledger', selectedAgreement] })
+      setReversingEntry(null)
+    },
   })
 
   const formatCurrency = (amount: number) => {
@@ -39,24 +106,24 @@ export default function LedgerPage() {
     })
   }
 
-  // Calculate running balance
   const entriesWithBalance = ledgerEntries?.reduce((acc, entry, index) => {
     const prevBalance = index > 0 ? acc[index - 1].runningBalance : 0
     const runningBalance = prevBalance + entry.amount
     return [...acc, { ...entry, runningBalance }]
   }, [] as (LedgerEntry & { runningBalance: number })[])
 
-  // Filter agreements by search term
   const filteredAgreements = agreements?.items.filter(
     (a) =>
       a.agreement_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       a.customer_name.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  // Calculate totals
   const totalCharges = entriesWithBalance?.filter(e => e.amount > 0).reduce((sum, e) => sum + e.amount, 0) || 0
   const totalPayments = entriesWithBalance?.filter(e => e.amount < 0).reduce((sum, e) => sum + Math.abs(e.amount), 0) || 0
   const currentBalance = entriesWithBalance?.[entriesWithBalance.length - 1]?.runningBalance || 0
+
+  const isReversible = (entry: LedgerEntry) =>
+    !entry.entry_type.startsWith('reversal') && entry.reversed_entry_id === null
 
   return (
     <div className="p-6">
@@ -173,11 +240,17 @@ export default function LedgerPage() {
                         <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
                           Balance
                         </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white">
                       {entriesWithBalance?.map((entry) => (
-                        <tr key={entry.id}>
+                        <tr
+                          key={entry.id}
+                          className={entry.entry_type.startsWith('reversal') ? 'bg-amber-50' : ''}
+                        >
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                             {formatDate(entry.created_at)}
                           </td>
@@ -186,6 +259,7 @@ export default function LedgerPage() {
                               entry.entry_type === 'payment' ? 'bg-green-100 text-green-800' :
                               entry.entry_type === 'charge' ? 'bg-red-100 text-red-800' :
                               entry.entry_type === 'adjustment' ? 'bg-yellow-100 text-yellow-800' :
+                              entry.entry_type.startsWith('reversal') ? 'bg-amber-100 text-amber-800' :
                               'bg-gray-100 text-gray-800'
                             }`}>
                               {entry.entry_type}
@@ -207,11 +281,23 @@ export default function LedgerPage() {
                           <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-900">
                             {formatCurrency(entry.runningBalance)}
                           </td>
+                          <td className="whitespace-nowrap px-6 py-4 text-right">
+                            {isReversible(entry) && (
+                              <button
+                                onClick={() => setReversingEntry(entry)}
+                                className="inline-flex items-center gap-1 rounded-md border border-amber-300 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50"
+                                title="Reverse this entry"
+                              >
+                                <RotateCcw className="h-3 w-3" />
+                                Reverse
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       ))}
                       {(!entriesWithBalance || entriesWithBalance.length === 0) && (
                         <tr>
-                          <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                          <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                             No ledger entries found
                           </td>
                         </tr>
@@ -224,6 +310,17 @@ export default function LedgerPage() {
           )}
         </div>
       </div>
+
+      {reversingEntry && (
+        <ReverseModal
+          entry={reversingEntry}
+          onClose={() => setReversingEntry(null)}
+          onConfirm={(reason) =>
+            reverseMutation.mutate({ entryId: reversingEntry.id, reason })
+          }
+          isLoading={reverseMutation.isPending}
+        />
+      )}
     </div>
   )
 }

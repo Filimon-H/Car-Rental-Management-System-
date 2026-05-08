@@ -71,6 +71,11 @@ class BalanceResponse(BaseModel):
     balance: Decimal
     total_charges: Decimal
     total_payments: Decimal
+    deposit_received: Decimal
+    deposit_held: Decimal
+    deposit_applied: Decimal
+    deposit_returned: Decimal
+    balance_due: Decimal  # max(0, charges - payments - applied_deposit)
 
 
 # Endpoints
@@ -107,12 +112,22 @@ async def get_balance(
     balance = ledger_service.get_agreement_balance(db, agreement_id)
     total_charges = ledger_service.get_total_charges(db, agreement_id)
     total_payments = ledger_service.get_total_payments(db, agreement_id)
-    
+    deposit_received = ledger_service.get_deposit_received(db, agreement_id)
+    deposit_held = ledger_service.get_deposit_held(db, agreement_id)
+    deposit_applied = ledger_service.get_deposit_applied(db, agreement_id)
+    deposit_returned = ledger_service.get_deposit_returned(db, agreement_id)
+    balance_due = max(Decimal("0"), total_charges - total_payments - deposit_applied)
+
     return BalanceResponse(
         agreement_id=agreement_id,
         balance=balance,
         total_charges=total_charges,
         total_payments=total_payments,
+        deposit_received=deposit_received,
+        deposit_held=deposit_held,
+        deposit_applied=deposit_applied,
+        deposit_returned=deposit_returned,
+        balance_due=balance_due,
     )
 
 

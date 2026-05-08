@@ -30,6 +30,7 @@ import LedgerPage from '@/pages/LedgerPage'
 import InspectionTemplatesPage from '@/pages/InspectionTemplatesPage'
 import InspectionCreatePage from '@/pages/InspectionCreatePage'
 import AdminLookupsPage from '@/pages/AdminLookupsPage'
+import UsersPage from '@/pages/UsersPage'
 import { ProtectedRoute, UnauthorizedPage } from '@/routes/guards'
 
 function App() {
@@ -95,6 +96,14 @@ function App() {
             element={
               <ProtectedRoute requiredRoles={['admin']}>
                 <AdminLookupsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute requiredRoles={['admin']}>
+                <UsersPage />
               </ProtectedRoute>
             }
           />

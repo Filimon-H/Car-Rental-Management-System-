@@ -301,7 +301,19 @@ def close_agreement(
             notes="Automatically applied during agreement close",
             auto_commit=False,
         )
-    
+
+    # Auto-return any remaining deposit that wasn't needed to cover charges
+    remaining_held = ledger_service.get_deposit_held(db, agreement_id)
+    if remaining_held > 0:
+        ledger_service.return_deposit(
+            db=db,
+            agreement_id=agreement_id,
+            amount=remaining_held,
+            created_by_id=closed_by_id,
+            notes="Deposit remainder automatically returned on close",
+            auto_commit=False,
+        )
+
     # Update agreement
     agreement.status = AgreementStatus.CLOSED
     agreement.actual_return_datetime = actual_return_datetime

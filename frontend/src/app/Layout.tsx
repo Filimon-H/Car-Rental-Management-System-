@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useMutation } from '@tanstack/react-query'
 import {
   Building2,
   Car,
@@ -12,14 +13,108 @@ import {
   Globe,
   Heart,
   Home,
+  KeyRound,
   LogOut,
   Menu,
   Settings,
   Shield,
   UserCheck,
+  UserCog,
   Users,
+  X,
 } from 'lucide-react'
 import { useAuthStore } from '@/services/auth'
+import apiClient from '@/services/apiClient'
+
+function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [error, setError] = useState('')
+
+  const mutation = useMutation({
+    mutationFn: (data: { current_password: string; new_password: string }) =>
+      apiClient.post('/me/change-password', data),
+    onSuccess: () => onClose(),
+    onError: (err: Error) => setError(err.message || 'Failed to change password'),
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match')
+      return
+    }
+    if (newPassword.length < 8) {
+      setError('New password must be at least 8 characters')
+      return
+    }
+    mutation.mutate({ current_password: currentPassword, new_password: newPassword })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">Change Password</h3>
+          <button onClick={onClose} className="rounded-md p-1 text-gray-400 hover:text-gray-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Current Password</label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+              className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">New Password</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Confirm New Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={mutation.isPending}
+              className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+            >
+              {mutation.isPending ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
 
 const navGroups = [
   {
@@ -48,6 +143,7 @@ const navGroups = [
     items: [
       { path: '/ledger', icon: DollarSign, label: 'Ledger', adminOnly: false },
       { path: '/inspections', icon: ClipboardList, label: 'Inspections', adminOnly: false },
+      { path: '/admin/users', icon: UserCog, label: 'User Management', adminOnly: true },
       { path: '/admin/lookups', icon: Settings, label: 'Admin Settings', adminOnly: true },
     ],
   },
@@ -78,6 +174,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/collaterals')) return 'Collaterals'
   if (pathname === '/ledger') return 'Ledger'
   if (pathname === '/inspections') return 'Inspections'
+  if (pathname === '/admin/users') return 'User Management'
   if (pathname.startsWith('/admin')) return 'Admin Settings'
   return 'FleetOps'
 }
@@ -104,6 +201,8 @@ export default function Layout() {
   const { user, logout } = useAuthStore()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [langMenuOpen, setLangMenuOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [showChangePassword, setShowChangePassword] = useState(false)
 
   const handleLogout = () => {
     logout()
@@ -342,12 +441,48 @@ export default function Layout() {
               </div>
 
               {user && (
-                <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                  <UserAvatar name={user.full_name} />
-                  <div className="hidden sm:block">
-                    <p className="text-sm font-medium text-slate-800">{user.full_name}</p>
-                    <p className="text-xs capitalize text-slate-400">{user.role}</p>
-                  </div>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setUserMenuOpen((open) => !open)}
+                    className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors hover:bg-slate-50"
+                  >
+                    <UserAvatar name={user.full_name} />
+                    <div className="hidden sm:block text-left">
+                      <p className="text-sm font-medium text-slate-800">{user.full_name}</p>
+                      <p className="text-xs capitalize text-slate-400">{user.role}</p>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                  </button>
+
+                  {userMenuOpen && (
+                    <>
+                      <button
+                        type="button"
+                        aria-label="Close user menu"
+                        className="fixed inset-0 z-10"
+                        onClick={() => setUserMenuOpen(false)}
+                      />
+                      <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                        <button
+                          type="button"
+                          onClick={() => { setUserMenuOpen(false); setShowChangePassword(true) }}
+                          className="flex w-full items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                        >
+                          <KeyRound className="h-4 w-4 text-slate-400" />
+                          Change Password
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setUserMenuOpen(false); handleLogout() }}
+                          className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Sign out
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -358,6 +493,10 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {showChangePassword && (
+        <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
+      )}
     </div>
   )
 }

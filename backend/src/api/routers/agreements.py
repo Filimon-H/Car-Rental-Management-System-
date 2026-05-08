@@ -13,6 +13,7 @@ from src.models.agreement import Agreement, AgreementStatus
 from src.models.ledger_entry import LedgerEntryType
 from src.schemas.agreement import (
     AddWeddingVehicleRequest,
+    AgreementCancel,
     AgreementClose,
     AgreementCreate,
     AgreementDetailResponse,
@@ -401,6 +402,23 @@ async def activate_agreement(
         db=db,
         agreement_id=agreement_id,
         activated_by_id=current_user.id,
+    )
+    return _to_agreement_response(agreement)
+
+
+@router.post("/{agreement_id}/cancel", response_model=AgreementResponse)
+async def cancel_agreement(
+    agreement_id: int,
+    data: AgreementCancel,
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.MANAGE_AGREEMENTS))],
+    db: Annotated[Session, Depends(get_db)],
+) -> AgreementResponse:
+    """Cancel an agreement (only DRAFT or PENDING_PAYMENT)."""
+    agreement = agreement_service.cancel_agreement(
+        db=db,
+        agreement_id=agreement_id,
+        cancelled_by_id=current_user.id,
+        reason=data.reason,
     )
     return _to_agreement_response(agreement)
 

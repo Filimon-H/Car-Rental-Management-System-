@@ -15,6 +15,10 @@ def register_routers(app: FastAPI) -> None:
     from src.api.routers import me
     app.include_router(me.router, prefix=f"{settings.api_prefix}/me", tags=["me"])
 
+    # Staff user management (admin only)
+    from src.api.routers import users
+    app.include_router(users.router, prefix=f"{settings.api_prefix}/users", tags=["users"])
+
     # Agreements routes
     from src.api.routers import agreements
     app.include_router(agreements.router, prefix=f"{settings.api_prefix}/agreements", tags=["agreements"])

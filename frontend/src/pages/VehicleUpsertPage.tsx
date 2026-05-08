@@ -177,6 +177,7 @@ export default function VehicleUpsertPage() {
       bank_name: null,
       bank_account_number: null,
       bank_account_holder: null,
+      commission_rate: 70,
       notes: null,
       is_active: true,
       created_at: '',
