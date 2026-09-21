@@ -1,0 +1,42 @@
+{
+  "nav": {
+    "home": "Home",
+    "about": "About",
+    "services": "Services",
+    "cars": "Cars",
+    "contact": "Contact",
+    "bookOnTelegram": "Book on Telegram",
+    "needHelp": "Need help?",
+    "myBookings": "My Bookings",
+    "signOut": "Sign out",
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "adminPanel": "Admin Panel",
+    "signOutAdmin": "Sign out admin"
+  },
+  "hero": {
+    "title1": "Premium Car Rental",
+    "title2": "Experience the Drive",
+    "subtitle": "Choose from our extensive fleet of luxury and comfort vehicles for your next journey.",
+    "bookNow": "Book Now",
+    "viewFleet": "View Fleet"
+  },
+  "login": {
+    "customer": "Customer",
+    "admin": "Admin",
+    "welcomeBack": "Welcome back",
+    "signInToManage": "Sign in to manage your bookings",
+    "adminLogin": "Admin Login",
+    "signInWithStaff": "Sign in with your staff credentials",
+    "emailAddress": "Email address",
+    "username": "Username",
+    "password": "Password",
+    "signingIn": "Signing in...",
+    "signInButton": "Sign in",
+    "accessAdminPanel": "Access Admin Panel",
+    "dontHaveAccount": "Don't have an account?",
+    "createOne": "Create one",
+    "loginFailed": "Login failed",
+    "invalidCredentials": "Invalid credentials"
+  }
+}

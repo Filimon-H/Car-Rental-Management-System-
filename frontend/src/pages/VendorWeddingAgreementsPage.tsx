@@ -1,18 +1,30 @@
-import { type FormEvent, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { type FormEvent, useEffect, useState } from 'react'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Plus, Search, Building2, Heart, Link2 } from 'lucide-react'
 import { agreementsService } from '@/services/agreements'
 import { VendorLookupModal } from '@/components/lookup/LookupModal'
 import { VendorSearchResult } from '@/services/vendors'
+import { DataTable, type Column } from '@/components/ui/DataTable'
+import { StatusBadge } from '@/components/ui/StatusBadge'
+import { SearchInput } from '@/components/ui/SearchInput'
+import { Pagination } from '@/components/ui/Pagination'
+import { PageToolbar } from '@/components/ui/PageToolbar'
+import { Button } from '@/components/ui/Button'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
-const statusColors: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-800',
-  active: 'bg-purple-100 text-purple-800',
-  closed: 'bg-blue-100 text-blue-800',
-  overdue: 'bg-red-100 text-red-800',
-  cancelled: 'bg-gray-100 text-gray-500',
+const PAGE_SIZE = 20
+
+interface VendorSupplyRow {
+  id: number
+  agreement_number: string
+  customer_name: string
+  pickup_datetime: string
+  expected_return_datetime: string
+  agreed_daily_rate: number
+  status: string
+  notes?: string | null
 }
 
 export default function VendorWeddingAgreementsPage() {
@@ -21,195 +33,171 @@ export default function VendorWeddingAgreementsPage() {
   const [page, setPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const debouncedSearch = useDebouncedValue(searchTerm)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['vendorWeddingAgreements', page],
-    queryFn: () => agreementsService.list({ page, page_size: 20 }),
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch])
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['vendorWeddingAgreements', page, debouncedSearch],
+    queryFn: () =>
+      agreementsService.list({
+        page,
+        page_size: PAGE_SIZE,
+        search: debouncedSearch || undefined,
+        // Filtered server-side; filtering the page client-side made the totals and
+        // paging count every other agreement type too.
+        agreement_type: 'vendor_wedding',
+      }),
+    placeholderData: keepPreviousData,
   })
 
-  // Filter for vendor_wedding agreements only
-  const vendorAgreements = data?.items.filter(
-    (item) => item.agreement_type === 'vendor_wedding'
-  )
-
-  const filteredItems = vendorAgreements?.filter(
-    (item) =>
-      item.agreement_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.customer_name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     })
-  }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-ET', {
-      style: 'currency',
-      currency: 'ETB',
-    }).format(amount)
-  }
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB' }).format(amount)
+
+  const columns: Column<VendorSupplyRow>[] = [
+    {
+      key: 'number',
+      header: t('agreements.columns.number', 'Agreement #'),
+      className: 'whitespace-nowrap font-medium text-slate-900 dark:text-slate-100',
+      cell: (agreement) => (
+        <div className="flex items-center gap-2">
+          <Building2 className="h-4 w-4 flex-shrink-0 text-purple-400" aria-hidden="true" />
+          {agreement.agreement_number}
+        </div>
+      ),
+    },
+    {
+      key: 'vendor',
+      header: t('agreements.vendorWedding.vendor', 'Vendor'),
+      className: 'whitespace-nowrap',
+      cell: (agreement) => agreement.customer_name,
+    },
+    {
+      key: 'dates',
+      header: t('agreements.wedding.eventDates', 'Event Dates'),
+      className: 'whitespace-nowrap text-slate-500 dark:text-slate-400',
+      cell: (agreement) =>
+        `${formatDate(agreement.pickup_datetime)} – ${formatDate(agreement.expected_return_datetime)}`,
+    },
+    {
+      key: 'linked',
+      header: t('agreements.vendorWedding.linkedWedding', 'Linked Wedding'),
+      className: 'whitespace-nowrap',
+      cell: (agreement) =>
+        agreement.notes?.includes('WED-') ? (
+          <span className="flex items-center gap-1 text-pink-600 dark:text-pink-400">
+            <Link2 className="h-3 w-3" aria-hidden="true" />
+            {t('agreements.vendorWedding.linked', 'Linked')}
+          </span>
+        ) : (
+          <span className="text-slate-400 dark:text-slate-500">—</span>
+        ),
+    },
+    {
+      key: 'amount',
+      header: t('agreements.columns.amount', 'Amount'),
+      className: 'whitespace-nowrap',
+      cell: (agreement) => formatCurrency(agreement.agreed_daily_rate),
+    },
+    {
+      key: 'status',
+      header: t('agreements.columns.status', 'Status'),
+      cell: (agreement) => <StatusBadge status={agreement.status} />,
+    },
+  ]
 
   return (
     <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center">
-            <Building2 className="h-6 w-6 text-purple-500" />
-            <Heart className="h-4 w-4 -ml-2 text-pink-400" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800">
-            {t('agreements.vendorWedding.title', 'Vendor Wedding Supply')}
-          </h1>
+      <div className="mb-6 flex items-center gap-3">
+        <div className="flex items-center">
+          <Building2 className="h-6 w-6 text-purple-500" aria-hidden="true" />
+          <Heart className="-ml-2 h-4 w-4 text-pink-400" aria-hidden="true" />
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 rounded-lg bg-purple-500 px-4 py-2 text-white hover:bg-purple-600"
-        >
-          <Plus className="h-5 w-5" />
-          New Vendor Supply
-        </button>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+          {t('agreements.vendorWedding.title', 'Vendor Wedding Supply')}
+        </h1>
       </div>
 
       {/* Info Banner */}
-      <div className="mb-6 rounded-lg bg-purple-50 p-4 text-purple-800">
+      <div className="mb-6 rounded-lg bg-purple-50 p-4 text-purple-800 dark:bg-purple-500/10 dark:text-purple-200">
         <div className="flex items-center gap-2">
-          <Link2 className="h-5 w-5" />
-          <span className="font-medium">Vendor Wedding Supply Agreements</span>
+          <Link2 className="h-5 w-5" aria-hidden="true" />
+          <span className="font-medium">
+            {t('agreements.vendorWedding.bannerTitle', 'Vendor Wedding Supply Agreements')}
+          </span>
         </div>
         <p className="mt-1 text-sm">
-          Track vehicles supplied by external vendors for wedding events. These can be linked to 
-          customer wedding agreements for complete event management.
+          {t(
+            'agreements.vendorWedding.bannerBody',
+            'Track vehicles supplied by external vendors for wedding events. These can be linked to customer wedding agreements for complete event management.'
+          )}
         </p>
       </div>
 
-      {/* Search */}
-      <div className="mb-6">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by agreement # or vendor..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-          />
-        </div>
-      </div>
+      <PageToolbar
+        actions={
+          <Button
+            icon={<Plus className="h-4 w-4" />}
+            onClick={() => setShowCreateModal(true)}
+            className="bg-purple-500 hover:bg-purple-600 dark:bg-purple-500 dark:hover:bg-purple-600"
+          >
+            {t('agreements.vendorWedding.createNew', 'New Vendor Supply')}
+          </Button>
+        }
+      >
+        <SearchInput
+          value={searchTerm}
+          onChange={setSearchTerm}
+          label={t('agreements.vendorWedding.searchLabel', 'Search vendor supply agreements')}
+          placeholder={t(
+            'agreements.vendorWedding.searchPlaceholder',
+            'Search by agreement # or vendor...'
+          )}
+          className="w-full sm:max-w-md"
+        />
+      </PageToolbar>
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-lg bg-white shadow">
-        {isLoading ? (
-          <div className="flex h-64 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-purple-500 border-t-transparent" />
-          </div>
-        ) : (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-purple-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Agreement #
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Vendor
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Event Dates
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Linked Wedding
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Amount
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
-              {filteredItems?.map((agreement) => (
-                <tr
-                  key={agreement.id}
-                  className="cursor-pointer hover:bg-purple-50"
-                  onClick={() => navigate(`/agreements/${agreement.id}`)}
-                >
-                  <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-purple-400" />
-                      {agreement.agreement_number}
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    {agreement.customer_name}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    {formatDate(agreement.pickup_datetime)} -{' '}
-                    {formatDate(agreement.expected_return_datetime)}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    {agreement.notes?.includes('WED-') ? (
-                      <span className="flex items-center gap-1 text-pink-600">
-                        <Link2 className="h-3 w-3" />
-                        Linked
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                    {formatCurrency(agreement.agreed_daily_rate)}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4">
-                    <span
-                      className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                        statusColors[agreement.status]
-                      }`}
-                    >
-                      {agreement.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {(!filteredItems || filteredItems.length === 0) && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                    No vendor wedding supply agreements found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      <DataTable
+        columns={columns}
+        rows={data?.items as VendorSupplyRow[] | undefined}
+        rowKey={(agreement) => agreement.id}
+        isLoading={isLoading}
+        error={error}
+        onRowClick={(agreement) => navigate(`/agreements/${agreement.id}`)}
+        caption={t('agreements.vendorWedding.title', 'Vendor Wedding Supply')}
+        emptyTitle={t(
+          'agreements.vendorWedding.empty',
+          'No vendor wedding supply agreements found'
         )}
+        emptyMessage={
+          debouncedSearch
+            ? t('agreements.emptyFiltered', 'Try a different search term.')
+            : t(
+                'agreements.vendorWedding.emptyInitial',
+                'Record a vendor supply agreement to get started.'
+              )
+        }
+        errorMessage={t('agreements.loadError', 'Error loading agreements')}
+      />
 
-        {/* Pagination */}
-        {data && data.total > 20 && (
-          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-6 py-3">
-            <div className="text-sm text-gray-500">
-              Showing {(page - 1) * 20 + 1} to {Math.min(page * 20, data.total)} of {data.total}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="rounded border px-3 py-1 text-sm disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page * 20 >= data.total}
-                className="rounded border px-3 py-1 text-sm disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      {data && (
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={data.total}
+          onPageChange={setPage}
+          label={t('agreements.vendorWedding.pagination', 'Vendor supply pagination')}
+        />
+      )}
 
       {/* Create Modal */}
       {showCreateModal && (

@@ -9,7 +9,7 @@ from src.core.errors import BusinessError, ErrorCode
 from src.models.agreement import AgreementStatus
 from src.models.inspection import Inspection
 from src.models.ledger_entry import LedgerEntryType
-from src.models.vehicle import VehicleStatus
+from src.services.vehicle_status_service import release_vehicle
 from src.services import ledger_service
 
 
@@ -48,7 +48,7 @@ def sign_inspection(
                 agreement.return_mileage = inspection.mileage
 
             for segment in agreement.vehicle_segments:
-                segment.vehicle.status = VehicleStatus.AVAILABLE
+                release_vehicle(db, segment.vehicle, agreement.id)
                 if inspection.mileage is not None:
                     segment.end_mileage = segment.end_mileage or inspection.mileage
                     segment.vehicle.current_mileage = inspection.mileage

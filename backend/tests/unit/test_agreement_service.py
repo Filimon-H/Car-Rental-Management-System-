@@ -176,6 +176,47 @@ def past(days: int = 1) -> datetime:
     return datetime.now(timezone.utc) - timedelta(days=days)
 
 
+def backdate(db, agreement, pickup):
+    """Move an existing agreement's pickup into the past, as time would."""
+    span = agreement.expected_return_datetime - agreement.pickup_datetime
+    agreement.pickup_datetime = pickup
+    agreement.expected_return_datetime = pickup + span
+    for segment in agreement.vehicle_segments:
+        segment.start_datetime = pickup
+        segment.end_datetime = pickup + span
+    db.commit()
+    db.refresh(agreement)
+    return agreement
+
+
+def create_started_agreement(db, customer, vehicle, pickup, expected_return, **kwargs):
+    """Create an agreement whose pickup has already happened.
+
+    create_standard_agreement requires a future pickup — a booking cannot be
+    made for the past. Scenarios about a car that is already out therefore
+    build the agreement legally, then backdate the stored rows, which is what
+    the passage of time would have done to a real booking.
+    """
+    lead = datetime.now(timezone.utc) + timedelta(days=1)
+    span = expected_return - pickup
+    agreement = agreement_service.create_standard_agreement(
+        db=db,
+        customer_id=customer.id,
+        vehicle_id=vehicle.id,
+        pickup_datetime=lead,
+        expected_return_datetime=lead + span,
+        **kwargs,
+    )
+    agreement.pickup_datetime = pickup
+    agreement.expected_return_datetime = expected_return
+    for segment in agreement.vehicle_segments:
+        segment.start_datetime = pickup
+        segment.end_datetime = expected_return
+    db.commit()
+    db.refresh(agreement)
+    return agreement
+
+
 # ---------------------------------------------------------------------------
 # create_standard_agreement
 # ---------------------------------------------------------------------------
@@ -239,12 +280,10 @@ class TestCreateStandardAgreement:
         """3-day rental @ 1500/day → 4500 charge."""
         pickup = future(1)
         return_dt = pickup + timedelta(days=3)
-        agreement = agreement_service.create_standard_agreement(
-            db=db,
-            customer_id=customer.id,
-            vehicle_id=vehicle.id,
-            pickup_datetime=pickup,
-            expected_return_datetime=return_dt,
+        agreement = create_started_agreement(
+            db, customer, vehicle,
+            pickup=pickup,
+            expected_return=return_dt,
             daily_rate=Decimal("1500.00"),
         )
         balance = ledger_service.get_agreement_balance(db, agreement.id)
@@ -254,12 +293,10 @@ class TestCreateStandardAgreement:
         """25-hour rental → 2 days billed (ceiling rule)."""
         pickup = future(1)
         return_dt = pickup + timedelta(hours=25)
-        agreement = agreement_service.create_standard_agreement(
-            db=db,
-            customer_id=customer.id,
-            vehicle_id=vehicle.id,
-            pickup_datetime=pickup,
-            expected_return_datetime=return_dt,
+        agreement = create_started_agreement(
+            db, customer, vehicle,
+            pickup=pickup,
+            expected_return=return_dt,
             daily_rate=Decimal("1000.00"),
         )
         balance = ledger_service.get_agreement_balance(db, agreement.id)
@@ -314,24 +351,20 @@ class TestCreateStandardAgreement:
         pickup = future(3)
         return_dt = future(1)  # before pickup
         with pytest.raises(BusinessError):
-            agreement_service.create_standard_agreement(
-                db=db,
-                customer_id=customer.id,
-                vehicle_id=vehicle.id,
-                pickup_datetime=pickup,
-                expected_return_datetime=return_dt,
+            create_started_agreement(
+                db, customer, vehicle,
+                pickup=pickup,
+                expected_return=return_dt,
                 daily_rate=Decimal("1500.00"),
             )
 
     def test_return_date_equal_pickup_raises(self, db, customer, vehicle):
         pickup = future(1)
         with pytest.raises(BusinessError):
-            agreement_service.create_standard_agreement(
-                db=db,
-                customer_id=customer.id,
-                vehicle_id=vehicle.id,
-                pickup_datetime=pickup,
-                expected_return_datetime=pickup,
+            create_started_agreement(
+                db, customer, vehicle,
+                pickup=pickup,
+                expected_return=pickup,
                 daily_rate=Decimal("1500.00"),
             )
 
@@ -538,10 +571,11 @@ class TestActivateAgreement:
     def test_activate_closed_agreement_raises(self, db, customer, vehicle):
         ag = self._make_pending(db, customer, vehicle)
         agreement_service.activate_agreement(db, ag.id)
+        backdate(db, ag, past(2))
         agreement_service.close_agreement(
             db=db,
             agreement_id=ag.id,
-            actual_return_datetime=future(4),
+            actual_return_datetime=datetime.now(timezone.utc),
         )
         with pytest.raises(BusinessError):
             agreement_service.activate_agreement(db, ag.id)
@@ -558,12 +592,10 @@ class TestActivateAgreement:
 class TestMarkAgreementReturned:
 
     def _active_agreement(self, db, customer, vehicle) -> Agreement:
-        ag = agreement_service.create_standard_agreement(
-            db=db,
-            customer_id=customer.id,
-            vehicle_id=vehicle.id,
-            pickup_datetime=past(3),
-            expected_return_datetime=future(0),
+        ag = create_started_agreement(
+            db, customer, vehicle,
+            pickup=past(3),
+            expected_return=future(0),
             daily_rate=Decimal("1500.00"),
         )
         return agreement_service.activate_agreement(db, ag.id)
@@ -637,12 +669,10 @@ class TestMarkAgreementReturned:
 class TestCloseAgreement:
 
     def _active_agreement(self, db, customer, vehicle, pickup_days_ago=3, return_days=0) -> Agreement:
-        ag = agreement_service.create_standard_agreement(
-            db=db,
-            customer_id=customer.id,
-            vehicle_id=vehicle.id,
-            pickup_datetime=past(pickup_days_ago),
-            expected_return_datetime=datetime.now(timezone.utc) + timedelta(days=return_days),
+        ag = create_started_agreement(
+            db, customer, vehicle,
+            pickup=past(pickup_days_ago),
+            expected_return=datetime.now(timezone.utc) + timedelta(days=return_days),
             daily_rate=Decimal("1500.00"),
         )
         return agreement_service.activate_agreement(db, ag.id)
@@ -697,14 +727,14 @@ class TestCloseAgreement:
 
     def test_close_on_time_no_late_fee(self, db, customer, vehicle):
         """Returning on time must not add any late fee entry."""
+        # Both dates are past so the return can be recorded at the moment the
+        # car was due back — a future actual return is not a real event.
         pickup = past(3)
-        expected_return = datetime.now(timezone.utc) + timedelta(hours=1)
-        ag = agreement_service.create_standard_agreement(
-            db=db,
-            customer_id=customer.id,
-            vehicle_id=vehicle.id,
-            pickup_datetime=pickup,
-            expected_return_datetime=expected_return,
+        expected_return = past(1)
+        ag = create_started_agreement(
+            db, customer, vehicle,
+            pickup=pickup,
+            expected_return=expected_return,
             daily_rate=Decimal("1500.00"),
         )
         agreement_service.activate_agreement(db, ag.id)
@@ -724,12 +754,10 @@ class TestCloseAgreement:
         expected_return = past(2)
         actual_return = expected_return + timedelta(days=2)
 
-        ag = agreement_service.create_standard_agreement(
-            db=db,
-            customer_id=customer.id,
-            vehicle_id=vehicle.id,
-            pickup_datetime=pickup,
-            expected_return_datetime=expected_return,
+        ag = create_started_agreement(
+            db, customer, vehicle,
+            pickup=pickup,
+            expected_return=expected_return,
             daily_rate=Decimal("1500.00"),
         )
         agreement_service.activate_agreement(db, ag.id)
@@ -827,12 +855,10 @@ class TestCloseAgreement:
 
         pickup = datetime.now(timezone.utc) - timedelta(hours=20)
         expected_return = datetime.now(timezone.utc) + timedelta(hours=2)
-        ag = agreement_service.create_standard_agreement(
-            db=db,
-            customer_id=customer.id,
-            vehicle_id=vehicle.id,
-            pickup_datetime=pickup,
-            expected_return_datetime=expected_return,
+        ag = create_started_agreement(
+            db, customer, vehicle,
+            pickup=pickup,
+            expected_return=expected_return,
             daily_rate=Decimal("1500.00"),
         )
         agreement_service.activate_agreement(db, ag.id)
@@ -847,10 +873,13 @@ class TestCloseAgreement:
             agreement_id=ag.id,
             actual_return_datetime=datetime.now(timezone.utc),
         )
+        # Only the outstanding charge (1500) is taken from the 5000 deposit; the
+        # 3500 remainder is auto-returned on close, so nothing stays held.
         summary = agreement_service.get_agreement_summary(db, ag.id)
         assert summary["balance_due"] == Decimal("0.00")
         assert summary["deposit_applied"] == Decimal("1500.00")
-        assert summary["deposit_held"] == Decimal("3500.00")
+        assert summary["deposit_returned"] == Decimal("3500.00")
+        assert summary["deposit_held"] == Decimal("0")
 
 
 # ---------------------------------------------------------------------------
@@ -860,12 +889,10 @@ class TestCloseAgreement:
 class TestExtendAgreement:
 
     def _active_agreement(self, db, customer, vehicle) -> Agreement:
-        ag = agreement_service.create_standard_agreement(
-            db=db,
-            customer_id=customer.id,
-            vehicle_id=vehicle.id,
-            pickup_datetime=past(1),
-            expected_return_datetime=future(2),
+        ag = create_started_agreement(
+            db, customer, vehicle,
+            pickup=past(1),
+            expected_return=future(2),
             daily_rate=Decimal("1500.00"),
         )
         return agreement_service.activate_agreement(db, ag.id)
@@ -988,12 +1015,10 @@ class TestGetAgreementSummary:
     def _create_and_activate(self, db, customer, vehicle, days=3) -> Agreement:
         pickup = past(days)
         return_dt = datetime.now(timezone.utc) + timedelta(hours=1)
-        ag = agreement_service.create_standard_agreement(
-            db=db,
-            customer_id=customer.id,
-            vehicle_id=vehicle.id,
-            pickup_datetime=pickup,
-            expected_return_datetime=return_dt,
+        ag = create_started_agreement(
+            db, customer, vehicle,
+            pickup=pickup,
+            expected_return=return_dt,
             daily_rate=Decimal("1000.00"),
         )
         return agreement_service.activate_agreement(db, ag.id)
@@ -1176,10 +1201,11 @@ class TestCancelAgreement:
     def test_cancel_closed_agreement_raises(self, db, customer, vehicle):
         ag = self._pending(db, customer, vehicle)
         activated = agreement_service.activate_agreement(db, ag.id)
+        backdate(db, activated, past(2))
         agreement_service.close_agreement(
             db=db,
             agreement_id=activated.id,
-            actual_return_datetime=future(4),
+            actual_return_datetime=datetime.now(timezone.utc),
         )
         with pytest.raises(BusinessError):
             agreement_service.cancel_agreement(db, ag.id)
@@ -1200,12 +1226,10 @@ class TestVehicleStatusOnReturn:
     if another active booking for it starts in the future."""
 
     def _make_active(self, db, customer, vehicle) -> Agreement:
-        ag = agreement_service.create_standard_agreement(
-            db=db,
-            customer_id=customer.id,
-            vehicle_id=vehicle.id,
-            pickup_datetime=past(3),
-            expected_return_datetime=datetime.now(timezone.utc) + timedelta(hours=1),
+        ag = create_started_agreement(
+            db, customer, vehicle,
+            pickup=past(3),
+            expected_return=datetime.now(timezone.utc) + timedelta(hours=1),
             daily_rate=Decimal("1500.00"),
         )
         return agreement_service.activate_agreement(db, ag.id)

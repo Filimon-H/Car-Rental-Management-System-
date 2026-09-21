@@ -27,6 +27,29 @@
     --ring: 217 91% 50%;
     --radius: 0.7rem;
   }
+
+  /* Dark mode — brand palette */
+  .dark {
+    --background: 345 60% 5%;        /* #0d0407 very dark burgundy-black */
+    --foreground: 0 0% 93%;           /* near-white */
+    --card: 345 48% 9%;               /* #1a0810 dark card */
+    --card-foreground: 0 0% 93%;
+    --popover: 345 48% 9%;
+    --popover-foreground: 0 0% 93%;
+    --primary: 18 87% 54%;            /* #F15A24 orange */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 345 40% 14%;         /* slightly lighter dark */
+    --secondary-foreground: 0 0% 85%;
+    --muted: 345 35% 13%;
+    --muted-foreground: 345 15% 55%;
+    --accent: 345 40% 14%;
+    --accent-foreground: 18 87% 65%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 345 40% 18%;            /* #3d1520 dark border */
+    --input: 345 40% 14%;
+    --ring: 18 87% 54%;
+  }
 }
 
 @layer base {
@@ -48,11 +71,17 @@
     min-height: 100vh;
     background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   }
+  .dark body {
+    background: linear-gradient(180deg, #0d0407 0%, #110609 100%);
+  }
 }
 
 @layer components {
   .app-panel {
     @apply rounded-2xl border border-white/70 bg-white/90 shadow-sm backdrop-blur-sm;
+  }
+  .dark .app-panel {
+    @apply border-night-border/80 bg-night-surface/90;
   }
 
   .app-panel-dark {
@@ -62,6 +91,9 @@
   .app-kicker {
     @apply text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400;
   }
+  .dark .app-kicker {
+    @apply text-night-muted;
+  }
 }
 
 /* Thin custom scrollbar */
@@ -69,32 +101,199 @@
   width: 5px;
   height: 5px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 10px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+.dark ::-webkit-scrollbar-thumb {
+  background: #601A25;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #F15A24;
+}
+
+/* Dark mode — surface overrides for plain bg-white / border-slate-* elements */
+.dark .dm-surface {
+  background-color: #1a0810;
+  border-color: #3d1520;
+  color: #eddddf;
+}
+.dark .dm-surface-raised {
+  background-color: #22101a;
+  border-color: #3d1520;
+}
+.dark .dm-text-primary   { color: #F15A24; }
+.dark .dm-text-muted     { color: #9d7a80; }
+.dark .dm-text-heading   { color: #eddddf; }
+.dark .dm-border         { border-color: #3d1520; }
+.dark .dm-input {
+  background-color: #22101a;
+  border-color: #3d1520;
+  color: #eddddf;
+}
+.dark .dm-input::placeholder { color: #7a5a60; }
+.dark .dm-input:focus {
+  border-color: #F15A24;
+  box-shadow: 0 0 0 3px #F15A2422;
+}
+
+/* Blanket overrides so all standard bg-white / ring-slate pages turn dark */
+.dark .bg-white          { background-color: #1a0810 !important; }
+.dark .bg-slate-50       { background-color: #22101a !important; }
+.dark .bg-slate-100      { background-color: #2a1220 !important; }
+.dark .ring-slate-200    { --tw-ring-color: #3d1520 !important; }
+.dark .border-slate-100  { border-color: #2e1018 !important; }
+.dark .border-slate-200  { border-color: #3d1520 !important; }
+.dark .text-slate-900    { color: #eddddf !important; }
+.dark .text-slate-800    { color: #e0cdd0 !important; }
+.dark .text-slate-700    { color: #d0b8bc !important; }
+.dark .text-slate-600    { color: #b89298 !important; }
+.dark .text-slate-500    { color: #9d7a80 !important; }
+.dark .text-slate-400    { color: #7a5a60 !important; }
+.dark .hover\:bg-slate-50:hover  { background-color: #22101a !important; }
+.dark .hover\:bg-slate-100:hover { background-color: #2a1220 !important; }
+.dark .divide-slate-100 > * + *  { border-color: #2e1018 !important; }
+.dark .focus\:border-primary:focus { border-color: #F15A24 !important; }
+.dark .focus\:ring-primary\/20:focus { --tw-ring-color: #F15A2433 !important; }
+.dark .text-primary      { color: #F15A24 !important; }
+.dark .bg-primary        { background-color: #F15A24 !important; }
+.dark .hover\:bg-primary-700:hover { background-color: #d94e1e !important; }
+.dark .border-primary    { border-color: #F15A24 !important; }
 
 @layer utilities {
   .page-fade {
     animation: pageFade 0.2s ease-out;
   }
   @keyframes pageFade {
-    from {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    15%       { transform: translateX(-6px); }
+    30%       { transform: translateX(6px); }
+    45%       { transform: translateX(-5px); }
+    60%       { transform: translateX(5px); }
+    75%       { transform: translateX(-3px); }
+    90%       { transform: translateX(3px); }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Dark-mode fallback for pages still written with light-only utilities.
+ *
+ * Most pages hardcode `bg-white`, `text-gray-*` and friends with no `dark:`
+ * variant, so the theme toggle used to leave them white. Rather than rewrite
+ * every page, these rules remap that fixed palette onto the dark tokens defined
+ * above. Pages that state their own `dark:` variant keep winning, because
+ * Tailwind emits those later in the utilities layer.
+ *
+ * When a page is converted to the shared primitives, its rules here simply stop
+ * matching — this is a safety net, not a layer to build new pages on.
+ * ------------------------------------------------------------------------- */
+@layer utilities {
+  .dark .bg-white {
+    background-color: #1a0810;
+  }
+  .dark .bg-gray-50,
+  .dark .bg-slate-50,
+  .dark .bg-gray-100,
+  .dark .bg-slate-100 {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .dark .text-gray-900,
+  .dark .text-slate-900,
+  .dark .text-gray-800,
+  .dark .text-slate-800 {
+    color: #ededed;
+  }
+  .dark .text-gray-700,
+  .dark .text-slate-700,
+  .dark .text-gray-600,
+  .dark .text-slate-600 {
+    color: #cbc5c6;
+  }
+  .dark .text-gray-500,
+  .dark .text-slate-500,
+  .dark .text-gray-400,
+  .dark .text-slate-400 {
+    color: #9d8f92;
+  }
+
+  .dark .border-gray-200,
+  .dark .border-gray-300,
+  .dark .border-slate-200,
+  .dark .border-slate-300,
+  .dark .border {
+    border-color: #3d1520;
+  }
+  .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+  .dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+  .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+  .dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+    border-color: #3d1520;
+  }
+
+  /* Form controls read as holes in a dark page unless they get the card colour. */
+  .dark input:not([type='checkbox']):not([type='radio']),
+  .dark select,
+  .dark textarea {
+    background-color: #22101a;
+    border-color: #3d1520;
+    color: #ededed;
+  }
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    /* 5.9:1 on the input background — the previous #7a6a6e was 3.6:1. */
+    color: #9d8f92;
+  }
+
+  /* Hover tints assume a white ground; invert them to a light wash. */
+  .dark .hover\:bg-gray-50:hover,
+  .dark .hover\:bg-slate-50:hover,
+  .dark .hover\:bg-gray-100:hover,
+  .dark .hover\:bg-slate-100:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Reduced motion.
+ *
+ * Vestibular disorders make large or repeated movement genuinely unpleasant, so
+ * when the OS asks for less of it, animation is cut to a near-instant step
+ * rather than removed outright — a zero duration would break transitionend
+ * handlers and leave elements stuck mid-state.
+ *
+ * Spinners keep turning, slowly: they are the only signal that work is still in
+ * progress, and freezing one reads as a hung page.
+ * ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-spin {
+    animation-duration: 1.5s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  /* The skeleton shimmer is decorative; a static tint conveys the same thing. */
+  .animate-pulse {
+    animation: none !important;
+    opacity: 0.6;
   }
 }

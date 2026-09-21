@@ -1,0 +1,66 @@
+# Production-shaped stack: PostgreSQL, the API, and the frontend behind nginx.
+#
+# Running on Postgres rather than SQLite is what makes the row locks in
+# agreement_service real — with_for_update() compiles to a no-op on SQLite, so
+# the double-booking guard only actually holds here.
+#
+# Usage:
+#   cp .env.docker.example .env && edit the secrets
+#   docker compose up --build
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-carrental}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-carrental}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-carrental}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-carrental}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-carrental}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      APP_ENV: ${APP_ENV:-production}
+      DEBUG: "false"
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-["http://localhost:8080"]}
+      FILE_STORAGE_PATH: /app/uploads
+      GENERATED_DOCS_PATH: /app/generated_docs
+      # Only one process may run the scheduler; see scheduler_enabled in config.
+      SCHEDULER_ENABLED: "true"
+      TELEGRAM_BOT_ENABLED: ${TELEGRAM_BOT_ENABLED:-false}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_MODE: ${TELEGRAM_BOT_MODE:-disabled}
+    volumes:
+      - uploads:/app/uploads
+      - generated_docs:/app/generated_docs
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Same-origin: nginx proxies /api to the backend.
+        VITE_API_BASE_URL: /api/v1
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  uploads:
+  generated_docs:

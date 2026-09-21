@@ -16,20 +16,27 @@ def check_vehicle_available(
     start_datetime: datetime,
     end_datetime: datetime,
     exclude_agreement_id: int | None = None,
+    skip_status_check: bool = False,
 ) -> bool:
     """Check if a vehicle is available for the given date range.
-    
+
     A vehicle is unavailable if:
     1. It has status other than AVAILABLE
     2. There's an overlapping agreement segment (not cancelled)
-    
+
     Args:
         db: Database session
         vehicle_id: Vehicle to check
         start_datetime: Start of desired rental period
         end_datetime: End of desired rental period
-        exclude_agreement_id: Agreement to exclude from overlap check (for extensions)
-    
+        exclude_agreement_id: Agreement to exclude from overlap check. Use when an
+            agreement's own segments would otherwise count against it (extensions,
+            re-validating an existing booking).
+        skip_status_check: Bypass the vehicle status gate. Only for extending an
+            agreement that already holds this vehicle, where RENTED is the expected
+            state. Never set this when attaching a vehicle the agreement does not
+            already hold — that is how a RENTED vehicle gets double-booked.
+
     Returns:
         True if vehicle is available, False otherwise
     """
@@ -37,9 +44,10 @@ def check_vehicle_available(
     vehicle = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
     if not vehicle or not vehicle.is_active:
         return False
-    
-    # Check vehicle status (only AVAILABLE vehicles can be booked)
-    if vehicle.status not in (VehicleStatus.AVAILABLE, VehicleStatus.RESERVED):
+
+    # Check vehicle status. Skipped only for extensions, where the vehicle is
+    # legitimately RENTED by the very agreement being extended.
+    if not skip_status_check and vehicle.status not in (VehicleStatus.AVAILABLE, VehicleStatus.RESERVED):
         return False
     
     # Check for overlapping segments

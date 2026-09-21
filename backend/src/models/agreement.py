@@ -5,7 +5,7 @@ from decimal import Decimal
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.db import Base
@@ -33,6 +33,7 @@ class AgreementType(str, PyEnum):
 class AgreementStatus(str, PyEnum):
     """Agreement status enumeration."""
 
+    BOOKING_REQUESTED = "booking_requested"  # Customer-initiated; vehicle not yet locked
     DRAFT = "draft"
     PENDING_PAYMENT = "pending_payment"
     ACTIVE = "active"
@@ -46,6 +47,19 @@ class Agreement(Base):
     """Agreement model for rental contracts."""
 
     __tablename__ = "agreements"
+
+    __table_args__ = (
+        CheckConstraint("agreed_daily_rate >= 0", name="ck_agreements_rate_non_negative"),
+        CheckConstraint("deposit_amount >= 0", name="ck_agreements_deposit_non_negative"),
+        CheckConstraint(
+            "advance_payment IS NULL OR advance_payment >= 0",
+            name="ck_agreements_advance_non_negative",
+        ),
+        CheckConstraint(
+            "expected_return_datetime > pickup_datetime",
+            name="ck_agreements_return_after_pickup",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     agreement_number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
@@ -89,6 +103,17 @@ class Agreement(Base):
     # Mileage tracking
     pickup_mileage: Mapped[int | None] = mapped_column(Integer, nullable=True)
     return_mileage: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Mileage policy. Both must be set for an excess charge to apply on close;
+    # leaving either null means unlimited mileage, which is the previous behaviour.
+    mileage_limit_per_day: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    excess_mileage_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+
+    # Fuel policy. Levels are percentages (0-100) recorded at handover and return;
+    # the shortfall is charged at fuel_charge_rate per whole percent.
+    fuel_level_out: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fuel_level_in: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fuel_charge_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     
     # Additional info
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -109,6 +134,10 @@ class Agreement(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Return reminders
+    return_reminder_sent_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    overdue_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     customer: Mapped["Customer"] = relationship("Customer", back_populates="agreements")

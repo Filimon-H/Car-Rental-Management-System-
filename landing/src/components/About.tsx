@@ -56,9 +56,9 @@ export default function About() {
               alt="Nod Car Rent fleet"
               className="rounded-2xl w-full object-cover"
             />
-            <div className="absolute -bottom-6 -left-6 bg-gold rounded-2xl p-6 hidden lg:block">
-              <p className="text-black text-3xl font-bold">5+</p>
-              <p className="text-black text-sm font-medium">Years of Service</p>
+            <div className="absolute -bottom-6 -left-6 bg-brand rounded-2xl p-6 hidden lg:block">
+              <p className="text-white text-3xl font-bold">5+</p>
+              <p className="text-white text-sm font-medium">Years of Service</p>
             </div>
           </div>
         </div>

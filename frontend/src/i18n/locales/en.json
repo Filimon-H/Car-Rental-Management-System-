@@ -16,7 +16,17 @@
     "actions": "Actions",
     "yes": "Yes",
     "no": "No",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "view": "View",
+    "active": "Active",
+    "inactive": "Inactive",
+    "deleting": "Deleting...",
+    "close": "Close",
+    "unknown": "Unknown",
+    "notAvailable": "N/A",
+    "cannotBeUndone": "This action cannot be undone.",
+    "export": "Export CSV",
+    "exporting": "Exporting..."
   },
   "auth": {
     "login": "Login",
@@ -109,14 +119,57 @@
     "title": "Agreements",
     "createNew": "New Agreement",
     "standard": "Standard Rental",
-    "wedding": "Wedding",
-    "vendorWedding": "Vendor Wedding",
+    "wedding": {
+      "label": "Wedding",
+      "title": "Wedding Agreements",
+      "createNew": "New Wedding Agreement",
+      "eventDates": "Event Dates",
+      "searchLabel": "Search wedding agreements",
+      "empty": "No wedding agreements found",
+      "emptyInitial": "Create your first wedding agreement to get started.",
+      "pagination": "Wedding agreements pagination"
+    },
+    "vendorWedding": {
+      "label": "Vendor Wedding",
+      "title": "Vendor Wedding Supply",
+      "createNew": "New Vendor Supply",
+      "vendor": "Vendor",
+      "linkedWedding": "Linked Wedding",
+      "linked": "Linked",
+      "searchLabel": "Search vendor supply agreements",
+      "searchPlaceholder": "Search by agreement # or vendor...",
+      "bannerTitle": "Vendor Wedding Supply Agreements",
+      "bannerBody": "Track vehicles supplied by external vendors for wedding events. These can be linked to customer wedding agreements for complete event management.",
+      "empty": "No vendor wedding supply agreements found",
+      "emptyInitial": "Record a vendor supply agreement to get started.",
+      "pagination": "Vendor supply pagination"
+    },
     "status": {
       "draft": "Draft",
       "active": "Active",
       "closed": "Closed",
       "overdue": "Overdue",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "all": "All",
+      "bookingRequested": "Booking Requests",
+      "pendingPayment": "Pending Payment"
+    },
+    "searchLabel": "Search agreements",
+    "searchPlaceholder": "Search agreement or customer...",
+    "filterByStatus": "Filter by status",
+    "pagination": "Agreements pagination",
+    "emptyTitle": "No agreements found",
+    "emptyFiltered": "Try a different search term or status filter.",
+    "emptyInitial": "Create your first rental agreement to get started.",
+    "loadError": "Error loading agreements",
+    "columns": {
+      "number": "Agreement #",
+      "customer": "Customer",
+      "dates": "Dates",
+      "dailyRate": "Daily Rate",
+      "status": "Status",
+      "total": "Total",
+      "amount": "Amount"
     }
   },
   "agreementCreate": {
@@ -347,7 +400,132 @@
       "reserved": "Reserved",
       "rented": "Rented",
       "maintenance": "Maintenance",
-      "inactive": "Inactive"
+      "inactive": "Inactive",
+      "all": "All",
+      "retired": "Retired"
+    },
+    "add": "Add Vehicle",
+    "seats": "{{count}} seats",
+    "searchLabel": "Search vehicles",
+    "searchPlaceholder": "Search by plate, make, model...",
+    "filterByStatus": "Filter by status",
+    "changeStatus": "Change status for {{plate}}",
+    "pagination": "Vehicles pagination",
+    "empty": "No vehicles found",
+    "emptyFiltered": "Try a different search term or status filter.",
+    "emptyInitial": "Add your first vehicle to get started.",
+    "loadError": "Error loading vehicles",
+    "editAria": "Edit {{plate}}",
+    "deleteAria": "Delete {{plate}}",
+    "deleteTitle": "Delete Vehicle",
+    "deleteConfirm": "Are you sure you want to delete",
+    "columns": {
+      "vehicle": "Vehicle",
+      "details": "Details",
+      "dailyRate": "Daily Rate",
+      "status": "Status"
     }
+  },
+  "customers": {
+    "title": "Customers",
+    "createNew": "New Customer",
+    "quickAdd": "Quick Add",
+    "bulkUpload": "Bulk Upload",
+    "online": "Online",
+    "searchLabel": "Search customers",
+    "searchPlaceholder": "Search by name, phone, or ID...",
+    "filterLabel": "Filter customers",
+    "pagination": "Customers pagination",
+    "empty": "No customers found",
+    "emptyOnline": "No online-registered customers found",
+    "emptyFiltered": "Try a different search term.",
+    "emptyInitial": "Add your first customer to get started.",
+    "loadError": "Error loading customers",
+    "editAria": "Edit {{name}}",
+    "deleteAria": "Delete {{name}}",
+    "deleteTitle": "Delete Customer",
+    "deleteConfirm": "Are you sure you want to permanently delete",
+    "columns": {
+      "name": "Name",
+      "contact": "Contact",
+      "id": "ID",
+      "status": "Status"
+    },
+    "tabs": {
+      "all": "All Customers",
+      "online": "Online Registered"
+    }
+  },
+  "vendors": {
+    "title": "Vendors",
+    "add": "Add Vendor",
+    "searchLabel": "Search vendors",
+    "searchPlaceholder": "Search vendors…",
+    "pagination": "Vendors pagination",
+    "empty": "No vendors found",
+    "emptyFiltered": "Try a different search term.",
+    "emptyInitial": "Add your first vendor to get started.",
+    "loadError": "Error loading vendors",
+    "editAria": "Edit {{name}}",
+    "columns": {
+      "vendor": "Vendor",
+      "contact": "Contact",
+      "bank": "Bank",
+      "status": "Status"
+    }
+  },
+  "drivers": {
+    "title": "Drivers",
+    "add": "Add Driver",
+    "noEmail": "No email",
+    "searchLabel": "Search drivers",
+    "searchPlaceholder": "Search drivers...",
+    "pagination": "Drivers pagination",
+    "empty": "No drivers found",
+    "emptyFiltered": "Try a different search term.",
+    "emptyInitial": "Add your first driver to get started.",
+    "loadError": "Error loading drivers",
+    "editAria": "Edit {{name}}",
+    "deleteAria": "Delete {{name}}",
+    "deleteTitle": "Delete Driver",
+    "deleteConfirm": "Are you sure you want to delete",
+    "columns": {
+      "driver": "Driver",
+      "phone": "Phone",
+      "license": "License",
+      "licenseExpiry": "License Expiry",
+      "status": "Status"
+    }
+  },
+  "collaterals": {
+    "title": "Collateral Persons",
+    "add": "Add Collateral Person",
+    "noEmail": "No email",
+    "searchLabel": "Search collateral persons",
+    "searchPlaceholder": "Search collateral persons...",
+    "pagination": "Collateral persons pagination",
+    "empty": "No collateral persons found",
+    "emptyFiltered": "Try a different search term.",
+    "emptyInitial": "Add a collateral person to get started.",
+    "loadError": "Error loading collateral persons",
+    "deleteFailed": "Failed to delete collateral person",
+    "editAria": "Edit {{name}}",
+    "deleteAria": "Delete {{name}}",
+    "deleteTitle": "Delete Collateral Person",
+    "deleteConfirm": "Are you sure you want to permanently delete",
+    "columns": {
+      "person": "Collateral Person",
+      "phone": "Phone",
+      "id": "ID",
+      "relationship": "Relationship",
+      "customer": "Customer",
+      "status": "Status"
+    }
+  },
+  "ledger": {
+    "title": "Ledger & Payments",
+    "subtitle": "Financial audit trail — append-only, never modified",
+    "exportFailed": "Export failed",
+    "exportFailedBody": "Could not download the ledger CSV."
   }
 }

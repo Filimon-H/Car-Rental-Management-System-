@@ -1,0 +1,24 @@
+# The build context is backend/, so the repo-root .dockerignore does not apply here.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets and local data must never enter an image.
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite
+*.sqlite3
+
+# Runtime artefacts — these are volumes in compose.
+uploads/
+generated_docs/
+.logs/
+
+tests/
+*.md

@@ -15,6 +15,7 @@ from src.models.vehicle import Vehicle, VehicleStatus
 from src.models.ledger_entry import LedgerEntryType
 from src.repositories import availability_repository
 from src.services import billing_service, ledger_service
+from src.services.vehicle_status_service import release_vehicle
 
 logger = get_logger(__name__)
 
@@ -165,6 +166,13 @@ def create_standard_agreement(
             )
     
     # Validate dates
+    pickup_datetime = _ensure_utc(pickup_datetime)
+    expected_return_datetime = _ensure_utc(expected_return_datetime)
+    if pickup_datetime <= datetime.now(timezone.utc):
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT,
+            "Pickup date must be in the future",
+        )
     if expected_return_datetime <= pickup_datetime:
         raise BusinessError(
             ErrorCode.INVALID_INPUT,
@@ -217,15 +225,25 @@ def create_standard_agreement(
     # Reserve the vehicle — only move to RENTED when the agreement is activated (handover done)
     vehicle.status = VehicleStatus.RESERVED
 
-    # Calculate and post initial rental charge
+    # Calculate and post initial rental charge. The vehicle's weekly/monthly rates
+    # are applied when they beat the daily price for this duration; when unset this
+    # is exactly days x daily_rate.
     days, charge = billing_service.calculate_rental_charge(
-        pickup_datetime, expected_return_datetime, daily_rate
+        pickup_datetime,
+        expected_return_datetime,
+        daily_rate,
+        weekly_rate=vehicle.weekly_rate,
+        monthly_rate=vehicle.monthly_rate,
     )
+    flat = daily_rate * days
+    description = f"Rental charge: {days} days @ {daily_rate}/day"
+    if charge < flat:
+        description = f"Rental charge: {days} days (tiered rate, saved {flat - charge})"
     ledger_service.post_charge(
         db=db,
         agreement_id=agreement.id,
         amount=charge,
-        description=f"Rental charge: {days} days @ {daily_rate}/day",
+        description=description,
         entry_type=LedgerEntryType.CHARGE,
         created_by_id=created_by_id,
     )
@@ -244,6 +262,7 @@ def close_agreement(
     return_mileage: int | None = None,
     closed_by_id: int | None = None,
     notes: str | None = None,
+    fuel_level_in: int | None = None,
 ) -> Agreement:
     """Close an agreement (vehicle returned).
     
@@ -269,6 +288,13 @@ def close_agreement(
         )
 
     actual_return_datetime = _ensure_utc(actual_return_datetime)
+    if actual_return_datetime < _ensure_utc(agreement.pickup_datetime):
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT,
+            "Actual return date cannot be before pickup date",
+        )
+    if actual_return_datetime > datetime.now(timezone.utc):
+        raise BusinessError(ErrorCode.INVALID_INPUT, "Actual return date cannot be in the future")
     expected_return_datetime = _ensure_utc(agreement.expected_return_datetime)
     
     # Calculate late fee if applicable
@@ -287,6 +313,64 @@ def close_agreement(
                 entry_type=LedgerEntryType.LATE_FEE,
                 created_by_id=closed_by_id,
                 auto_commit=False,  # Let close_agreement handle the commit
+            )
+
+    # Record the return fuel level before computing the shortfall.
+    if fuel_level_in is not None:
+        agreement.fuel_level_in = fuel_level_in
+
+    # Excess mileage. Only charged when a policy was agreed and both odometer
+    # readings exist; otherwise mileage is unlimited and nothing is posted.
+    if (
+        agreement.mileage_limit_per_day
+        and agreement.excess_mileage_rate
+        and return_mileage is not None
+        and agreement.pickup_mileage is not None
+    ):
+        rental_days = billing_service.calculate_rental_days(
+            _ensure_utc(agreement.pickup_datetime), actual_return_datetime
+        )
+        excess_km, mileage_charge = billing_service.calculate_mileage_charge(
+            start_mileage=agreement.pickup_mileage,
+            end_mileage=return_mileage,
+            free_km_per_day=agreement.mileage_limit_per_day,
+            rental_days=rental_days,
+            excess_km_rate=agreement.excess_mileage_rate,
+        )
+        if mileage_charge > 0:
+            ledger_service.post_charge(
+                db=db,
+                agreement_id=agreement_id,
+                amount=mileage_charge,
+                description=(
+                    f"Excess mileage: {excess_km} km over "
+                    f"{agreement.mileage_limit_per_day * rental_days} km allowance"
+                ),
+                entry_type=LedgerEntryType.CHARGE,
+                created_by_id=closed_by_id,
+                auto_commit=False,
+            )
+
+    # Fuel shortfall, charged per whole percent below the level at handover.
+    if (
+        agreement.fuel_charge_rate
+        and agreement.fuel_level_out is not None
+        and agreement.fuel_level_in is not None
+    ):
+        shortfall = agreement.fuel_level_out - agreement.fuel_level_in
+        if shortfall > 0:
+            fuel_charge = agreement.fuel_charge_rate * shortfall
+            ledger_service.post_charge(
+                db=db,
+                agreement_id=agreement_id,
+                amount=fuel_charge,
+                description=(
+                    f"Fuel shortfall: {shortfall}% "
+                    f"(out {agreement.fuel_level_out}%, in {agreement.fuel_level_in}%)"
+                ),
+                entry_type=LedgerEntryType.CHARGE,
+                created_by_id=closed_by_id,
+                auto_commit=False,
             )
 
     balance_due_before_deposit = _get_balance_due_before_deposit(db, agreement_id)
@@ -332,19 +416,7 @@ def close_agreement(
         if return_mileage:
             vehicle.current_mileage = return_mileage
 
-        # Only mark AVAILABLE if no upcoming booking exists for this vehicle
-        has_upcoming = (
-            db.query(AgreementVehicleSegment)
-            .join(Agreement)
-            .filter(
-                AgreementVehicleSegment.vehicle_id == vehicle.id,
-                Agreement.id != agreement_id,
-                Agreement.status.in_([AgreementStatus.PENDING_PAYMENT, AgreementStatus.ACTIVE]),
-                AgreementVehicleSegment.start_datetime > actual_return_datetime,
-            )
-            .first()
-        )
-        vehicle.status = VehicleStatus.RESERVED if has_upcoming else VehicleStatus.AVAILABLE
+        release_vehicle(db, vehicle, agreement_id)
 
     db.commit()
     db.refresh(agreement)
@@ -380,6 +452,13 @@ def mark_agreement_returned(
         )
 
     actual_return_datetime = _ensure_utc(actual_return_datetime)
+    if actual_return_datetime < _ensure_utc(agreement.pickup_datetime):
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT,
+            "Actual return date cannot be before pickup date",
+        )
+    if actual_return_datetime > datetime.now(timezone.utc):
+        raise BusinessError(ErrorCode.INVALID_INPUT, "Actual return date cannot be in the future")
     agreement.status = AgreementStatus.RETURNED
     agreement.actual_return_datetime = actual_return_datetime
     agreement.return_mileage = return_mileage
@@ -393,18 +472,7 @@ def mark_agreement_returned(
         if return_mileage:
             segment.end_mileage = segment.end_mileage or return_mileage
             vehicle.current_mileage = return_mileage
-        has_upcoming = (
-            db.query(AgreementVehicleSegment)
-            .join(Agreement)
-            .filter(
-                AgreementVehicleSegment.vehicle_id == vehicle.id,
-                Agreement.id != agreement_id,
-                Agreement.status.in_([AgreementStatus.PENDING_PAYMENT, AgreementStatus.ACTIVE]),
-                AgreementVehicleSegment.start_datetime > actual_return_datetime,
-            )
-            .first()
-        )
-        vehicle.status = VehicleStatus.RESERVED if has_upcoming else VehicleStatus.AVAILABLE
+        release_vehicle(db, vehicle, agreement_id)
 
     db.commit()
     db.refresh(agreement)
@@ -549,7 +617,7 @@ def cancel_agreement(
     cancelled_by_id: int | None = None,
     reason: str | None = None,
 ) -> Agreement:
-    """Cancel an agreement and release the vehicle back to AVAILABLE."""
+    """Cancel an agreement and release only its own vehicle holds."""
     from sqlalchemy.orm import joinedload
 
     agreement = (
@@ -561,24 +629,98 @@ def cancel_agreement(
     if not agreement:
         raise NotFoundError("Agreement", agreement_id)
 
-    if agreement.status not in (AgreementStatus.DRAFT, AgreementStatus.PENDING_PAYMENT):
+    if agreement.status not in (
+        AgreementStatus.BOOKING_REQUESTED,
+        AgreementStatus.DRAFT,
+        AgreementStatus.PENDING_PAYMENT,
+    ):
         raise BusinessError(
             ErrorCode.INVALID_INPUT,
-            f"Cannot cancel agreement with status {agreement.status.value}. Only DRAFT or PENDING_PAYMENT agreements can be cancelled.",
+            f"Cannot cancel agreement with status {agreement.status.value}.",
         )
 
+    was_booking_request = agreement.status == AgreementStatus.BOOKING_REQUESTED
     agreement.status = AgreementStatus.CANCELLED
     if reason:
         agreement.notes = (agreement.notes or "") + f"\n[Cancelled] {reason}"
 
-    # Release vehicle back to available
-    for segment in agreement.vehicle_segments:
-        segment.vehicle.status = VehicleStatus.AVAILABLE
+    # Only release the vehicle if it was actually locked (BOOKING_REQUESTED never locks)
+    if not was_booking_request:
+        for segment in agreement.vehicle_segments:
+            release_vehicle(db, segment.vehicle, agreement_id)
 
     db.commit()
     db.refresh(agreement)
 
     logger.info(f"Cancelled agreement {agreement.agreement_number}")
+    return agreement
+
+
+def approve_booking_request(
+    db: Session,
+    agreement_id: int,
+    approved_by_id: int | None = None,
+) -> Agreement:
+    """Approve a customer booking request: check availability, lock vehicle, post rental charge."""
+    from sqlalchemy.orm import joinedload
+
+    agreement = (
+        db.query(Agreement)
+        .options(joinedload(Agreement.vehicle_segments).joinedload(AgreementVehicleSegment.vehicle))
+        .filter(Agreement.id == agreement_id)
+        .first()
+    )
+    if not agreement:
+        raise NotFoundError("Agreement", agreement_id)
+
+    if agreement.status != AgreementStatus.BOOKING_REQUESTED:
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT,
+            f"Cannot approve an agreement with status '{agreement.status.value}'",
+        )
+
+    for segment in agreement.vehicle_segments:
+        vehicle = db.query(Vehicle).filter(Vehicle.id == segment.vehicle_id).with_for_update().first()
+        if not vehicle or not vehicle.is_active:
+            raise NotFoundError("Vehicle", segment.vehicle_id)
+
+        # Exclude this agreement's own segments from the overlap check, but still
+        # enforce the vehicle status gate — the booking does not hold the vehicle yet.
+        if not availability_repository.check_vehicle_available(
+            db, vehicle.id, agreement.pickup_datetime, agreement.expected_return_datetime,
+            exclude_agreement_id=agreement.id,
+        ):
+            raise BusinessError(
+                ErrorCode.VEHICLE_NOT_AVAILABLE,
+                f"Vehicle {vehicle.plate_number} is no longer available for the requested dates",
+            )
+
+        vehicle.status = VehicleStatus.RESERVED
+
+    # Post the initial rental charge now that we're committing the booking.
+    # Tier rates come from the first booked vehicle, matching how the quote was shown.
+    first_vehicle = agreement.vehicle_segments[0].vehicle if agreement.vehicle_segments else None
+    days, charge = billing_service.calculate_rental_charge(
+        agreement.pickup_datetime,
+        agreement.expected_return_datetime,
+        agreement.agreed_daily_rate,
+        weekly_rate=first_vehicle.weekly_rate if first_vehicle else None,
+        monthly_rate=first_vehicle.monthly_rate if first_vehicle else None,
+    )
+    ledger_service.post_charge(
+        db=db,
+        agreement_id=agreement.id,
+        amount=charge,
+        description=f"Rental charge: {days} days @ {agreement.agreed_daily_rate}/day",
+        entry_type=LedgerEntryType.CHARGE,
+        created_by_id=approved_by_id,
+    )
+
+    agreement.status = AgreementStatus.PENDING_PAYMENT
+    db.commit()
+    db.refresh(agreement)
+
+    logger.info(f"Approved booking request {agreement.agreement_number}")
     return agreement
 
 

@@ -38,6 +38,9 @@ class AgreementClose(BaseModel):
 
     actual_return_datetime: datetime
     return_mileage: int | None = None
+    # Fuel level at return (0-100). Combined with the agreement's fuel_level_out and
+    # fuel_charge_rate to charge any shortfall.
+    fuel_level_in: int | None = Field(None, ge=0, le=100)
     notes: str | None = None
 
 

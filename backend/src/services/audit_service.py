@@ -19,8 +19,16 @@ def create_audit_event(
     details: dict[str, Any] | None = None,
     ip_address: str | None = None,
     user_agent: str | None = None,
+    auto_commit: bool = True,
 ) -> AuditEvent:
-    """Create and persist an audit event."""
+    """Create and persist an audit event.
+
+    Args:
+        auto_commit: If False, the event is flushed but not committed, so it lands in
+            the caller's transaction. Use this inside multi-step operations (closing
+            an agreement, posting to the ledger) so the audit row is rolled back with
+            the work it describes rather than outliving a failed operation.
+    """
     event = AuditEvent(
         actor_id=actor_id,
         action=action,
@@ -32,13 +40,63 @@ def create_audit_event(
         correlation_id=get_correlation_id(),
     )
     db.add(event)
-    db.commit()
-    db.refresh(event)
+    if auto_commit:
+        db.commit()
+        db.refresh(event)
+    else:
+        db.flush()
 
     logger.info(
         f"Audit event created: {action.value} on {entity_type}:{entity_id} by actor:{actor_id}"
     )
     return event
+
+
+def log_financial_event(
+    db: Session,
+    action: AuditAction,
+    agreement_id: int,
+    amount: Any,
+    actor_id: int | None = None,
+    details: dict[str, Any] | None = None,
+    auto_commit: bool = True,
+) -> AuditEvent:
+    """Record a money-moving action against an agreement.
+
+    The ledger records that a balance changed; this records who authorised it.
+    """
+    payload: dict[str, Any] = {"amount": str(amount)}
+    if details:
+        payload.update(details)
+    return create_audit_event(
+        db=db,
+        action=action,
+        entity_type="agreement",
+        entity_id=agreement_id,
+        actor_id=actor_id,
+        details=payload,
+        auto_commit=auto_commit,
+    )
+
+
+def log_agreement_event(
+    db: Session,
+    action: AuditAction,
+    agreement_id: int,
+    actor_id: int | None = None,
+    details: dict[str, Any] | None = None,
+    auto_commit: bool = True,
+) -> AuditEvent:
+    """Record an agreement lifecycle transition."""
+    return create_audit_event(
+        db=db,
+        action=action,
+        entity_type="agreement",
+        entity_id=agreement_id,
+        actor_id=actor_id,
+        details=details,
+        auto_commit=auto_commit,
+    )
 
 
 def log_login(

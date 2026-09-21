@@ -4,8 +4,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        gold: '#c9a227',
-        'gold-light': '#d4af37',
+        gold: '#F15A24',
+        'gold-light': '#FF6B3D',
+        brand: '#601A25',
+        'brand-light': '#7A2233',
+        charcoal: '#333333',
         dark: '#121212',
         'dark-100': '#1a1a1a',
         'dark-200': '#222222',

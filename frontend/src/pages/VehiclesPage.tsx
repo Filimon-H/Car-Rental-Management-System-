@@ -1,38 +1,18 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Edit, Trash2, Car } from 'lucide-react'
-import { vehiclesService, VehicleStatus } from '@/services/vehicles'
+import { Plus, Edit, Trash2, Car } from 'lucide-react'
+import { vehiclesService, VehicleStatus, Vehicle } from '@/services/vehicles'
+import { DataTable, type Column } from '@/components/ui/DataTable'
+import { StatusBadge } from '@/components/ui/StatusBadge'
+import { SearchInput } from '@/components/ui/SearchInput'
+import { Pagination } from '@/components/ui/Pagination'
+import { PageToolbar, FilterTabs } from '@/components/ui/PageToolbar'
+import { Button } from '@/components/ui/Button'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
-const STATUS_TABS: { value: VehicleStatus | ''; label: string }[] = [
-  { value: '', label: 'All' },
-  { value: 'available', label: 'Available' },
-  { value: 'rented', label: 'Rented' },
-  { value: 'maintenance', label: 'Maintenance' },
-  { value: 'reserved', label: 'Reserved' },
-  { value: 'retired', label: 'Retired' },
-]
-
-const statusMap: Record<VehicleStatus, { dot: string; text: string; bg: string }> = {
-  available: { dot: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50' },
-  rented: { dot: 'bg-blue-500', text: 'text-blue-700', bg: 'bg-blue-50' },
-  maintenance: { dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50' },
-  reserved: { dot: 'bg-purple-500', text: 'text-purple-700', bg: 'bg-purple-50' },
-  retired: { dot: 'bg-slate-300', text: 'text-slate-500', bg: 'bg-slate-100' },
-}
-
-function StatusBadge({ status }: { status: VehicleStatus }) {
-  const s = statusMap[status] || statusMap.available
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${s.bg} ${s.text}`}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </span>
-  )
-}
+const PAGE_SIZE = 20
 
 export default function VehiclesPage() {
   const { t } = useTranslation()
@@ -41,21 +21,40 @@ export default function VehiclesPage() {
   const [page, setPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<VehicleStatus | ''>('')
+  const [deleteConfirm, setDeleteConfirm] = useState<Vehicle | null>(null)
+  const debouncedSearch = useDebouncedValue(searchTerm)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['vehicles', page, searchTerm, statusFilter],
+  const statusTabs = [
+    { value: '', label: t('vehicles.status.all', 'All') },
+    { value: 'available', label: t('vehicles.status.available', 'Available') },
+    { value: 'rented', label: t('vehicles.status.rented', 'Rented') },
+    { value: 'maintenance', label: t('vehicles.status.maintenance', 'Maintenance') },
+    { value: 'reserved', label: t('vehicles.status.reserved', 'Reserved') },
+    { value: 'retired', label: t('vehicles.status.retired', 'Retired') },
+  ]
+
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, statusFilter])
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['vehicles', page, debouncedSearch, statusFilter],
     queryFn: () =>
       vehiclesService.list({
         page,
-        page_size: 20,
-        search: searchTerm || undefined,
+        page_size: PAGE_SIZE,
+        search: debouncedSearch || undefined,
         status: statusFilter || undefined,
       }),
+    placeholderData: keepPreviousData,
   })
 
   const deleteMutation = useMutation({
     mutationFn: vehiclesService.delete,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      setDeleteConfirm(null)
+    },
   })
 
   const statusMutation = useMutation({
@@ -64,209 +63,215 @@ export default function VehiclesPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
   })
 
-  const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to delete this vehicle?')) {
-      deleteMutation.mutate(id)
-    }
-  }
-
-  const handleStatusChange = (id: number, status: VehicleStatus) => {
-    statusMutation.mutate({ id, status })
-  }
-
-  const handleTabChange = (value: VehicleStatus | '') => {
-    setStatusFilter(value)
-    setPage(1)
-  }
-
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB' }).format(amount)
 
+  const columns: Column<Vehicle>[] = [
+    {
+      key: 'vehicle',
+      header: t('vehicles.columns.vehicle', 'Vehicle'),
+      className: 'whitespace-nowrap',
+      cell: (vehicle) => (
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-white/10">
+            <Car className="h-4 w-4 text-slate-400" aria-hidden="true" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+              {vehicle.make} {vehicle.model}
+            </div>
+            <div className="text-xs text-slate-400 dark:text-slate-500">{vehicle.plate_number}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'details',
+      header: t('vehicles.columns.details', 'Details'),
+      className: 'whitespace-nowrap',
+      cell: (vehicle) => (
+        <>
+          <div>
+            {vehicle.year} · {vehicle.color}
+          </div>
+          <div className="text-xs text-slate-400 dark:text-slate-500">
+            {vehicle.vehicle_type} · {t('vehicles.seats', '{{count}} seats', { count: vehicle.seats })}
+          </div>
+        </>
+      ),
+    },
+    {
+      key: 'rate',
+      header: t('vehicles.columns.dailyRate', 'Daily Rate'),
+      className: 'whitespace-nowrap font-semibold text-slate-800 dark:text-slate-100',
+      cell: (vehicle) => formatCurrency(vehicle.daily_rate),
+    },
+    {
+      key: 'status',
+      header: t('vehicles.columns.status', 'Status'),
+      className: 'whitespace-nowrap',
+      cell: (vehicle) => (
+        // Stops the row's navigate from firing when the select is used.
+        <div onClick={(e) => e.stopPropagation()}>
+          {vehicle.status === 'rented' ? (
+            <StatusBadge status={vehicle.status} />
+          ) : (
+            <>
+              <label htmlFor={`vehicle-status-${vehicle.id}`} className="sr-only">
+                {t('vehicles.changeStatus', 'Change status for {{plate}}', {
+                  plate: vehicle.plate_number,
+                })}
+              </label>
+              <select
+                id={`vehicle-status-${vehicle.id}`}
+                value={vehicle.status}
+                onChange={(e) =>
+                  statusMutation.mutate({
+                    id: vehicle.id,
+                    status: e.target.value as VehicleStatus,
+                  })
+                }
+                className="cursor-pointer rounded-lg border border-slate-200 bg-white py-1 pl-2 pr-7 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-night-border dark:bg-night-raised dark:text-slate-200"
+              >
+                <option value="available">{t('vehicles.status.available', 'Available')}</option>
+                <option value="maintenance">{t('vehicles.status.maintenance', 'Maintenance')}</option>
+                <option value="reserved">{t('vehicles.status.reserved', 'Reserved')}</option>
+                <option value="retired">{t('vehicles.status.retired', 'Retired')}</option>
+              </select>
+            </>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">{t('common.actions', 'Actions')}</span>,
+      headerClassName: 'text-right',
+      className: 'text-right',
+      cell: (vehicle) => (
+        <div className="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(`/vehicles/${vehicle.id}/edit`)
+            }}
+            aria-label={t('vehicles.editAria', 'Edit {{plate}}', { plate: vehicle.plate_number })}
+            className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:hover:bg-white/10"
+          >
+            <Edit className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setDeleteConfirm(vehicle)
+            }}
+            disabled={vehicle.status === 'rented'}
+            aria-label={t('vehicles.deleteAria', 'Delete {{plate}}', {
+              plate: vehicle.plate_number,
+            })}
+            className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-white/10"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      ),
+    },
+  ]
+
   return (
     <div className="p-6 page-fade">
-      {/* Toolbar */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by plate, make, model..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value)
-              setPage(1)
-            }}
-            className="w-72 rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-        </div>
-        <button
-          onClick={() => navigate('/vehicles/new')}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700"
+      <PageToolbar
+        actions={
+          <Button icon={<Plus className="h-4 w-4" />} onClick={() => navigate('/vehicles/new')}>
+            {t('vehicles.add', 'Add Vehicle')}
+          </Button>
+        }
+      >
+        <SearchInput
+          value={searchTerm}
+          onChange={setSearchTerm}
+          label={t('vehicles.searchLabel', 'Search vehicles')}
+          placeholder={t('vehicles.searchPlaceholder', 'Search by plate, make, model...')}
+          className="w-full sm:w-72"
+        />
+      </PageToolbar>
+
+      <div className="mb-4">
+        <FilterTabs
+          tabs={statusTabs}
+          value={statusFilter}
+          onChange={(value) => setStatusFilter(value as VehicleStatus | '')}
+          label={t('vehicles.filterByStatus', 'Filter by status')}
+        />
+      </div>
+
+      <DataTable
+        columns={columns}
+        rows={data?.items}
+        rowKey={(vehicle) => vehicle.id}
+        isLoading={isLoading}
+        error={error}
+        onRowClick={(vehicle) => navigate(`/vehicles/${vehicle.id}`)}
+        caption={t('vehicles.title', 'Vehicles')}
+        emptyTitle={t('vehicles.empty', 'No vehicles found')}
+        emptyMessage={
+          debouncedSearch || statusFilter
+            ? t('vehicles.emptyFiltered', 'Try a different search term or status filter.')
+            : t('vehicles.emptyInitial', 'Add your first vehicle to get started.')
+        }
+        errorMessage={t('vehicles.loadError', 'Error loading vehicles')}
+      />
+
+      {data && (
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={data.total}
+          onPageChange={setPage}
+          label={t('vehicles.pagination', 'Vehicles pagination')}
+        />
+      )}
+
+      {deleteConfirm && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-vehicle-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
         >
-          <Plus className="h-4 w-4" />
-          {t('vehicles.add', 'Add Vehicle')}
-        </button>
-      </div>
-
-      {/* Status tabs */}
-      <div className="mb-4 flex gap-1 rounded-lg bg-slate-100 p-1 w-fit">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => handleTabChange(tab.value)}
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
-              statusFilter === tab.value
-                ? 'bg-white text-slate-800 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Table */}
-      <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
-        {isLoading ? (
-          <div className="flex h-64 items-center justify-center">
-            <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-slate-200 border-t-primary" />
-          </div>
-        ) : (
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Vehicle
-                </th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Details
-                </th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Daily Rate
-                </th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Status
-                </th>
-                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {data?.items.map((vehicle) => (
-                <tr
-                  key={vehicle.id}
-                  className="cursor-pointer transition-colors hover:bg-slate-50"
-                  onClick={() => navigate(`/vehicles/${vehicle.id}`)}
-                >
-                  <td className="whitespace-nowrap px-5 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100">
-                        <Car className="h-4 w-4 text-slate-400" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-slate-800">
-                          {vehicle.make} {vehicle.model}
-                        </div>
-                        <div className="text-xs text-slate-400">{vehicle.plate_number}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3.5 text-sm text-slate-600">
-                    <div>
-                      {vehicle.year} · {vehicle.color}
-                    </div>
-                    <div className="text-xs text-slate-400">
-                      {vehicle.vehicle_type} · {vehicle.seats} seats
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3.5 text-sm font-semibold text-slate-800">
-                    {formatCurrency(vehicle.daily_rate)}
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
-                    {vehicle.status === 'rented' ? (
-                      <StatusBadge status={vehicle.status} />
-                    ) : (
-                      <select
-                        value={vehicle.status}
-                        onChange={(e) =>
-                          handleStatusChange(vehicle.id, e.target.value as VehicleStatus)
-                        }
-                        className={`cursor-pointer rounded-full border-0 py-0.5 pl-2 pr-6 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 ${
-                          statusMap[vehicle.status]?.bg
-                        } ${statusMap[vehicle.status]?.text}`}
-                      >
-                        <option value="available">Available</option>
-                        <option value="maintenance">Maintenance</option>
-                        <option value="reserved">Reserved</option>
-                        <option value="retired">Retired</option>
-                      </select>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3.5">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          navigate(`/vehicles/${vehicle.id}/edit`)
-                        }}
-                        className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-blue-600"
-                        title="Edit"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDelete(vehicle.id)
-                        }}
-                        disabled={vehicle.status === 'rented'}
-                        className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {data?.items.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-5 py-14 text-center text-sm text-slate-400">
-                    No vehicles found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        )}
-
-        {/* Pagination */}
-        {data && data.total > 20 && (
-          <div className="flex items-center justify-between border-t border-slate-100 bg-white px-5 py-3">
-            <p className="text-xs text-slate-400">
-              Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, data.total)} of{' '}
-              <span className="font-medium text-slate-600">{data.total}</span>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl ring-1 ring-slate-200 dark:bg-night-surface dark:ring-night-border">
+            <h3
+              id="delete-vehicle-title"
+              className="text-base font-semibold text-slate-900 dark:text-slate-100"
+            >
+              {t('vehicles.deleteTitle', 'Delete Vehicle')}
+            </h3>
+            <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+              {t('vehicles.deleteConfirm', 'Are you sure you want to delete')}{' '}
+              <strong className="text-slate-700 dark:text-slate-200">
+                {deleteConfirm.make} {deleteConfirm.model} ({deleteConfirm.plate_number})
+              </strong>
+              ? {t('common.cannotBeUndone', 'This action cannot be undone.')}
             </p>
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            <div className="mt-5 flex justify-end gap-2.5">
+              <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>
+                {t('common.cancel', 'Cancel')}
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => deleteMutation.mutate(deleteConfirm.id)}
+                disabled={deleteMutation.isPending}
               >
-                Previous
-              </button>
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page * 20 >= data.total}
-                className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Next
-              </button>
+                {deleteMutation.isPending
+                  ? t('common.deleting', 'Deleting...')
+                  : t('common.delete', 'Delete')}
+              </Button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

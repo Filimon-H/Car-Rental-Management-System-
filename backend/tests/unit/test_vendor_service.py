@@ -56,10 +56,13 @@ class TestVendorPayableSummary:
     def test_summary_separates_reserved_and_earned_amounts(self, db: Session, vendor: Vendor, customer: Customer):
         active_vehicle = _make_vehicle(db, vendor, "AA-VP-001", Decimal("2000.00"))
         reserved_vehicle = _make_vehicle(db, vendor, "AA-VP-002", Decimal("1500.00"))
-        active_start = datetime(2026, 4, 1, 9, 0, 0, tzinfo=timezone.utc)
-        active_end = datetime(2026, 4, 4, 9, 0, 0, tzinfo=timezone.utc)
-        reserved_start = datetime(2026, 4, 10, 9, 0, 0, tzinfo=timezone.utc)
-        reserved_end = datetime(2026, 4, 12, 9, 0, 0, tzinfo=timezone.utc)
+        # Relative to now: hardcoded calendar dates silently became past
+        # dates, which create_standard_agreement rejects.
+        base = datetime.now(timezone.utc) + timedelta(days=1)
+        active_start = base
+        active_end = base + timedelta(days=3)
+        reserved_start = base + timedelta(days=9)
+        reserved_end = base + timedelta(days=11)
 
         active_agreement = agreement_service.create_standard_agreement(
             db=db,
@@ -80,17 +83,20 @@ class TestVendorPayableSummary:
             daily_rate=Decimal("1500.00"),
         )
 
+        # Payable is the vendor's commissioned share, not gross revenue.
+        # Active:   2000/day x 3 days = 6000 gross x 70% = 4200
+        # Reserved: 1500/day x 2 days = 3000 gross x 70% = 2100
         summary = vendor_service.get_vendor_payable_summary(db, vendor.id)
-        assert summary["earned_amount"] == Decimal("6000.00")
-        assert summary["reserved_amount"] == Decimal("3000.00")
+        assert summary["earned_amount"] == Decimal("4200.00")
+        assert summary["reserved_amount"] == Decimal("2100.00")
         assert summary["paid_amount"] == Decimal("0")
-        assert summary["outstanding_payable"] == Decimal("6000.00")
+        assert summary["outstanding_payable"] == Decimal("4200.00")
         assert summary["agreement_count"] == 2
 
     def test_summary_reduces_outstanding_after_vendor_payment(self, db: Session, vendor: Vendor, customer: Customer):
         vehicle = _make_vehicle(db, vendor, "AA-VP-003", Decimal("1800.00"))
-        start = datetime(2026, 4, 1, 10, 0, 0, tzinfo=timezone.utc)
-        end = datetime(2026, 4, 3, 10, 0, 0, tzinfo=timezone.utc)
+        start = datetime.now(timezone.utc) + timedelta(days=1)
+        end = start + timedelta(days=2)
         agreement = agreement_service.create_standard_agreement(
             db=db,
             customer_id=customer.id,
@@ -109,10 +115,11 @@ class TestVendorPayableSummary:
             payment_method=PaymentMethod.BANK_TRANSFER,
         )
 
+        # 1800/day x 2 days = 3600 gross x 70% commission = 2520 payable
         summary = vendor_service.get_vendor_payable_summary(db, vendor.id)
-        assert summary["earned_amount"] == Decimal("3600.00")
+        assert summary["earned_amount"] == Decimal("2520.00")
         assert summary["paid_amount"] == Decimal("1000.00")
-        assert summary["outstanding_payable"] == Decimal("2600.00")
+        assert summary["outstanding_payable"] == Decimal("1520.00")
 
     def test_nonexistent_vendor_raises(self, db: Session):
         with pytest.raises(NotFoundError):
@@ -148,8 +155,8 @@ class TestVendorPayments:
             db=db,
             customer_id=customer.id,
             vehicle_id=other_vehicle.id,
-            pickup_datetime=datetime.now(timezone.utc) - timedelta(days=1),
-            expected_return_datetime=datetime.now(timezone.utc) + timedelta(days=1),
+            pickup_datetime=datetime.now(timezone.utc) + timedelta(days=1),
+            expected_return_datetime=datetime.now(timezone.utc) + timedelta(days=3),
             daily_rate=Decimal("1700.00"),
         )
 

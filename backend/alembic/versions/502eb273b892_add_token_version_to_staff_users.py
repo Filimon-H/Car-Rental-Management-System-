@@ -8,6 +8,14 @@ Create Date: 2026-05-08 10:25:08.069085
 from typing import Sequence, Union
 
 from alembic import op
+# alembic/ is a script directory, not an importable package, so load the shared
+# migration helpers by path.
+import importlib.util as _ilu, pathlib as _pl
+_spec = _ilu.spec_from_file_location(
+    "migration_helpers", _pl.Path(__file__).resolve().parents[1] / "migration_helpers.py"
+)
+_mh = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_mh)
+add_column_if_missing = _mh.add_column_if_missing
 import sqlalchemy as sa
 from sqlalchemy.dialects import sqlite
 
@@ -19,7 +27,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
+    add_column_if_missing(
         'staff_users',
         sa.Column('token_version', sa.Integer(), nullable=False, server_default='1'),
     )

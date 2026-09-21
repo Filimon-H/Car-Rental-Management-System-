@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useTranslation } from 'react-i18next'
 import { useMutation } from '@tanstack/react-query'
 import {
@@ -16,8 +17,10 @@ import {
   KeyRound,
   LogOut,
   Menu,
+  Moon,
   Settings,
   Shield,
+  Sun,
   UserCheck,
   UserCog,
   Users,
@@ -25,6 +28,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/services/auth'
 import apiClient from '@/services/apiClient'
+import { useTheme } from '@/hooks/useTheme'
 
 function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   const [currentPassword, setCurrentPassword] = useState('')
@@ -188,7 +192,7 @@ function UserAvatar({ name }: { name: string }) {
     .toUpperCase()
 
   return (
-    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary font-semibold text-white">
+    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary font-semibold text-white dark:bg-orange-brand">
       {initials}
     </div>
   )
@@ -199,6 +203,7 @@ export default function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
+  const { isDark, toggle: toggleTheme } = useTheme()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [langMenuOpen, setLangMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -235,6 +240,14 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-screen bg-transparent">
+      {/* Visible only on keyboard focus: lets keyboard and screen-reader users jump
+          past the sidebar instead of tabbing through every nav link on each page. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
+      >
+        Skip to main content
+      </a>
       <button
         type="button"
         aria-label="Close navigation"
@@ -245,30 +258,32 @@ export default function Layout() {
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-hidden bg-slate-900 text-white transition-all duration-300 ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-hidden transition-all duration-300 ${
+          isDark ? 'bg-brand' : 'bg-slate-900'
+        } text-white ${
           sidebarOpen ? 'translate-x-0 lg:w-64' : '-translate-x-full lg:w-[76px] lg:translate-x-0'
         } w-64`}
       >
         <div
-          className={`flex h-16 items-center border-b border-white/10 ${
+          className={`flex h-16 items-center border-b ${isDark ? 'border-white/10' : 'border-white/10'} ${
             sidebarOpen ? 'justify-between px-4' : 'justify-center px-3'
           }`}
         >
           {sidebarOpen ? (
             <>
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+                <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${isDark ? 'bg-orange-brand' : 'bg-primary'}`}>
                   <Car className="h-4.5 w-4.5 text-white" />
                 </div>
                 <div>
                   <p className="text-base font-bold tracking-tight text-white">FleetOps</p>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Admin</p>
+                  <p className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? 'text-night-subtle' : 'text-slate-500'}`}>Admin</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setSidebarOpen(false)}
-                className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+                className="rounded-md p-1.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -277,7 +292,7 @@ export default function Layout() {
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary"
+              className={`flex h-9 w-9 items-center justify-center rounded-lg ${isDark ? 'bg-orange-brand' : 'bg-primary'}`}
             >
               <Car className="h-4.5 w-4.5 text-white" />
             </button>
@@ -289,7 +304,9 @@ export default function Layout() {
             <button
               type="button"
               onClick={() => navigate('/agreements/new')}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-700"
+              className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors ${
+                isDark ? 'bg-orange-brand hover:bg-orange-dark' : 'bg-primary hover:bg-primary-700'
+              }`}
             >
               <FileText className="h-4 w-4" />
               New Agreement
@@ -298,7 +315,9 @@ export default function Layout() {
             <button
               type="button"
               onClick={() => navigate('/agreements/new')}
-              className="flex w-full items-center justify-center rounded-xl bg-primary px-3 py-2.5 text-white"
+              className={`flex w-full items-center justify-center rounded-xl px-3 py-2.5 text-white ${
+                isDark ? 'bg-orange-brand' : 'bg-primary'
+              }`}
               title="New Agreement"
             >
               <FileText className="h-4 w-4" />
@@ -306,7 +325,7 @@ export default function Layout() {
           )}
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-2 py-4">
+        <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-2 py-4">
           {navGroups.map((group) => {
             const visibleItems = group.items.filter(
               (item) => !item.adminOnly || user?.role === 'admin'
@@ -315,7 +334,7 @@ export default function Layout() {
             return (
             <div key={group.label} className="mb-4">
               {sidebarOpen && (
-                <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                <p className={`mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] ${isDark ? 'text-night-subtle/60' : 'text-slate-500'}`}>
                   {group.label}
                 </p>
               )}
@@ -331,7 +350,11 @@ export default function Layout() {
                         sidebarOpen ? 'gap-3 px-3 py-2.5' : 'justify-center px-2 py-3'
                       } ${
                         isActive
-                          ? 'bg-white/10 text-white'
+                          ? isDark
+                            ? 'bg-orange-brand/20 text-orange-brand'
+                            : 'bg-white/10 text-white'
+                          : isDark
+                          ? 'text-white/60 hover:bg-white/10 hover:text-white'
                           : 'text-slate-400 hover:bg-white/5 hover:text-white'
                       }`
                     }
@@ -352,16 +375,16 @@ export default function Layout() {
 
         <div className="border-t border-white/10 p-3">
           {sidebarOpen && user ? (
-            <div className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-3">
+            <div className={`flex items-center gap-3 rounded-xl px-3 py-3 ${isDark ? 'bg-black/20' : 'bg-white/5'}`}>
               <UserAvatar name={user.full_name} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-white">{user.full_name}</p>
-                <p className="truncate text-xs capitalize text-slate-400">{user.role}</p>
+                <p className={`truncate text-xs capitalize ${isDark ? 'text-night-subtle/70' : 'text-slate-400'}`}>{user.role}</p>
               </div>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+                className="rounded-md p-1.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
                 title="Sign out"
               >
                 <LogOut className="h-4 w-4" />
@@ -371,7 +394,7 @@ export default function Layout() {
             <button
               type="button"
               onClick={handleLogout}
-              className="flex w-full items-center justify-center rounded-xl p-2.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+              className="flex w-full items-center justify-center rounded-xl p-2.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
               title="Sign out"
             >
               <LogOut className="h-4 w-4" />
@@ -400,6 +423,16 @@ export default function Layout() {
             </div>
 
             <div className="flex items-center gap-3">
+              {/* Dark mode toggle */}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50 dark:border-night-border dark:bg-night-raised dark:text-orange-brand dark:hover:bg-night-hover"
+              >
+                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
+
               <div className="relative">
                 <button
                   type="button"
@@ -489,8 +522,12 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-4 pb-8 pt-4 sm:px-6 lg:px-8">
-          <Outlet />
+        <main id="main-content" className="flex-1 overflow-y-auto px-4 pb-8 pt-4 sm:px-6 lg:px-8">
+          {/* Scoped to the route so a page that throws leaves the nav and header
+              usable, and navigating away clears the error. */}
+          <ErrorBoundary resetKey={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 

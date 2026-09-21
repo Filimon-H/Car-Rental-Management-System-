@@ -8,8 +8,10 @@ import { customersService } from '@/services/customers'
 import { collateralsService } from '@/services/collaterals'
 import { vehiclesService } from '@/services/vehicles'
 import LedgerTable from '@/components/ledger/LedgerTable'
+import { getErrorMessage } from '@/services/apiClient'
 
 const statusColors: Record<string, string> = {
+  booking_requested: 'bg-orange-100 text-orange-800',
   draft: 'bg-gray-100 text-gray-800',
   pending_payment: 'bg-yellow-100 text-yellow-800',
   active: 'bg-green-100 text-green-800',
@@ -62,7 +64,7 @@ export default function AgreementDetailPage() {
     onError: (err: unknown) => {
       console.error('Deposit action error:', err)
       const error = err as { response?: { data?: { detail?: string } }, message?: string }
-      setPageError(error?.response?.data?.detail || error?.message || 'Deposit action failed')
+      setPageError(getErrorMessage(error, 'Deposit action failed'))
     },
   })
 
@@ -79,7 +81,7 @@ export default function AgreementDetailPage() {
     onError: (err: unknown) => {
       console.error('Charge action error:', err)
       const error = err as { response?: { data?: { detail?: string } }, message?: string }
-      setPageError(error?.response?.data?.detail || error?.message || 'Failed to post charge')
+      setPageError(getErrorMessage(error, 'Failed to post charge'))
     },
   })
 
@@ -89,6 +91,8 @@ export default function AgreementDetailPage() {
     queryKey: ['customer', agreement?.customer_id],
     queryFn: () => customersService.getById(agreement!.customer_id),
     enabled: !!agreement?.customer_id,
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 
   const { data: collateral } = useQuery({
@@ -113,7 +117,7 @@ export default function AgreementDetailPage() {
     onError: (err: unknown) => {
       console.error('Close agreement error:', err)
       const error = err as { response?: { data?: { detail?: string } }, message?: string }
-      setPageError(error?.response?.data?.detail || error?.message || 'Failed to close agreement')
+      setPageError(getErrorMessage(error, 'Failed to close agreement'))
     },
   })
 
@@ -125,7 +129,7 @@ export default function AgreementDetailPage() {
     onError: (err: unknown) => {
       console.error('Activate agreement error:', err)
       const error = err as { response?: { data?: { detail?: string } }, message?: string }
-      setPageError(error?.response?.data?.detail || error?.message || 'Failed to activate agreement')
+      setPageError(getErrorMessage(error, 'Failed to activate agreement'))
     },
   })
 
@@ -139,7 +143,7 @@ export default function AgreementDetailPage() {
     onError: (err: unknown) => {
       console.error('Return agreement error:', err)
       const error = err as { response?: { data?: { detail?: string } }, message?: string }
-      setPageError(error?.response?.data?.detail || error?.message || 'Failed to mark agreement returned')
+      setPageError(getErrorMessage(error, 'Failed to mark agreement returned'))
     },
   })
 
@@ -151,7 +155,18 @@ export default function AgreementDetailPage() {
     },
     onError: (err: unknown) => {
       const error = err as { response?: { data?: { detail?: string } }, message?: string }
-      setPageError(error?.response?.data?.detail || error?.message || 'Failed to cancel agreement')
+      setPageError(getErrorMessage(error, 'Failed to cancel agreement'))
+    },
+  })
+
+  const approveRequestMutation = useMutation({
+    mutationFn: () => agreementsService.approveRequest(agreementId as number),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { detail?: string } }, message?: string }
+      setPageError(getErrorMessage(error, 'Failed to approve booking request'))
     },
   })
 
@@ -164,7 +179,7 @@ export default function AgreementDetailPage() {
     onError: (err: unknown) => {
       console.error('Post payment error:', err)
       const error = err as { response?: { data?: { detail?: string } }, message?: string }
-      setPageError(error?.response?.data?.detail || error?.message || 'Failed to post payment')
+      setPageError(getErrorMessage(error, 'Failed to post payment'))
     },
   })
 
@@ -260,6 +275,28 @@ export default function AgreementDetailPage() {
               {t(`agreements.status.${agreement.status}`)}
             </span>
             {/* Workflow buttons based on status */}
+            {agreement.status === 'booking_requested' && (
+              <>
+                <button
+                  onClick={() => {
+                    if (confirm('Approve this booking request? This will lock the vehicle and post the rental charge.')) {
+                      approveRequestMutation.mutate()
+                    }
+                  }}
+                  disabled={approveRequestMutation.isPending}
+                  className="rounded-lg bg-yellow-600 px-4 py-2 text-white hover:bg-yellow-700 disabled:opacity-60"
+                >
+                  {approveRequestMutation.isPending ? 'Approving…' : 'Approve Booking'}
+                </button>
+                <button
+                  onClick={() => setShowCancelConfirm(true)}
+                  className="flex items-center gap-2 rounded-lg border border-red-300 px-4 py-2 text-red-600 hover:bg-red-50"
+                >
+                  <Ban className="h-4 w-4" />
+                  Decline
+                </button>
+              </>
+            )}
             {(agreement.status === 'draft' || agreement.status === 'pending_payment') && (
               <>
                 <button
@@ -436,12 +473,38 @@ export default function AgreementDetailPage() {
                   <span className="font-medium">{customer?.phone_primary || '—'}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-gray-500">City</span>
+                  <span className="font-medium">{customer?.city || '—'}</span>
+                </div>
+
+                {/* Identity */}
+                <div className="flex justify-between">
+                  <span className="text-gray-500">ID Type</span>
+                  <span className="font-medium capitalize">{customer?.id_type?.replace('_', ' ') || '—'}</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-500">ID Number</span>
                   <span className="font-medium">{customer?.id_number || '—'}</span>
                 </div>
+
+                {/* Driver's license */}
                 <div className="flex justify-between">
-                  <span className="text-gray-500">City</span>
-                  <span className="font-medium">{customer?.city || '—'}</span>
+                  <span className="text-gray-500">Driver's License</span>
+                  <span className="font-medium">{customer?.driver_license_number || '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">License Expiry</span>
+                  <span className="font-medium">
+                    {customer?.driver_license_expiry
+                      ? new Date(customer.driver_license_expiry).toLocaleDateString('en-GB')
+                      : '—'}
+                  </span>
+                </div>
+
+                {/* Emergency contact */}
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Emergency Contact</span>
+                  <span className="font-medium">{customer?.emergency_contact_name || '—'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Emergency Phone</span>
@@ -631,14 +694,18 @@ export default function AgreementDetailPage() {
         )}
 
         {activeTab === 'ledger' && (
-          <div>
-            <div className="mb-4 flex justify-end">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-gray-800">Financial Ledger</h3>
+                <p className="text-xs text-gray-400">Append-only audit trail — every charge, payment, and adjustment</p>
+              </div>
               {agreement.status === 'active' && (
                 <button
                   onClick={() => setShowPaymentModal(true)}
-                  className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+                  className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
                 >
-                  Post Payment
+                  + Post Payment
                 </button>
               )}
             </div>

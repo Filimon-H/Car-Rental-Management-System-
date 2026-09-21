@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   ArrowRight,
   Bot,
+  Building2,
   Calendar,
   Car,
   Clock,
@@ -294,31 +295,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Fleet mini-summary */}
-          <div className="app-panel p-5">
-            <p className="app-kicker mb-3">Fleet Status</p>
-            <div className="space-y-3">
-              {[
-                { label: 'Available', value: stats?.vehicles.available ?? 0, color: 'bg-emerald-500' },
-                { label: 'Rented', value: stats?.vehicles.rented ?? 0, color: 'bg-blue-500' },
-                { label: 'Maintenance', value: stats?.vehicles.maintenance ?? 0, color: 'bg-amber-500' },
-              ].map(({ label, value, color }) => {
-                const total = stats?.vehicles.total || 1
-                const pct = Math.round((value / total) * 100)
-                return (
-                  <div key={label}>
-                    <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="font-medium text-slate-700">{label}</span>
-                      <span className="text-slate-500">{value} / {total}</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                      <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
         </div>
 
         {/* Right: Recent agreements */}
@@ -397,45 +373,155 @@ export default function DashboardPage() {
           onClick={() => navigate('/agreements')} />
       </section>
 
-      {/* Alerts */}
-      {((stats?.overdue_agreements ?? 0) > 0 || (stats?.due_today ?? 0) > 0) && (
-        <section className="grid gap-4 lg:grid-cols-2">
-          {(stats?.overdue_agreements ?? 0) > 0 && (
-            <div className="rounded-2xl border border-red-100 bg-red-50 p-5">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-red-800">{t('dashboard.overdueAgreementsWarning')}</h3>
-                  <p className="mt-1 text-sm text-red-700">
-                    {t('dashboard.overdueAgreementsDesc', { count: stats?.overdue_agreements })}
-                  </p>
-                  <button type="button" onClick={() => navigate('/agreements?status=overdue')}
-                    className="mt-3 text-sm font-medium text-red-800 hover:text-red-900">
-                    {t('dashboard.reviewOverdue')}
-                  </button>
-                </div>
-              </div>
+      {/* Detail cards grid */}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+
+        {/* Customer Agreements Card */}
+        <div onClick={() => navigate('/agreements')} className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50">
+          <div className="mb-3 flex items-center gap-2">
+            <Users className="h-4 w-4 text-slate-400" />
+            <p className="app-kicker m-0">Customer Agreements</p>
+          </div>
+          <div className="text-3xl font-bold tracking-tight text-slate-900">{stats?.customer_agreements?.total ?? 0}</div>
+          <p className="mt-1 text-sm text-slate-500">Active & overdue agreements</p>
+          <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Ending today</span>
+              <span className={`font-medium ${(stats?.customer_agreements?.ending_today ?? 0) > 0 ? 'text-amber-600' : 'text-slate-700'}`}>{stats?.customer_agreements?.ending_today ?? 0}</span>
             </div>
-          )}
-          {(stats?.due_today ?? 0) > 0 && (
-            <div className="rounded-2xl border border-amber-100 bg-amber-50 p-5">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
-                  <Clock className="h-5 w-5 text-amber-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-amber-800">{t('dashboard.returnsDueToday')}</h3>
-                  <p className="mt-1 text-sm text-amber-700">
-                    {t('dashboard.returnsDueTodayDesc', { count: stats?.due_today })}
-                  </p>
-                </div>
-              </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Within 5 days</span>
+              <span className="font-medium text-slate-700">{stats?.customer_agreements?.expiring_5_days ?? 0}</span>
             </div>
-          )}
-        </section>
-      )}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Within 10 days</span>
+              <span className="font-medium text-slate-700">{stats?.customer_agreements?.expiring_10_days ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-red-600">Overdue</span>
+              <span className={`font-medium ${(stats?.customer_agreements?.overdue ?? 0) > 0 ? 'text-red-600' : 'text-slate-700'}`}>{stats?.customer_agreements?.overdue ?? 0}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Vendor Agreements Card */}
+        <div onClick={() => navigate('/agreements')} className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50">
+          <div className="mb-3 flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-slate-400" />
+            <p className="app-kicker m-0">Vendor Agreements</p>
+          </div>
+          <div className="text-3xl font-bold tracking-tight text-slate-900">{stats?.vendor_agreements?.total ?? 0}</div>
+          <p className="mt-1 text-sm text-slate-500">Active & overdue agreements</p>
+          <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Ending today</span>
+              <span className={`font-medium ${(stats?.vendor_agreements?.ending_today ?? 0) > 0 ? 'text-amber-600' : 'text-slate-700'}`}>{stats?.vendor_agreements?.ending_today ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Within 5 days</span>
+              <span className="font-medium text-slate-700">{stats?.vendor_agreements?.expiring_5_days ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Within 10 days</span>
+              <span className="font-medium text-slate-700">{stats?.vendor_agreements?.expiring_10_days ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-red-600">Overdue</span>
+              <span className={`font-medium ${(stats?.vendor_agreements?.overdue ?? 0) > 0 ? 'text-red-600' : 'text-slate-700'}`}>{stats?.vendor_agreements?.overdue ?? 0}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Pickups Card */}
+        <div onClick={() => navigate('/agreements')} className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50">
+          <div className="mb-3 flex items-center gap-2">
+            <Car className="h-4 w-4 text-sky-500" />
+            <p className="app-kicker text-sky-600 m-0">Upcoming Pickups</p>
+          </div>
+          <div className="text-3xl font-bold tracking-tight text-slate-900">{stats?.pickups?.total ?? 0}</div>
+          <p className="mt-1 text-sm text-slate-500">Scheduled vehicle pickups</p>
+          <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Today</span>
+              <span className={`font-medium ${(stats?.pickups?.today ?? 0) > 0 ? 'text-sky-600' : 'text-slate-700'}`}>{stats?.pickups?.today ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Tomorrow</span>
+              <span className="font-medium text-slate-700">{stats?.pickups?.tomorrow ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Within 5 days</span>
+              <span className="font-medium text-slate-700">{stats?.pickups?.within_5_days ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Within 10 days</span>
+              <span className="font-medium text-slate-700">{stats?.pickups?.within_10_days ?? 0}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Insurance Reminder Card */}
+        <div onClick={() => navigate('/vehicles')} className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50">
+          <div className="mb-3 flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-red-600" />
+            <p className="app-kicker text-red-700 m-0">Insurance Reminder</p>
+          </div>
+          <div className="text-3xl font-bold tracking-tight text-red-700">{stats?.vehicles?.insurance?.total ?? 0}</div>
+          <p className="mt-1 text-sm text-slate-500">Vehicles expiring soon or expired</p>
+          <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Expiring Today</span>
+              <span className={`font-medium ${(stats?.vehicles?.insurance?.today ?? 0) > 0 ? 'text-amber-600' : 'text-slate-700'}`}>{stats?.vehicles?.insurance?.today ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Within 5 days</span>
+              <span className="font-medium text-slate-700">{stats?.vehicles?.insurance?.within_5_days ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Within 10 days</span>
+              <span className="font-medium text-slate-700">{stats?.vehicles?.insurance?.within_10_days ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Within this month</span>
+              <span className="font-medium text-slate-700">{stats?.vehicles?.insurance?.within_month ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-red-600">Overdue (Expired)</span>
+              <span className={`font-medium ${(stats?.vehicles?.insurance?.overdue ?? 0) > 0 ? 'text-red-600' : 'text-slate-700'}`}>{stats?.vehicles?.insurance?.overdue ?? 0}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Fleet Status Card */}
+        <div onClick={() => navigate('/vehicles')} className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50">
+          <div className="mb-3 flex items-center gap-2">
+            <Car className="h-4 w-4 text-emerald-500" />
+            <p className="app-kicker text-emerald-600 m-0">Fleet Status</p>
+          </div>
+          <div className="text-3xl font-bold tracking-tight text-slate-900">{stats?.vehicles?.total ?? 0}</div>
+          <p className="mt-1 text-sm text-slate-500">Total vehicles in fleet</p>
+          <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Rented</span>
+              <span className="font-medium text-blue-600">{stats?.vehicles?.rented ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Available</span>
+              <span className="font-medium text-emerald-600">{stats?.vehicles?.available ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Reserved</span>
+              <span className="font-medium text-purple-600">{stats?.vehicles?.reserved ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Maintenance</span>
+              <span className="font-medium text-amber-600">{stats?.vehicles?.maintenance ?? 0}</span>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
 
       {/* Telegram — collapsed at bottom, not dominating the page */}
       <section>

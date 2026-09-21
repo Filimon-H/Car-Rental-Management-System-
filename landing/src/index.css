@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   font-family: 'Outfit', system-ui, sans-serif;
@@ -12,8 +12,11 @@
   --color-dark-100: #1a1a1a;
   --color-dark-200: #222222;
   --color-dark-300: #2a2a2a;
-  --color-gold: #c9a227;
-  --color-gold-light: #d4af37;
+  --color-brand: #601A25;
+  --color-brand-light: #7A2233;
+  --color-accent: #F15A24;
+  --color-accent-light: #FF6B3D;
+  --color-charcoal: #333333;
 }
 
 body {
@@ -36,25 +39,25 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c9a227;
+  background: #601A25;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #d4af37;
+  background: #F15A24;
 }
 
-/* Gold accent color */
+/* Brand accent color classes */
 .text-gold {
-  color: #c9a227;
+  color: #F15A24;
 }
 
 .bg-gold {
-  background-color: #c9a227;
+  background-color: #F15A24;
 }
 
 .border-gold {
-  border-color: #c9a227;
+  border-color: #F15A24;
 }
 
 /* Animations */
@@ -92,7 +95,7 @@ html {
 .section-divider {
   width: 3px;
   height: 60px;
-  background: linear-gradient(to bottom, transparent, #c9a227, transparent);
+  background: linear-gradient(to bottom, transparent, #601A25, transparent);
   margin: 0 auto;
 }
 
@@ -108,24 +111,24 @@ html {
 /* Button styles */
 .btn-gold {
   background: transparent;
-  border: 1px solid #c9a227;
-  color: #c9a227;
+  border: 1px solid #F15A24;
+  color: #F15A24;
   transition: all 0.3s ease;
 }
 
 .btn-gold:hover {
-  background: #c9a227;
-  color: #000;
+  background: #F15A24;
+  color: #fff;
 }
 
 .btn-gold-filled {
-  background: #c9a227;
-  color: #000;
+  background: #F15A24;
+  color: #fff;
   transition: all 0.3s ease;
 }
 
 .btn-gold-filled:hover {
-  background: #d4af37;
+  background: #FF6B3D;
 }
 
 /* Gradient overlays */
@@ -135,7 +138,7 @@ html {
 
 /* Quote icon styling */
 .quote-icon {
-  color: #c9a227;
+  color: #F15A24;
   font-size: 3rem;
   line-height: 1;
 }
@@ -151,18 +154,18 @@ html {
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #7A1E2C 0%, #B3262D 100%);
+  background: linear-gradient(135deg, #601A25 0%, #F15A24 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #7A1E2C 0%, #B3262D 100%);
+  background: linear-gradient(135deg, #601A25 0%, #7A2233 100%);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #5A1620 0%, #8A1E24 100%);
+  background: linear-gradient(135deg, #4A1320 0%, #601A25 100%);
 }
 
 .glass-effect {

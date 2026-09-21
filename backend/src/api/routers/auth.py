@@ -12,9 +12,11 @@ from src.api.deps.auth import get_client_ip, get_user_agent
 from src.core.db import get_db
 from src.core.errors import UnauthorizedError
 from src.core.security import (
+    ISSUER_STAFF,
     create_access_token,
     create_refresh_token,
     decode_token,
+    verify_issuer,
     verify_password,
     verify_token_type,
 )
@@ -97,6 +99,9 @@ async def refresh_token(
 
     if not verify_token_type(payload, "refresh"):
         raise UnauthorizedError("Invalid token type")
+
+    if not verify_issuer(payload, ISSUER_STAFF):
+        raise UnauthorizedError("Invalid token issuer")
 
     user_id = payload.get("sub")
     if user_id is None:

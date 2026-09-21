@@ -1,18 +1,39 @@
-import { type FormEvent, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { type FormEvent, useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Car, Eye, EyeOff, Lock, User } from 'lucide-react'
+import { AlertCircle, Car, Eye, EyeOff, Lock, User } from 'lucide-react'
 import { useAuthStore } from '@/services/auth'
+import apiClient, { getErrorMessage } from '@/services/apiClient'
 
 export default function LoginPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { login } = useAuthStore()
+  const [searchParams] = useSearchParams()
+  const { login, fetchUser } = useAuthStore()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [shake, setShake] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    const at = searchParams.get('at')
+    const rt = searchParams.get('rt')
+    if (at && rt) {
+      setIsLoading(true)
+      apiClient.setTokens(at, rt)
+      fetchUser()
+        .then(() => {
+          navigate('/dashboard', { replace: true })
+        })
+        .catch(() => {
+          apiClient.clearTokens()
+          setIsLoading(false)
+          setError(t('auth.invalidCredentials'))
+        })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -24,8 +45,10 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } }, message?: string }
       const message =
-        error?.response?.data?.detail || error?.message || t('auth.invalidCredentials')
+        getErrorMessage(error, t('auth.invalidCredentials'))
       setError(message)
+      setShake(true)
+      setTimeout(() => setShake(false), 600)
       setIsLoading(false)
     }
   }
@@ -98,8 +121,12 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit} className="mt-8 space-y-5">
               {error && (
-                <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
-                  {error}
+                <div className={`flex items-start gap-3 rounded-xl border-2 border-red-400 bg-red-50 p-4 ${shake ? 'animate-[shake_0.5s_ease-in-out]' : ''}`}>
+                  <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
+                  <div>
+                    <p className="text-sm font-bold text-red-700">Incorrect username or password</p>
+                    <p className="mt-0.5 text-xs text-red-600">{error}</p>
+                  </div>
                 </div>
               )}
 
@@ -108,15 +135,19 @@ export default function LoginPage() {
                   {t('auth.username', 'Username')}
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <User className={`absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 ${error ? 'text-red-400' : 'text-slate-400'}`} />
                   <input
                     id="username"
                     type="text"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => { setUsername(e.target.value); setError('') }}
                     required
                     placeholder={t('auth.enterUsername')}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm text-slate-900 transition-colors focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10"
+                    className={`w-full rounded-xl border bg-slate-50 py-3 pl-10 pr-4 text-sm text-slate-900 transition-colors focus:bg-white focus:outline-none focus:ring-4 ${
+                      error
+                        ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
+                        : 'border-slate-200 focus:border-primary focus:ring-primary/10'
+                    }`}
                   />
                 </div>
               </div>
@@ -126,15 +157,19 @@ export default function LoginPage() {
                   {t('auth.password', 'Password')}
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Lock className={`absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 ${error ? 'text-red-400' : 'text-slate-400'}`} />
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => { setPassword(e.target.value); setError('') }}
                     required
                     placeholder={t('auth.enterPassword')}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-10 text-sm text-slate-900 transition-colors focus:border-primary focus:bg-white focus:outline-none focus:ring-4 focus:ring-primary/10"
+                    className={`w-full rounded-xl border bg-slate-50 py-3 pl-10 pr-10 text-sm text-slate-900 transition-colors focus:bg-white focus:outline-none focus:ring-4 ${
+                      error
+                        ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
+                        : 'border-slate-200 focus:border-primary focus:ring-primary/10'
+                    }`}
                   />
                   <button
                     type="button"

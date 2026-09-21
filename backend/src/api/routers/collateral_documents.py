@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from src.api.routers.customer_documents import sanitize_display_name
 from src.api.deps import get_db, require_permission
 from src.core.rbac import Permission
 from src.models.collateral_document import CollateralDocument
@@ -121,7 +122,7 @@ async def upload_collateral_document(
     document = CollateralDocument(
         collateral_id=collateral_id,
         doc_type=doc_type,
-        file_name=file.filename,
+        file_name=sanitize_display_name(file.filename),
         file_path=str(file_path),
         file_size=file_size,
         mime_type=mime_type,
@@ -164,7 +165,10 @@ async def get_collateral_document_file(
         path=document.file_path,
         filename=document.file_name,
         media_type="application/octet-stream",
-        headers={"Content-Disposition": f'attachment; filename="{document.file_name}"'},
+        # No manual Content-Disposition: FileResponse builds it from `filename`
+        # with RFC 6266 escaping. Interpolating the stored name ourselves let a
+        # crafted upload name inject extra header directives, and because
+        # Starlette uses setdefault the manual header silently won.
     )
 
 

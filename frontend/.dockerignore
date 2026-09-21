@@ -1,0 +1,12 @@
+# The build context is frontend/, so the repo-root .dockerignore does not apply here.
+node_modules/
+dist/
+.vite/
+coverage/
+
+.env
+.env.*
+!.env.example
+
+*.tsbuildinfo
+*.md

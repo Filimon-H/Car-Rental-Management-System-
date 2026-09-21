@@ -71,6 +71,16 @@ export function getErrorMessage(error: unknown, fallback = 'Something went wrong
 class ApiClient {
   private client: AxiosInstance
   private accessToken: string | null = null
+  /**
+   * The refresh currently in flight, if any.
+   *
+   * A page that fires several queries at once gets several 401s at once. Each
+   * used to start its own refresh, so the server saw a burst of refresh calls
+   * and — where refresh tokens rotate — all but one would be spending a token
+   * that a sibling had already replaced. Concurrent callers now await the same
+   * promise and retry with whatever it resolves to.
+   */
+  private refreshInFlight: Promise<string> | null = null
 
   constructor() {
     this.client = axios.create({
@@ -101,6 +111,36 @@ class ApiClient {
     return config
   }
 
+  /**
+   * Exchange the refresh token for a new access token, at most once at a time.
+   *
+   * Uses a bare axios call rather than `this.client` so a 401 on the refresh
+   * endpoint itself cannot re-enter this interceptor.
+   */
+  private refreshAccessToken(refreshToken: string): Promise<string> {
+    if (!this.refreshInFlight) {
+      this.refreshInFlight = axios
+        .post<{ access_token: string }>(`${API_BASE_URL}/auth/refresh`, {
+          refresh_token: refreshToken,
+        })
+        .then((response) => {
+          const { access_token } = response.data
+          this.setTokens(access_token, refreshToken)
+          return access_token
+        })
+        .finally(() => {
+          // Cleared either way, so a later 401 can start a fresh attempt.
+          this.refreshInFlight = null
+        })
+    }
+    return this.refreshInFlight
+  }
+
+  private redirectToLogin() {
+    this.clearTokens()
+    window.location.href = '/login'
+  }
+
   private async responseErrorInterceptor(error: AxiosError<ApiError>) {
     const originalRequest = error.config as (typeof error.config & { _retried?: boolean }) | undefined
 
@@ -108,25 +148,19 @@ class ApiClient {
     if (error.response?.status === 401 && originalRequest && !originalRequest._retried) {
       originalRequest._retried = true
       const refreshToken = localStorage.getItem('refresh_token')
-      if (refreshToken) {
-        try {
-          const response = await this.client.post('/auth/refresh', {
-            refresh_token: refreshToken,
-          })
-          const { access_token } = response.data
-          this.setTokens(access_token, refreshToken)
-          originalRequest.headers = originalRequest.headers || {}
-          originalRequest.headers['Authorization'] = `Bearer ${access_token}`
-          return this.client(originalRequest)
-        } catch {
-          // Refresh failed — clear tokens and force re-login
-          this.clearTokens()
-          window.location.href = '/login'
-        }
-      } else {
-        // No refresh token at all — send to login
-        this.clearTokens()
-        window.location.href = '/login'
+      if (!refreshToken) {
+        this.redirectToLogin()
+        return Promise.reject(error)
+      }
+
+      try {
+        const accessToken = await this.refreshAccessToken(refreshToken)
+        originalRequest.headers = originalRequest.headers || {}
+        originalRequest.headers['Authorization'] = `Bearer ${accessToken}`
+        return this.client(originalRequest)
+      } catch {
+        // Refresh failed — clear tokens and force re-login
+        this.redirectToLogin()
       }
     }
 

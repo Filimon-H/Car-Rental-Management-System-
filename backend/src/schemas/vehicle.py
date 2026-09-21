@@ -41,6 +41,9 @@ class VehicleBase(BaseModel):
     transmission: str = Field(default="automatic", max_length=20)
     fuel_type: str = Field(default="petrol", max_length=20)  # Petrol, Diesel, Hybrid, Electric, Other
     daily_rate: Decimal = Field(..., ge=0, decimal_places=2)
+    # Optional pricing tiers; applied only when cheaper than the daily rate.
+    weekly_rate: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    monthly_rate: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
     insurance_policy_number: Optional[str] = Field(None, max_length=50)
     insurance_expiry: Optional[datetime] = None
     current_mileage: Optional[int] = Field(None, ge=0)
@@ -71,6 +74,8 @@ class VehicleUpdate(BaseModel):
     transmission: Optional[str] = Field(None, max_length=20)
     fuel_type: Optional[str] = Field(None, max_length=20)
     daily_rate: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    weekly_rate: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    monthly_rate: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
     insurance_policy_number: Optional[str] = Field(None, max_length=50)
     insurance_expiry: Optional[datetime] = None
     current_mileage: Optional[int] = Field(None, ge=0)
@@ -105,6 +110,8 @@ class VehicleResponse(BaseModel):
     transmission: str
     fuel_type: str
     daily_rate: Decimal
+    weekly_rate: Optional[Decimal] = None
+    monthly_rate: Optional[Decimal] = None
     insurance_policy_number: Optional[str] = None
     insurance_expiry: Optional[datetime] = None
     photo_front: Optional[str] = None
@@ -154,6 +161,8 @@ class VehicleResponse(BaseModel):
             transmission=obj.transmission,
             fuel_type=obj.fuel_type,
             daily_rate=obj.daily_rate,
+            weekly_rate=obj.weekly_rate,
+            monthly_rate=obj.monthly_rate,
             insurance_policy_number=obj.insurance_policy,
             insurance_expiry=obj.insurance_expiry,
             photo_front=getattr(obj, "photo_front", None),

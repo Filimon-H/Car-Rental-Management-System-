@@ -1,0 +1,42 @@
+{
+  "nav": {
+    "home": "ዋና ገጽ",
+    "about": "ስለ እኛ",
+    "services": "አገልግሎቶች",
+    "cars": "መኪኖች",
+    "contact": "ያግኙን",
+    "bookOnTelegram": "በቴሌግራም ይያዙ",
+    "needHelp": "እርዳታ ይፈልጋሉ?",
+    "myBookings": "የእኔ ምዝገባዎች",
+    "signOut": "ውጣ",
+    "signIn": "ግባ",
+    "signUp": "ይመዝገቡ",
+    "adminPanel": "የአስተዳዳሪ ፓነል",
+    "signOutAdmin": "አስተዳዳሪ ውጣ"
+  },
+  "hero": {
+    "title1": "ፕሪሚየም የመኪና ኪራይ",
+    "title2": "አነዳዱን ይለማመዱ",
+    "subtitle": "ለቀጣይ ጉዞዎ ከእኛ ሰፊ የቅንጦት እና የምቾት ተሽከርካሪዎች ስብስብ ይምረጡ።",
+    "bookNow": "አሁን ይያዙ",
+    "viewFleet": "መኪኖችን ይመልከቱ"
+  },
+  "login": {
+    "customer": "ደንበኛ",
+    "admin": "አስተዳዳሪ",
+    "welcomeBack": "እንኳን ደህና መጡ",
+    "signInToManage": "ምዝገባዎችዎን ለማስተዳደር ይግቡ",
+    "adminLogin": "የአስተዳዳሪ መግቢያ",
+    "signInWithStaff": "በሰራተኛ ምስክርነቶችዎ ይግቡ",
+    "emailAddress": "የኢሜይል አድራሻ",
+    "username": "የተጠቃሚ ስም",
+    "password": "የይለፍ ቃል",
+    "signingIn": "በመግባት ላይ...",
+    "signInButton": "ግባ",
+    "accessAdminPanel": "የአስተዳዳሪ ፓነል ይግቡ",
+    "dontHaveAccount": "መለያ የለዎትም?",
+    "createOne": "አዲስ ይፍጠሩ",
+    "loginFailed": "መግባት አልተሳካም",
+    "invalidCredentials": "የተሳሳተ መረጃ"
+  }
+}

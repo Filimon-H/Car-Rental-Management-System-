@@ -90,10 +90,54 @@ def app():
     return app
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter(app):
+    """Clear rate-limit counters between tests.
+
+    The app fixture is session-scoped and slowapi keeps counters in memory keyed on
+    the client IP, which is identical for every TestClient request. Without this,
+    the 6th login in a run trips the 5/minute limit and unrelated tests fail with
+    429. The routers hold their own Limiter instance separate from the app's, so
+    both are reset.
+    """
+    from src.api.routers import auth as auth_router
+    from src.api.routers import public as public_router
+
+    limiters = (
+        getattr(app.state, "limiter", None),
+        getattr(auth_router, "limiter", None),
+        getattr(public_router, "limiter", None),
+    )
+    for limiter in limiters:
+        if limiter is not None:
+            limiter.reset()
+    yield
+
+
 @pytest.fixture
 def client(app, db) -> Generator:
     """Create test client."""
     from fastapi.testclient import TestClient
-    
+
     with TestClient(app) as c:
         yield c
+
+
+def backdate_agreement(db, agreement, pickup, expected_return=None):
+    """Move an agreement's dates into the past, as the passage of time would.
+
+    create_standard_agreement requires a future pickup — a booking cannot be
+    made for a date that has already passed. Tests about a car that is already
+    out therefore create the agreement legally and then rewrite its stored
+    dates with this helper, rather than weakening the validation.
+    """
+    span = agreement.expected_return_datetime - agreement.pickup_datetime
+    end = expected_return if expected_return is not None else pickup + span
+    agreement.pickup_datetime = pickup
+    agreement.expected_return_datetime = end
+    for segment in agreement.vehicle_segments:
+        segment.start_datetime = pickup
+        segment.end_datetime = end
+    db.commit()
+    db.refresh(agreement)
+    return agreement

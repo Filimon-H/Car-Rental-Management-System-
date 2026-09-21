@@ -9,7 +9,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Primary brand color (blue from design reference)
+        // Primary brand color
         primary: {
           DEFAULT: "#1a73e8",
           50: "#e8f0fe",
@@ -22,6 +22,36 @@ export default {
           700: "#1967d2",
           800: "#185abc",
           900: "#174ea6",
+        },
+        // Brand palette (matches landing page)
+        brand: {
+          DEFAULT: "#601A25",
+          light: "#7A2233",
+          dark: "#4a1320",
+        },
+        orange: {
+          brand: "#F15A24",
+          light: "#FF6B3D",
+          dark: "#d94e1e",
+        },
+        charcoal: "#333333",
+        // Dark-theme surfaces and borders. These were pasted inline as arbitrary
+        // values (bg-[#1a0810] and friends) across 50+ call sites, which meant
+        // the dark palette could not be adjusted in one place. Named by role so
+        // the intent survives: `surface` sits on `canvas`, `raised` on `surface`.
+        night: {
+          canvas: "#0d0407",   // page background
+          surface: "#1a0810",  // cards, panels, table shells
+          raised: "#22101a",   // inputs, controls sitting on a surface
+          hover: "#2a1220",    // hover state for raised controls
+          border: "#3d1520",   // hairlines and rings
+          muted: "#9d7a80",    // de-emphasised text on dark
+          subtle: "#f0b8a0",   // brand-tinted secondary text
+        },
+        // External brand colors, kept explicit so their source is obvious.
+        telegram: {
+          DEFAULT: "#229ED9",
+          dark: "#1a8bc4",
         },
         // Sidebar dark color
         sidebar: {

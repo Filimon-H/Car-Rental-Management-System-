@@ -4,7 +4,7 @@ from collections.abc import Generator
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker, declarative_base
 
 from src.core.config import settings
@@ -29,6 +29,29 @@ engine = create_engine(
     connect_args=_connect_args,
     **_engine_kwargs,
 )
+
+if settings.database_url.startswith("sqlite"):
+
+    @event.listens_for(engine, "connect")
+    def _sqlite_pragmas(dbapi_connection, connection_record):  # noqa: ANN001
+        """Apply per-connection SQLite pragmas.
+
+        SQLite defaults to foreign_keys=OFF, which makes every ForeignKey in the
+        models decorative — an orphan row (e.g. a ledger entry pointing at a
+        non-existent agreement) would be accepted silently. These must be set on
+        every connection; they do not persist in the database file.
+
+        WAL additionally lets readers run while a write is in progress, instead of
+        the default journal where a writer blocks the whole database.
+        """
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA busy_timeout=10000")
+        finally:
+            cursor.close()
+
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

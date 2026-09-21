@@ -35,7 +35,7 @@ export interface Agreement {
   id: number
   agreement_number: string
   agreement_type: AgreementType
-  status: 'draft' | 'pending_payment' | 'active' | 'returned' | 'closed' | 'overdue' | 'cancelled'
+  status: 'booking_requested' | 'draft' | 'pending_payment' | 'active' | 'returned' | 'closed' | 'overdue' | 'cancelled'
   customer_id: number
   customer_name: string
   driver_id?: number
@@ -139,7 +139,9 @@ export interface PostPaymentData {
 export const agreementsService = {
   async list(params?: {
     status?: string
+    agreement_type?: string
     customer_id?: number
+    search?: string
     page?: number
     page_size?: number
   }): Promise<AgreementListResponse> {
@@ -220,11 +222,47 @@ export const agreementsService = {
   async cancel(id: number, reason?: string): Promise<Agreement> {
     return apiClient.post(`/agreements/${id}/cancel`, { reason: reason || null })
   },
+
+  async approveRequest(id: number): Promise<Agreement> {
+    return apiClient.post(`/agreements/${id}/approve-request`)
+  },
+}
+
+export interface PeriodSummary {
+  period: string
+  total_charged: number
+  total_payments: number
+  total_deposits: number
+  vendor_paid: number
+  net_revenue: number
 }
 
 export const ledgerService = {
   async reverseEntry(entryId: number, reason: string): Promise<LedgerEntry> {
     return apiClient.post(`/ledger/entries/${entryId}/reverse`, { reason })
+  },
+
+  async getSummary(granularity: 'daily' | 'monthly' | 'yearly'): Promise<PeriodSummary[]> {
+    return apiClient.get('/ledger/summary/periods', { granularity })
+  },
+
+  /** Downloads the ledger as CSV, filtered the same way the views are. */
+  async exportCsv(params?: {
+    agreement_id?: number
+    entry_type?: string
+    date_from?: string
+    date_to?: string
+  }): Promise<void> {
+    const blob = await apiClient.getBlob('/ledger/export/csv', params)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `ledger-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    // Released on the next tick so the click has taken the URL.
+    setTimeout(() => URL.revokeObjectURL(url), 0)
   },
 }
 

@@ -23,7 +23,6 @@ async def due_returns_reminder() -> None:
     db = SessionLocal()
     try:
         today = datetime.now(timezone.utc).date()
-        tomorrow = today.replace(day=today.day + 1) if today.day < 28 else (today.replace(month=today.month % 12 + 1, day=1) if today.day >= 28 else today)
         # Filter at SQL level — don't load all active agreements into Python
         from src.models.customer import Customer
         agreements = (
@@ -65,7 +64,7 @@ async def overdue_check() -> None:
     db = SessionLocal()
     try:
         now = datetime.now(timezone.utc)
-        
+
         # Find active agreements past their expected return
         overdue_agreements = (
             db.query(Agreement)
@@ -75,13 +74,27 @@ async def overdue_check() -> None:
             )
             .all()
         )
-        
+
         count = 0
         for agreement in overdue_agreements:
-            agreement.status = AgreementStatus.OVERDUE
-            count += 1
-            logger.info(f"Marked agreement {agreement.agreement_number} as overdue")
-        
+            # Re-assert ACTIVE in the WHERE clause so a concurrent run (or a staff
+            # member closing the agreement mid-job) cannot be overwritten. The row
+            # is only transitioned if it is still ACTIVE at write time.
+            updated = (
+                db.query(Agreement)
+                .filter(
+                    Agreement.id == agreement.id,
+                    Agreement.status == AgreementStatus.ACTIVE,
+                )
+                .update(
+                    {Agreement.status: AgreementStatus.OVERDUE},
+                    synchronize_session=False,
+                )
+            )
+            if updated:
+                count += 1
+                logger.info(f"Marked agreement {agreement.agreement_number} as overdue")
+
         if count > 0:
             db.commit()
             logger.info(f"Marked {count} agreements as overdue")
@@ -177,6 +190,10 @@ async def outstanding_balance_summary() -> None:
 
 def setup_scheduler() -> None:
     """Configure and start the scheduler."""
+    if not settings.scheduler_enabled:
+        logger.info("Scheduler disabled (scheduler_enabled=false) — no jobs registered")
+        return
+
     # Due returns reminder - daily at 8 AM
     scheduler.add_job(
         due_returns_reminder,
@@ -214,6 +231,8 @@ def setup_scheduler() -> None:
 
 def start_scheduler() -> None:
     """Start the scheduler."""
+    if not settings.scheduler_enabled:
+        return
     if not scheduler.running:
         scheduler.start()
         logger.info("Scheduler started")

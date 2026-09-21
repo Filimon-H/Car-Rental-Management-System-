@@ -1,41 +1,56 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import Layout from '@/app/Layout'
 
-// Pages
+// Login and Dashboard are the first things a session renders, so they stay in
+// the main bundle; every other page is fetched when its route is first visited.
 import LoginPage from '@/pages/LoginPage'
 import DashboardPage from '@/pages/DashboardPage'
-import AgreementsPage from '@/pages/AgreementsPage'
-import AgreementDetailPage from '@/pages/AgreementDetailPage'
-import AgreementCreatePage from '@/pages/AgreementCreatePage'
-import AgreementPrintPage from '@/pages/AgreementPrintPage'
-import CustomersPage from '@/pages/CustomersPage'
-import CustomerCreatePage from '@/pages/CustomerCreatePage'
-import CustomerEditPage from '@/pages/CustomerEditPage'
-import CustomerDetailPage from '@/pages/CustomerDetailPage'
-import CollateralCreatePage from '@/pages/CollateralCreatePage'
-import CollateralEditPage from '@/pages/CollateralEditPage'
-import CollateralDetailPage from '@/pages/CollateralDetailPage'
-import CollateralNewPage from '@/pages/CollateralNewPage'
-import VendorsPage from '@/pages/VendorsPage'
-import VehiclesPage from '@/pages/VehiclesPage'
-import VehicleUpsertPage from '@/pages/VehicleUpsertPage'
-import VehicleDetailPage from '@/pages/VehicleDetailPage'
-import DriversPage from '@/pages/DriversPage'
-import CollateralsPage from '@/pages/CollateralsPage'
-import WeddingAgreementsPage from '@/pages/WeddingAgreementsPage'
-import WeddingAgreementCreatePage from '@/pages/WeddingAgreementCreatePage'
-import VendorWeddingAgreementsPage from '@/pages/VendorWeddingAgreementsPage'
-import LedgerPage from '@/pages/LedgerPage'
-import InspectionTemplatesPage from '@/pages/InspectionTemplatesPage'
-import InspectionCreatePage from '@/pages/InspectionCreatePage'
-import AdminLookupsPage from '@/pages/AdminLookupsPage'
-import UsersPage from '@/pages/UsersPage'
+
+const AgreementsPage = lazy(() => import('@/pages/AgreementsPage'))
+const AgreementDetailPage = lazy(() => import('@/pages/AgreementDetailPage'))
+const AgreementCreatePage = lazy(() => import('@/pages/AgreementCreatePage'))
+const AgreementPrintPage = lazy(() => import('@/pages/AgreementPrintPage'))
+const CustomersPage = lazy(() => import('@/pages/CustomersPage'))
+const CustomerCreatePage = lazy(() => import('@/pages/CustomerCreatePage'))
+const CustomerEditPage = lazy(() => import('@/pages/CustomerEditPage'))
+const CustomerDetailPage = lazy(() => import('@/pages/CustomerDetailPage'))
+const CollateralCreatePage = lazy(() => import('@/pages/CollateralCreatePage'))
+const CollateralEditPage = lazy(() => import('@/pages/CollateralEditPage'))
+const CollateralDetailPage = lazy(() => import('@/pages/CollateralDetailPage'))
+const CollateralNewPage = lazy(() => import('@/pages/CollateralNewPage'))
+const VendorsPage = lazy(() => import('@/pages/VendorsPage'))
+const VendorUpsertPage = lazy(() => import('@/pages/VendorUpsertPage'))
+const VehiclesPage = lazy(() => import('@/pages/VehiclesPage'))
+const VehicleUpsertPage = lazy(() => import('@/pages/VehicleUpsertPage'))
+const VehicleDetailPage = lazy(() => import('@/pages/VehicleDetailPage'))
+const DriversPage = lazy(() => import('@/pages/DriversPage'))
+const CollateralsPage = lazy(() => import('@/pages/CollateralsPage'))
+const WeddingAgreementsPage = lazy(() => import('@/pages/WeddingAgreementsPage'))
+const WeddingAgreementCreatePage = lazy(() => import('@/pages/WeddingAgreementCreatePage'))
+const VendorWeddingAgreementsPage = lazy(() => import('@/pages/VendorWeddingAgreementsPage'))
+const LedgerPage = lazy(() => import('@/pages/LedgerPage'))
+const InspectionTemplatesPage = lazy(() => import('@/pages/InspectionTemplatesPage'))
+const InspectionCreatePage = lazy(() => import('@/pages/InspectionCreatePage'))
+const AdminLookupsPage = lazy(() => import('@/pages/AdminLookupsPage'))
+const UsersPage = lazy(() => import('@/pages/UsersPage'))
+
 import { ProtectedRoute, UnauthorizedPage } from '@/routes/guards'
+
+/** Shown while a route's chunk is being fetched. */
+function RouteFallback() {
+  return (
+    <div className="flex h-64 items-center justify-center" role="status" aria-live="polite">
+      <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-slate-200 border-t-primary" />
+      <span className="sr-only">Loading…</span>
+    </div>
+  )
+}
 
 function App() {
   return (
-    <>
+    <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
@@ -71,6 +86,8 @@ function App() {
 
           {/* Fleet */}
           <Route path="/vendors" element={<VendorsPage />} />
+          <Route path="/vendors/new" element={<VendorUpsertPage />} />
+          <Route path="/vendors/:vendorId/edit" element={<VendorUpsertPage />} />
           <Route path="/vehicles" element={<VehiclesPage />} />
           <Route path="/vehicles/new" element={<VehicleUpsertPage />} />
           <Route path="/vehicles/:vehicleId/edit" element={<VehicleUpsertPage />} />
@@ -112,7 +129,7 @@ function App() {
         <Route path="*" element={<div className="flex h-screen items-center justify-center">404 - Not Found</div>} />
       </Routes>
       <Toaster />
-    </>
+    </Suspense>
   )
 }
 

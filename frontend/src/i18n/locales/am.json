@@ -16,7 +16,17 @@
     "actions": "ድርጊቶች",
     "yes": "አዎ",
     "no": "አይ",
-    "confirm": "አረጋግጥ"
+    "confirm": "አረጋግጥ",
+    "view": "ይመልከቱ",
+    "active": "ንቁ",
+    "inactive": "ንቁ ያልሆነ",
+    "deleting": "በመሰረዝ ላይ...",
+    "close": "ዝጋ",
+    "unknown": "ያልታወቀ",
+    "notAvailable": "የለም",
+    "cannotBeUndone": "ይህ ድርጊት ሊቀለበስ አይችልም።",
+    "export": "CSV አውርድ",
+    "exporting": "በማውረድ ላይ..."
   },
   "auth": {
     "login": "ግባ",
@@ -109,14 +119,57 @@
     "title": "ስምምነቶች",
     "createNew": "አዲስ ስምምነት",
     "standard": "መደበኛ ኪራይ",
-    "wedding": "ሰርግ",
-    "vendorWedding": "የአቅራቢ ሰርግ",
+    "wedding": {
+      "label": "ሰርግ",
+      "title": "የሰርግ ስምምነቶች",
+      "createNew": "አዲስ የሰርግ ስምምነት",
+      "eventDates": "የዝግጅት ቀናት",
+      "searchLabel": "የሰርግ ስምምነቶችን ፈልግ",
+      "empty": "ምንም የሰርግ ስምምነት አልተገኘም",
+      "emptyInitial": "ለመጀመር የመጀመሪያውን የሰርግ ስምምነት ይፍጠሩ።",
+      "pagination": "የሰርግ ስምምነቶች ገጽ ቁጥር"
+    },
+    "vendorWedding": {
+      "label": "የአቅራቢ ሰርግ",
+      "title": "የአቅራቢ ሰርግ አቅርቦት",
+      "createNew": "አዲስ የአቅራቢ አቅርቦት",
+      "vendor": "አቅራቢ",
+      "linkedWedding": "የተገናኘ ሰርግ",
+      "linked": "ተገናኝቷል",
+      "searchLabel": "የአቅራቢ አቅርቦት ስምምነቶችን ፈልግ",
+      "searchPlaceholder": "በስምምነት ቁጥር ወይም በአቅራቢ ፈልግ...",
+      "bannerTitle": "የአቅራቢ ሰርግ አቅርቦት ስምምነቶች",
+      "bannerBody": "ለሰርግ ዝግጅቶች በውጭ አቅራቢዎች የቀረቡ መኪኖችን ይከታተሉ። እነዚህ ለተሟላ የዝግጅት አስተዳደር ከደንበኛ የሰርግ ስምምነቶች ጋር ሊገናኙ ይችላሉ።",
+      "empty": "ምንም የአቅራቢ ሰርግ አቅርቦት ስምምነት አልተገኘም",
+      "emptyInitial": "ለመጀመር የአቅራቢ አቅርቦት ስምምነት ይመዝግቡ።",
+      "pagination": "የአቅራቢ አቅርቦት ገጽ ቁጥር"
+    },
     "status": {
       "draft": "ረቂቅ",
       "active": "ንቁ",
       "closed": "ተዘግቷል",
       "overdue": "የጊዜ ገደብ ያለፈ",
-      "cancelled": "ተሰርዟል"
+      "cancelled": "ተሰርዟል",
+      "all": "ሁሉም",
+      "bookingRequested": "የቦታ ማስያዣ ጥያቄዎች",
+      "pendingPayment": "ክፍያ በመጠባበቅ ላይ"
+    },
+    "searchLabel": "ስምምነቶችን ፈልግ",
+    "searchPlaceholder": "ስምምነት ወይም ደንበኛ ፈልግ...",
+    "filterByStatus": "በሁኔታ አጣራ",
+    "pagination": "የስምምነቶች ገጽ ቁጥር",
+    "emptyTitle": "ምንም ስምምነት አልተገኘም",
+    "emptyFiltered": "ሌላ የፍለጋ ቃል ወይም የሁኔታ ማጣሪያ ይሞክሩ።",
+    "emptyInitial": "ለመጀመር የመጀመሪያውን የኪራይ ስምምነት ይፍጠሩ።",
+    "loadError": "ስምምነቶችን በመጫን ላይ ስህተት",
+    "columns": {
+      "number": "የስምምነት ቁጥር",
+      "customer": "ደንበኛ",
+      "dates": "ቀናት",
+      "dailyRate": "የቀን ዋጋ",
+      "status": "ሁኔታ",
+      "total": "ጠቅላላ",
+      "amount": "መጠን"
     }
   },
   "agreementCreate": {
@@ -347,7 +400,132 @@
       "reserved": "ተይዟል",
       "rented": "ተከራይቷል",
       "maintenance": "ጥገና",
-      "inactive": "ንቁ አይደለም"
+      "inactive": "ንቁ አይደለም",
+      "all": "ሁሉም",
+      "retired": "ከአገልግሎት ውጪ"
+    },
+    "add": "መኪና ጨምር",
+    "seats": "{{count}} መቀመጫዎች",
+    "searchLabel": "መኪኖችን ፈልግ",
+    "searchPlaceholder": "በሰሌዳ፣ በአምራች፣ በሞዴል ፈልግ...",
+    "filterByStatus": "በሁኔታ አጣራ",
+    "changeStatus": "የ{{plate}} ሁኔታ ቀይር",
+    "pagination": "የመኪኖች ገጽ ቁጥር",
+    "empty": "ምንም መኪና አልተገኘም",
+    "emptyFiltered": "ሌላ የፍለጋ ቃል ወይም የሁኔታ ማጣሪያ ይሞክሩ።",
+    "emptyInitial": "ለመጀመር የመጀመሪያውን መኪና ያክሉ።",
+    "loadError": "መኪኖችን በመጫን ላይ ስህተት",
+    "editAria": "{{plate}}ን አርትዕ",
+    "deleteAria": "{{plate}}ን ሰርዝ",
+    "deleteTitle": "መኪና ሰርዝ",
+    "deleteConfirm": "በእርግጥ መሰረዝ ይፈልጋሉ",
+    "columns": {
+      "vehicle": "መኪና",
+      "details": "ዝርዝር",
+      "dailyRate": "የቀን ዋጋ",
+      "status": "ሁኔታ"
     }
+  },
+  "customers": {
+    "title": "ደንበኞች",
+    "createNew": "አዲስ ደንበኛ",
+    "quickAdd": "ፈጣን ጨምር",
+    "bulkUpload": "በጅምላ ጫን",
+    "online": "ኦንላይን",
+    "searchLabel": "ደንበኞችን ፈልግ",
+    "searchPlaceholder": "በስም፣ በስልክ ወይም በመታወቂያ ፈልግ...",
+    "filterLabel": "ደንበኞችን አጣራ",
+    "pagination": "የደንበኞች ገጽ ቁጥር",
+    "empty": "ምንም ደንበኛ አልተገኘም",
+    "emptyOnline": "ኦንላይን የተመዘገበ ደንበኛ አልተገኘም",
+    "emptyFiltered": "ሌላ የፍለጋ ቃል ይሞክሩ።",
+    "emptyInitial": "ለመጀመር የመጀመሪያውን ደንበኛ ያክሉ።",
+    "loadError": "ደንበኞችን በመጫን ላይ ስህተት",
+    "editAria": "{{name}}ን አርትዕ",
+    "deleteAria": "{{name}}ን ሰርዝ",
+    "deleteTitle": "ደንበኛ ሰርዝ",
+    "deleteConfirm": "በእርግጥ በቋሚነት መሰረዝ ይፈልጋሉ",
+    "columns": {
+      "name": "ስም",
+      "contact": "አድራሻ",
+      "id": "መታወቂያ",
+      "status": "ሁኔታ"
+    },
+    "tabs": {
+      "all": "ሁሉም ደንበኞች",
+      "online": "ኦንላይን የተመዘገቡ"
+    }
+  },
+  "vendors": {
+    "title": "አቅራቢዎች",
+    "add": "አቅራቢ ጨምር",
+    "searchLabel": "አቅራቢዎችን ፈልግ",
+    "searchPlaceholder": "አቅራቢዎችን ፈልግ…",
+    "pagination": "የአቅራቢዎች ገጽ ቁጥር",
+    "empty": "ምንም አቅራቢ አልተገኘም",
+    "emptyFiltered": "ሌላ የፍለጋ ቃል ይሞክሩ።",
+    "emptyInitial": "ለመጀመር የመጀመሪያውን አቅራቢ ያክሉ።",
+    "loadError": "አቅራቢዎችን በመጫን ላይ ስህተት",
+    "editAria": "{{name}}ን አርትዕ",
+    "columns": {
+      "vendor": "አቅራቢ",
+      "contact": "አድራሻ",
+      "bank": "ባንክ",
+      "status": "ሁኔታ"
+    }
+  },
+  "drivers": {
+    "title": "ሹፌሮች",
+    "add": "ሹፌር ጨምር",
+    "noEmail": "ኢሜል የለም",
+    "searchLabel": "ሹፌሮችን ፈልግ",
+    "searchPlaceholder": "ሹፌሮችን ፈልግ...",
+    "pagination": "የሹፌሮች ገጽ ቁጥር",
+    "empty": "ምንም ሹፌር አልተገኘም",
+    "emptyFiltered": "ሌላ የፍለጋ ቃል ይሞክሩ።",
+    "emptyInitial": "ለመጀመር የመጀመሪያውን ሹፌር ያክሉ።",
+    "loadError": "ሹፌሮችን በመጫን ላይ ስህተት",
+    "editAria": "{{name}}ን አርትዕ",
+    "deleteAria": "{{name}}ን ሰርዝ",
+    "deleteTitle": "ሹፌር ሰርዝ",
+    "deleteConfirm": "በእርግጥ መሰረዝ ይፈልጋሉ",
+    "columns": {
+      "driver": "ሹፌር",
+      "phone": "ስልክ",
+      "license": "መንጃ ፈቃድ",
+      "licenseExpiry": "የፈቃድ ማብቂያ",
+      "status": "ሁኔታ"
+    }
+  },
+  "collaterals": {
+    "title": "ዋስትና ሰጪዎች",
+    "add": "ዋስትና ሰጪ ጨምር",
+    "noEmail": "ኢሜል የለም",
+    "searchLabel": "ዋስትና ሰጪዎችን ፈልግ",
+    "searchPlaceholder": "ዋስትና ሰጪዎችን ፈልግ...",
+    "pagination": "የዋስትና ሰጪዎች ገጽ ቁጥር",
+    "empty": "ምንም ዋስትና ሰጪ አልተገኘም",
+    "emptyFiltered": "ሌላ የፍለጋ ቃል ይሞክሩ።",
+    "emptyInitial": "ለመጀመር ዋስትና ሰጪ ያክሉ።",
+    "loadError": "ዋስትና ሰጪዎችን በመጫን ላይ ስህተት",
+    "deleteFailed": "ዋስትና ሰጪውን መሰረዝ አልተቻለም",
+    "editAria": "{{name}}ን አርትዕ",
+    "deleteAria": "{{name}}ን ሰርዝ",
+    "deleteTitle": "ዋስትና ሰጪ ሰርዝ",
+    "deleteConfirm": "በእርግጥ በቋሚነት መሰረዝ ይፈልጋሉ",
+    "columns": {
+      "person": "ዋስትና ሰጪ",
+      "phone": "ስልክ",
+      "id": "መታወቂያ",
+      "relationship": "ዝምድና",
+      "customer": "ደንበኛ",
+      "status": "ሁኔታ"
+    }
+  },
+  "ledger": {
+    "title": "መዝገብ እና ክፍያዎች",
+    "subtitle": "የሂሳብ ኦዲት መዝገብ — ተጨማሪ ብቻ፣ ፈጽሞ አይስተካከልም",
+    "exportFailed": "ማውረድ አልተሳካም",
+    "exportFailedBody": "የመዝገቡን CSV ማውረድ አልተቻለም።"
   }
 }

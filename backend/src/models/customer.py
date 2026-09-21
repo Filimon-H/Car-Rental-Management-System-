@@ -11,6 +11,7 @@ from src.core.db import Base
 if TYPE_CHECKING:
     from src.models.agreement import Agreement
     from src.models.customer_document import CustomerDocument
+    from src.models.customer_user import CustomerUser
 
 
 class Customer(Base):
@@ -49,7 +50,9 @@ class Customer(Base):
     # Emergency contact
     emergency_contact_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
     emergency_contact_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    
+
+    telegram_username: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     
@@ -69,6 +72,9 @@ class Customer(Base):
     )
     documents: Mapped[list["CustomerDocument"]] = relationship(
         "CustomerDocument", back_populates="customer", lazy="dynamic", cascade="all, delete-orphan"
+    )
+    customer_user: Mapped["CustomerUser | None"] = relationship(
+        "CustomerUser", back_populates="customer", uselist=False
     )
 
     @property

@@ -64,8 +64,11 @@ def create_wedding_agreement(
     # Validate all vehicles are available
     for config in vehicle_configs:
         vehicle_id = config["vehicle_id"]
-        start_dt = config["start"]
-        end_dt = config["end"]
+        start_dt = _ensure_utc(config["start"])
+        end_dt = _ensure_utc(config["end"])
+
+        if start_dt <= datetime.now(timezone.utc):
+            raise ValueError(f"Vehicle {vehicle_id} start date must be in the future")
         
         if end_dt <= start_dt:
             raise ValueError(f"End date must be after start date for vehicle {vehicle_id}")
@@ -180,7 +183,8 @@ def add_vehicle_to_wedding(
     if end_datetime <= start_datetime:
         raise ValueError("End date must be after start date")
     
-    # Check availability
+    # Check availability. The agreement does not already hold this vehicle, so the
+    # status gate must apply — only its own overlapping segments are excluded.
     if not availability_repository.check_vehicle_available(
         db, vehicle_id, start_datetime, end_datetime, exclude_agreement_id=agreement_id
     ):

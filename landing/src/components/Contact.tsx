@@ -31,7 +31,7 @@ export default function Contact() {
                 href={href}
                 className="flex items-center gap-5 bg-dark-200 rounded-2xl p-6 group hover:border hover:border-gold transition-all"
               >
-                <div className="w-14 h-14 border border-gold rounded-xl flex items-center justify-center text-gold group-hover:bg-gold group-hover:text-black transition-all flex-shrink-0">
+                <div className="w-14 h-14 border border-gold rounded-xl flex items-center justify-center text-gold group-hover:bg-gold group-hover:text-white transition-all flex-shrink-0">
                   {icon}
                 </div>
                 <div>

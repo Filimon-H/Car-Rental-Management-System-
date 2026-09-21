@@ -9,8 +9,15 @@ from sqlalchemy.orm import Session
 from src.core.db import get_db
 from src.core.errors import ForbiddenError, UnauthorizedError
 from src.core.rbac import Permission, Role, has_permission
-from src.core.security import decode_token, verify_token_type
+from src.core.security import (
+    ISSUER_CUSTOMER,
+    ISSUER_STAFF,
+    decode_token,
+    verify_issuer,
+    verify_token_type,
+)
 from src.models.staff_user import StaffUser
+from src.models.customer_user import CustomerUser
 
 security = HTTPBearer()
 
@@ -43,6 +50,12 @@ async def get_current_user(
 
     if not verify_token_type(payload, "access"):
         raise UnauthorizedError("Invalid token type")
+
+    # Staff and customer ids come from different tables and routinely collide, so
+    # without this a customer's own token would authenticate as the staff user
+    # sharing its id.
+    if not verify_issuer(payload, ISSUER_STAFF):
+        raise UnauthorizedError("Invalid token issuer")
 
     user_id = payload.get("sub")
     if user_id is None:
@@ -96,3 +109,44 @@ def require_admin(current_user: CurrentUser) -> StaffUser:
 
 
 AdminUser = Annotated[StaffUser, Depends(require_admin)]
+
+
+customer_security = HTTPBearer()
+
+
+async def get_current_customer_user(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(customer_security)],
+    db: Annotated[Session, Depends(get_db)],
+) -> CustomerUser:
+    """Get the current authenticated customer user from JWT token."""
+    token = credentials.credentials
+    payload = decode_token(token)
+
+    if payload is None:
+        raise UnauthorizedError("Invalid or expired token")
+
+    if not verify_token_type(payload, "access"):
+        raise UnauthorizedError("Invalid token type")
+
+    if not verify_issuer(payload, ISSUER_CUSTOMER):
+        raise UnauthorizedError("Invalid token issuer")
+
+    user_id = payload.get("sub")
+    if user_id is None:
+        raise UnauthorizedError("Invalid token payload")
+
+    user = db.query(CustomerUser).filter(CustomerUser.id == int(user_id)).first()
+    if user is None:
+        raise UnauthorizedError("User not found")
+
+    if not user.is_active:
+        raise UnauthorizedError("Account is deactivated")
+
+    token_version = payload.get("tv")
+    if token_version is None or int(token_version) != user.token_version:
+        raise UnauthorizedError("Token has been revoked")
+
+    return user
+
+
+CurrentCustomerUser = Annotated[CustomerUser, Depends(get_current_customer_user)]

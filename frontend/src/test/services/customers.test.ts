@@ -241,4 +241,127 @@ describe('customersService', () => {
       expect(revokeObjectURL).toHaveBeenCalled()
     })
   })
+
+  // ---------------------------------------------------------------------------
+  // getLedger (new — customer cross-agreement ledger)
+  // ---------------------------------------------------------------------------
+
+  describe('getLedger', () => {
+    const sampleEntries = [
+      {
+        id: 1,
+        agreement_id: 10,
+        agreement_number: 'AGR-20260101-0010',
+        entry_type: 'charge',
+        amount: 3000,
+        description: '2-day rental @ 1500/day',
+        payment_method: null,
+        payment_reference: null,
+        notes: null,
+        reversed_entry_id: null,
+        created_by_id: null,
+        created_at: '2026-01-10T08:00:00Z',
+      },
+      {
+        id: 2,
+        agreement_id: 10,
+        agreement_number: 'AGR-20260101-0010',
+        entry_type: 'payment',
+        amount: -3000,
+        description: 'Payment received',
+        payment_method: 'cash',
+        payment_reference: null,
+        notes: null,
+        reversed_entry_id: null,
+        created_by_id: 1,
+        created_at: '2026-01-12T10:00:00Z',
+      },
+      {
+        id: 3,
+        agreement_id: 15,
+        agreement_number: 'AGR-20260201-0015',
+        entry_type: 'charge',
+        amount: 4500,
+        description: '3-day rental @ 1500/day',
+        payment_method: null,
+        payment_reference: null,
+        notes: null,
+        reversed_entry_id: null,
+        created_by_id: null,
+        created_at: '2026-02-05T08:00:00Z',
+      },
+    ]
+
+    it('calls GET /customers/:id/ledger', async () => {
+      mockApiClient.get.mockResolvedValueOnce(sampleEntries)
+      await customersService.getLedger(1)
+      expect(mockApiClient.get).toHaveBeenCalledWith('/customers/1/ledger')
+    })
+
+    it('returns the array of ledger entries', async () => {
+      mockApiClient.get.mockResolvedValueOnce(sampleEntries)
+      const result = await customersService.getLedger(1)
+      expect(result).toHaveLength(3)
+    })
+
+    it('each entry has an agreement_number field', async () => {
+      mockApiClient.get.mockResolvedValueOnce(sampleEntries)
+      const result = await customersService.getLedger(1)
+      expect(result[0].agreement_number).toBe('AGR-20260101-0010')
+      expect(result[2].agreement_number).toBe('AGR-20260201-0015')
+    })
+
+    it('entries from different agreements are both returned', async () => {
+      mockApiClient.get.mockResolvedValueOnce(sampleEntries)
+      const result = await customersService.getLedger(1)
+      const agreementIds = new Set(result.map(e => e.agreement_id))
+      expect(agreementIds.size).toBe(2)
+    })
+
+    it('returns empty array when customer has no ledger entries', async () => {
+      mockApiClient.get.mockResolvedValueOnce([])
+      const result = await customersService.getLedger(99)
+      expect(result).toEqual([])
+    })
+
+    it('uses the correct customer id in the URL', async () => {
+      mockApiClient.get.mockResolvedValueOnce([])
+      await customersService.getLedger(42)
+      expect(mockApiClient.get).toHaveBeenCalledWith('/customers/42/ledger')
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // generateBotLinkCode (new — Telegram bot access for admin-registered customers)
+  // ---------------------------------------------------------------------------
+
+  describe('generateBotLinkCode', () => {
+    const sampleCode = {
+      code: 'ABC123',
+      expires_at: '2026-05-10T12:00:00Z',
+      customer_name: 'Abebe Bekele',
+      phone_primary: '0911000001',
+      telegram_username: '@abebe',
+      bot_message: 'Hi Abebe! Send /link ABC123 to the bot.',
+    }
+
+    it('calls POST /customers/:id/bot-link-code', async () => {
+      mockApiClient.post.mockResolvedValueOnce(sampleCode)
+      await customersService.generateBotLinkCode(5)
+      expect(mockApiClient.post).toHaveBeenCalledWith('/customers/5/bot-link-code')
+    })
+
+    it('returns the code and expiry', async () => {
+      mockApiClient.post.mockResolvedValueOnce(sampleCode)
+      const result = await customersService.generateBotLinkCode(5)
+      expect(result.code).toBe('ABC123')
+      expect(result.expires_at).toBe('2026-05-10T12:00:00Z')
+    })
+
+    it('returns the pre-formatted bot_message for staff to copy', async () => {
+      mockApiClient.post.mockResolvedValueOnce(sampleCode)
+      const result = await customersService.generateBotLinkCode(5)
+      expect(result.bot_message).toContain('ABC123')
+    })
+  })
 })

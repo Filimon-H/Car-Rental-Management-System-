@@ -31,7 +31,7 @@ class DocumentListResponse(BaseModel):
 @router.post("/agreements/{agreement_id}/generate", response_model=DocumentResponse)
 async def generate_agreement_document(
     agreement_id: int,
-    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.VIEW_AGREEMENTS))],
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.PRINT_DOCUMENTS))],
     db: Annotated[Session, Depends(get_db)],
     template: str = Query("rental_agreement"),
 ):
@@ -52,7 +52,7 @@ async def generate_agreement_document(
 @router.post("/agreements/{agreement_id}/receipt", response_model=DocumentResponse)
 async def generate_receipt(
     agreement_id: int,
-    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.VIEW_AGREEMENTS))],
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.PRINT_DOCUMENTS))],
     db: Annotated[Session, Depends(get_db)],
     payment_id: Optional[int] = None,
 ):
@@ -73,7 +73,7 @@ async def generate_receipt(
 @router.post("/inspections/{inspection_id}/report", response_model=DocumentResponse)
 async def generate_inspection_report(
     inspection_id: int,
-    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.VIEW_INSPECTIONS))],
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.PRINT_DOCUMENTS))],
     db: Annotated[Session, Depends(get_db)],
 ):
     """Generate an inspection report document."""
@@ -91,7 +91,7 @@ async def generate_inspection_report(
 
 @router.get("", response_model=DocumentListResponse)
 async def list_documents(
-    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.VIEW_AGREEMENTS))],
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.PRINT_DOCUMENTS))],
     agreement_id: Optional[int] = None,
 ):
     """List generated documents."""
@@ -102,7 +102,7 @@ async def list_documents(
 @router.get("/download/{filename}")
 async def download_document(
     filename: str,
-    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.VIEW_AGREEMENTS))],
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.PRINT_DOCUMENTS))],
 ):
     """Download a generated document."""
     import os

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, Numeric, String, Text, func
+from sqlalchemy import CheckConstraint, Boolean, Column, DateTime, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import relationship
 
 from src.core.db import Base
@@ -15,6 +15,13 @@ class Vendor(Base):
     """Vendor model for external car suppliers (wedding rentals)."""
 
     __tablename__ = "vendors"
+
+    __table_args__ = (
+        CheckConstraint(
+            "commission_rate >= 0 AND commission_rate <= 100",
+            name="ck_vendors_commission_rate_percentage",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     

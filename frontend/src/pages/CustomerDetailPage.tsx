@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, User, Phone, Mail, MapPin, FileText, Edit, Users, Image, Loader2, Calendar, Shield } from 'lucide-react'
-import { customersService } from '@/services/customers'
+import { ArrowLeft, User, Phone, Mail, MapPin, FileText, Edit, Users, Image, Loader2, Calendar, Shield, Send, Copy, Check } from 'lucide-react'
+import { customersService, BotLinkCodeResponse } from '@/services/customers'
 import { customerDocumentsService, CustomerDocument } from '@/services/customerDocuments'
 import { collateralsService, CollateralPerson } from '@/services/collaterals'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
@@ -12,6 +12,31 @@ export default function CustomerDetailPage() {
   const navigate = useNavigate()
   const { customerId } = useParams<{ customerId: string }>()
   const customerIdNum = parseInt(customerId || '0', 10)
+
+  const [botLinkCode, setBotLinkCode] = useState<BotLinkCodeResponse | null>(null)
+  const [generatingBotCode, setGeneratingBotCode] = useState(false)
+  const [botCodeError, setBotCodeError] = useState('')
+  const [copiedCode, setCopiedCode] = useState(false)
+  const [copiedMsg, setCopiedMsg] = useState(false)
+
+  async function handleGenerateBotCode() {
+    setGeneratingBotCode(true)
+    setBotCodeError('')
+    try {
+      const result = await customersService.generateBotLinkCode(customerIdNum)
+      setBotLinkCode(result)
+    } catch (err: unknown) {
+      setBotCodeError(err instanceof Error ? err.message : 'Failed to generate code')
+    } finally {
+      setGeneratingBotCode(false)
+    }
+  }
+
+  function copyToClipboard(text: string, type: 'code' | 'msg') {
+    navigator.clipboard.writeText(text)
+    if (type === 'code') { setCopiedCode(true); setTimeout(() => setCopiedCode(false), 2000) }
+    else { setCopiedMsg(true); setTimeout(() => setCopiedMsg(false), 2000) }
+  }
 
   // Fetch customer data
   const { data: customer, isLoading: loadingCustomer } = useQuery({
@@ -203,6 +228,94 @@ export default function CustomerDetailPage() {
               </div>
             ) : (
               <p className="py-8 text-center text-gray-500">No collateral persons added</p>
+            )}
+          </div>
+
+          {/* Telegram Bot Section */}
+          <div className="rounded-lg border bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-gray-700">
+                <Send className="h-5 w-5 text-telegram" />
+                <h2 className="text-lg font-semibold">Telegram Bot Access</h2>
+              </div>
+              {customer.telegram_username && (
+                <span className="text-sm text-telegram font-medium">@{customer.telegram_username.replace('@', '')}</span>
+              )}
+            </div>
+
+            {!botLinkCode ? (
+              <div>
+                <p className="text-sm text-gray-500 mb-4">
+                  Generate a one-time link code so this customer can connect to{' '}
+                  <span className="font-medium text-telegram">@Novacar67_bot</span> and manage their bookings.
+                  {customer.telegram_username && (
+                    <> Send it to their Telegram handle <span className="font-medium">@{customer.telegram_username.replace('@', '')}</span>.</>
+                  )}
+                  {!customer.telegram_username && customer.phone_primary && (
+                    <> Send it via SMS/WhatsApp to <span className="font-medium">{customer.phone_primary}</span>.</>
+                  )}
+                </p>
+                {botCodeError && <p className="text-red-500 text-sm mb-3">{botCodeError}</p>}
+                <button
+                  onClick={handleGenerateBotCode}
+                  disabled={generatingBotCode}
+                  className="flex items-center gap-2 bg-telegram hover:bg-telegram-dark disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                >
+                  <Send className="h-4 w-4" />
+                  {generatingBotCode ? 'Generating…' : 'Generate Bot Link Code'}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1 font-medium uppercase tracking-wide">Link Code (send to customer)</p>
+                  <div className="flex items-center gap-2 bg-gray-50 border rounded-lg px-4 py-3">
+                    <code className="text-xl font-mono font-bold text-gray-900 tracking-widest flex-1">/link {botLinkCode.code}</code>
+                    <button
+                      onClick={() => copyToClipboard(`/link ${botLinkCode.code}`, 'code')}
+                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 transition-colors"
+                    >
+                      {copiedCode ? <><Check className="h-4 w-4 text-green-500" /><span className="text-green-500">Copied</span></> : <><Copy className="h-4 w-4" />Copy</>}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Expires: {new Date(botLinkCode.expires_at).toLocaleString()} · Single-use
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500 mb-1 font-medium uppercase tracking-wide">Ready-to-send message</p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-gray-700 whitespace-pre-wrap font-mono">
+                    {botLinkCode.bot_message}
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(botLinkCode.bot_message, 'msg')}
+                    className="mt-2 flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                  >
+                    {copiedMsg ? <><Check className="h-3.5 w-3.5" />Copied!</> : <><Copy className="h-3.5 w-3.5" />Copy full message</>}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2 border-t">
+                  {botLinkCode.telegram_username && (
+                    <a
+                      href={`https://t.me/${botLinkCode.telegram_username.replace('@', '')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1.5 text-sm text-telegram hover:underline"
+                    >
+                      <Send className="h-4 w-4" />
+                      Open {botLinkCode.telegram_username} on Telegram
+                    </a>
+                  )}
+                  <button
+                    onClick={() => { setBotLinkCode(null); handleGenerateBotCode() }}
+                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    Generate new code
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 

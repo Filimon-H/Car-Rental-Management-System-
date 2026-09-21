@@ -5,12 +5,13 @@ from decimal import Decimal
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import CheckConstraint, Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.db import Base
 
 if TYPE_CHECKING:
+    from src.models.maintenance_record import MaintenanceRecord
     from src.models.agreement_vehicle_segment import AgreementVehicleSegment
     from src.models.vendor import Vendor
 
@@ -42,6 +43,15 @@ class Vehicle(Base):
     """Vehicle model for fleet management."""
 
     __tablename__ = "vehicles"
+
+    # Invariants enforced by the database, so they hold for any writer — scripts,
+    # migrations and future endpoints included, not just the service layer.
+    __table_args__ = (
+        CheckConstraint("daily_rate >= 0", name="ck_vehicles_daily_rate_non_negative"),
+        CheckConstraint("current_mileage >= 0", name="ck_vehicles_mileage_non_negative"),
+        CheckConstraint("year >= 1900", name="ck_vehicles_year_sane"),
+        CheckConstraint("seats > 0", name="ck_vehicles_seats_positive"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     
@@ -77,8 +87,11 @@ class Vehicle(Base):
     )
     current_mileage: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     
-    # Pricing (daily rate in ETB)
+    # Pricing (ETB). Daily is required; the tiers are optional and only used when
+    # they beat the daily price for the rental length.
     daily_rate: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    weekly_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    monthly_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     
     # Insurance
     insurance_policy: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -105,6 +118,9 @@ class Vehicle(Base):
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="vehicles", lazy="joined")
     agreement_segments: Mapped[list["AgreementVehicleSegment"]] = relationship(
         "AgreementVehicleSegment", back_populates="vehicle", lazy="dynamic"
+    )
+    maintenance_records: Mapped[list["MaintenanceRecord"]] = relationship(
+        "MaintenanceRecord", back_populates="vehicle", lazy="dynamic"
     )
 
     def __repr__(self) -> str:

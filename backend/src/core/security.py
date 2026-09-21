@@ -8,6 +8,13 @@ from jose import JWTError, jwt
 
 from src.core.config import settings
 
+# Token issuers. Staff and customer accounts live in separate tables with
+# independent id sequences, so a customer's `sub` can collide with a staff id.
+# Every token carries its issuer and each dependency requires its own, which
+# keeps a token minted for one audience from authenticating against the other.
+ISSUER_STAFF = "staff"
+ISSUER_CUSTOMER = "customer"
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash."""
@@ -26,6 +33,7 @@ def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = 
         expires_delta or timedelta(minutes=settings.jwt_access_token_expire_minutes)
     )
     to_encode.update({"exp": expire, "type": "access"})
+    to_encode.setdefault("iss", ISSUER_STAFF)
     return jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
@@ -34,6 +42,7 @@ def create_refresh_token(data: dict[str, Any]) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(days=settings.jwt_refresh_token_expire_days)
     to_encode.update({"exp": expire, "type": "refresh"})
+    to_encode.setdefault("iss", ISSUER_STAFF)
     return jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
@@ -49,3 +58,12 @@ def decode_token(token: str) -> dict[str, Any] | None:
 def verify_token_type(payload: dict[str, Any], expected_type: str) -> bool:
     """Verify the token type matches expected."""
     return payload.get("type") == expected_type
+
+
+def verify_issuer(payload: dict[str, Any], expected_issuer: str) -> bool:
+    """Verify the token was issued for the expected audience.
+
+    Fails closed: a token with no `iss` at all is rejected, so tokens predating
+    this check cannot be replayed against the other audience.
+    """
+    return payload.get("iss") == expected_issuer

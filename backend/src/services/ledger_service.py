@@ -12,6 +12,29 @@ from src.models.ledger_entry import LedgerEntry, LedgerEntryType, PaymentMethod
 logger = get_logger(__name__)
 
 
+def _not_reversed(query, agreement_id: int, db: Session):
+    """Restrict a type-filtered aggregate to entries that still stand.
+
+    The ledger is append-only: reversing an entry adds a REVERSAL row holding the
+    opposite amount rather than deleting the original. Summing a *signed* set of
+    rows therefore nets out correctly on its own, but these helpers filter by
+    entry_type — which excludes REVERSAL — so without this the original would
+    still be counted and the customer billed for a charge that was undone.
+
+    Excludes any entry that has been reversed. REVERSAL rows themselves carry a
+    type these helpers never select, so they need no extra handling.
+    """
+    reversed_ids = (
+        db.query(LedgerEntry.reversed_entry_id)
+        .filter(
+            LedgerEntry.agreement_id == agreement_id,
+            LedgerEntry.reversed_entry_id.isnot(None),
+        )
+    )
+    return query.filter(~LedgerEntry.id.in_(reversed_ids))
+
+
+
 def get_agreement_balance(db: Session, agreement_id: int) -> Decimal:
     """Get current balance for an agreement.
     
@@ -292,10 +315,13 @@ def get_total_charges(db: Session, agreement_id: int) -> Decimal:
         LedgerEntryType.DAMAGE_CHARGE,
     ]
     result = (
-        db.query(func.sum(LedgerEntry.amount))
-        .filter(LedgerEntry.agreement_id == agreement_id)
-        .filter(LedgerEntry.entry_type.in_(charge_types))
-        .scalar()
+        _not_reversed(
+            db.query(func.sum(LedgerEntry.amount))
+            .filter(LedgerEntry.agreement_id == agreement_id)
+            .filter(LedgerEntry.entry_type.in_(charge_types)),
+            agreement_id,
+            db,
+        ).scalar()
     )
     return Decimal(str(result)) if result else Decimal("0")
 
@@ -307,8 +333,8 @@ def get_net_adjustments(db: Session, agreement_id: int) -> Decimal:
         db.query(func.coalesce(func.sum(LedgerEntry.amount), 0))
         .filter(LedgerEntry.agreement_id == agreement_id)
         .filter(LedgerEntry.entry_type == LedgerEntryType.ADJUSTMENT)
-        .scalar()
     )
+    result = _not_reversed(result, agreement_id, db).scalar()
     return Decimal(str(result))
 
 
@@ -322,8 +348,8 @@ def get_total_payments(db: Session, agreement_id: int) -> Decimal:
         db.query(func.sum(LedgerEntry.amount))
         .filter(LedgerEntry.agreement_id == agreement_id)
         .filter(LedgerEntry.entry_type == LedgerEntryType.PAYMENT)
-        .scalar()
     )
+    result = _not_reversed(result, agreement_id, db).scalar()
     return abs(Decimal(str(result))) if result else Decimal("0")
 
 
@@ -333,8 +359,8 @@ def get_deposit_received(db: Session, agreement_id: int) -> Decimal:
         db.query(func.coalesce(func.sum(LedgerEntry.amount), 0))
         .filter(LedgerEntry.agreement_id == agreement_id)
         .filter(LedgerEntry.entry_type == LedgerEntryType.DEPOSIT)
-        .scalar()
     )
+    result = _not_reversed(result, agreement_id, db).scalar()
     # Deposits are stored as negative amounts
     return abs(Decimal(str(result)))
 
@@ -345,8 +371,8 @@ def get_deposit_returned(db: Session, agreement_id: int) -> Decimal:
         db.query(func.coalesce(func.sum(LedgerEntry.amount), 0))
         .filter(LedgerEntry.agreement_id == agreement_id)
         .filter(LedgerEntry.entry_type == LedgerEntryType.DEPOSIT_RETURN)
-        .scalar()
     )
+    result = _not_reversed(result, agreement_id, db).scalar()
     # Deposit returns are stored as positive amounts (increase balance)
     return Decimal(str(result))
 
@@ -357,8 +383,8 @@ def get_deposit_applied(db: Session, agreement_id: int) -> Decimal:
         db.query(func.coalesce(func.sum(LedgerEntry.amount), 0))
         .filter(LedgerEntry.agreement_id == agreement_id)
         .filter(LedgerEntry.entry_type == LedgerEntryType.DEPOSIT_APPLIED)
-        .scalar()
     )
+    result = _not_reversed(result, agreement_id, db).scalar()
     # Deposit applied is stored as negative amounts
     return abs(Decimal(str(result)))
 
