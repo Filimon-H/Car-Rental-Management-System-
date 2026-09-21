@@ -8,6 +8,7 @@ import { CustomerLookupModal } from '@/components/lookup/LookupModal'
 import { driversService, Driver } from '@/services/drivers'
 import { collateralsService, CollateralPerson } from '@/services/collaterals'
 import { customersService } from '@/services/customers'
+import { getErrorMessage } from '@/services/apiClient'
 
 type AgreementType = 'customer_vehicle' | 'customer_vehicle_driver' | 'vendor_vehicle'
 
@@ -101,8 +102,7 @@ export default function AgreementCreatePage() {
     },
     onError: (error: unknown) => {
       console.error('Agreement creation error:', error)
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || t('agreementCreate.errorCreating'))
+      alert(getErrorMessage(error, t('agreementCreate.errorCreating')))
     },
   })
 

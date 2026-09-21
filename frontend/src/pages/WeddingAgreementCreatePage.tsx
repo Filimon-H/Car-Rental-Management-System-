@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Search, Car, User, Heart, Plus, Trash2 } from 'lucide-react'
 import { availabilityService, AvailableVehicle } from '@/services/agreements'
-import apiClient from '@/services/apiClient'
+import apiClient, { getErrorMessage } from '@/services/apiClient'
 import { CustomerLookupModal } from '@/components/lookup/LookupModal'
 
 interface SelectedVehicle {
@@ -76,7 +76,7 @@ export default function WeddingAgreementCreatePage() {
         return await apiClient.post<{ id: number }>('/agreements/wedding', payload)
       } catch (err: unknown) {
         const error = err as { response?: { data?: { detail?: string } }, message?: string }
-        const detail = error?.response?.data?.detail || error?.message
+        const detail = getErrorMessage(error)
         throw new Error(detail || t('weddingAgreementCreate.errorCreating'))
       }
     },

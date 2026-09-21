@@ -7,6 +7,7 @@ import { customersService } from '@/services/customers'
 import { DocumentDropzone } from '@/components/documents/DocumentDropzone'
 import { DocumentType } from '@/services/customerDocuments'
 import { collateralDocumentsService, CollateralDocument } from '@/services/collateralDocuments'
+import { getErrorMessage } from '@/services/apiClient'
 
 // Phone normalization: 09XXXXXXXX -> +2519XXXXXXXX
 function normalizeEthiopianPhone(phone: string): string {
@@ -136,8 +137,7 @@ export default function CollateralEditPage() {
     },
     onError: (error: unknown) => {
       console.error('Update collateral error:', error)
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || 'Failed to update collateral person')
+      alert(getErrorMessage(error, 'Failed to update collateral person'))
     },
   })
 

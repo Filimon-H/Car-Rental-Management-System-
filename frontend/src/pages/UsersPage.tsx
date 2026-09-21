@@ -9,6 +9,7 @@ import {
   UserRole,
   usersService,
 } from '@/services/users'
+import { getErrorMessage } from '@/services/apiClient'
 
 const ROLES: UserRole[] = ['admin', 'sales', 'fleet', 'inspector', 'accountant']
 
@@ -279,7 +280,7 @@ export default function UsersPage() {
     },
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { detail?: string } } }
-      setFormError(e?.response?.data?.detail || 'Failed to create user')
+      setFormError(getErrorMessage(e, 'Failed to create user'))
     },
   })
 
@@ -294,7 +295,7 @@ export default function UsersPage() {
     },
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { detail?: string } } }
-      setFormError(e?.response?.data?.detail || 'Failed to update user')
+      setFormError(getErrorMessage(e, 'Failed to update user'))
     },
   })
 
@@ -307,7 +308,7 @@ export default function UsersPage() {
     },
     onError: (err: unknown) => {
       const e = err as { response?: { data?: { detail?: string } } }
-      setResetError(e?.response?.data?.detail || 'Failed to reset password')
+      setResetError(getErrorMessage(e, 'Failed to reset password'))
     },
   })
 

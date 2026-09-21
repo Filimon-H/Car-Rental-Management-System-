@@ -7,6 +7,7 @@ import { customersService } from '@/services/customers'
 import { DocumentDropzone } from '@/components/documents/DocumentDropzone'
 import { DocumentType } from '@/services/customerDocuments'
 import { collateralDocumentsService } from '@/services/collateralDocuments'
+import { getErrorMessage } from '@/services/apiClient'
 
 // Phone normalization: 09XXXXXXXX -> +2519XXXXXXXX
 function normalizeEthiopianPhone(phone: string): string {
@@ -90,7 +91,7 @@ export default function CollateralCreatePage() {
     onError: (error: unknown) => {
       console.error('Create collateral error:', error)
       const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || 'Failed to create collateral')
+      alert(getErrorMessage(err, 'Failed to create collateral'))
     },
   })
 

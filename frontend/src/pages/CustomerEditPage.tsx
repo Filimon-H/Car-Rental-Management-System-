@@ -5,6 +5,7 @@ import { ArrowLeft, User, Phone, Mail, MapPin, FileText, Building2, CheckCircle,
 import { customersService, CreateCustomerData, DuplicateCheckResult } from '@/services/customers'
 import { customerDocumentsService, CustomerDocument, DocumentType } from '@/services/customerDocuments'
 import { DocumentDropzone } from '@/components/documents/DocumentDropzone'
+import { getErrorMessage } from '@/services/apiClient'
 
 // Phone normalization: 09XXXXXXXX -> +2519XXXXXXXX
 function normalizeEthiopianPhone(phone: string): string {
@@ -165,8 +166,7 @@ export default function CustomerEditPage() {
     },
     onError: (error: unknown) => {
       console.error('Update customer error:', error)
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || 'Failed to update customer')
+      alert(getErrorMessage(error, 'Failed to update customer'))
     },
   })
 

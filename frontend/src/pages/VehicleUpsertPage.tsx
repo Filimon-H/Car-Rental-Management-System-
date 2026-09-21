@@ -6,6 +6,7 @@ import { ArrowLeft, Building2, Search } from 'lucide-react'
 import { vehiclesService, CreateVehicleData, LookupValue } from '@/services/vehicles'
 import { vendorsService, Vendor } from '@/services/vendors'
 import { lookupsService } from '@/services/lookups'
+import { getErrorMessage } from '@/services/apiClient'
 
 const PLATE_CODE_OPTIONS: LookupValue[] = [
   { value: '01', label: '01' },
@@ -222,8 +223,7 @@ export default function VehicleUpsertPage() {
       return created
     },
     onError: (error: unknown) => {
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || t('vehicleUpsert.errorCreating'))
+      alert(getErrorMessage(error, t('vehicleUpsert.errorCreating')))
     },
   })
 
@@ -235,8 +235,7 @@ export default function VehicleUpsertPage() {
       navigate('/vehicles')
     },
     onError: (error: unknown) => {
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || t('vehicleUpsert.errorUpdating'))
+      alert(getErrorMessage(error, t('vehicleUpsert.errorUpdating')))
     },
   })
 

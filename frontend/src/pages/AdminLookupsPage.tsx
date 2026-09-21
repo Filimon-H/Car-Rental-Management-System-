@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, Power } from 'lucide-react'
 import { lookupsService, LookupValue } from '@/services/lookups'
+import { getErrorMessage } from '@/services/apiClient'
 
 type FormMode = 'create' | 'edit'
 
@@ -72,8 +73,7 @@ export default function AdminLookupsPage() {
       setFormOpen(false)
     },
     onError: (error: unknown) => {
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || 'Failed to create lookup value')
+      alert(getErrorMessage(error, 'Failed to create lookup value'))
     },
   })
 
@@ -84,8 +84,7 @@ export default function AdminLookupsPage() {
       setFormOpen(false)
     },
     onError: (error: unknown) => {
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || 'Failed to update lookup value')
+      alert(getErrorMessage(error, 'Failed to update lookup value'))
     },
   })
 
@@ -95,8 +94,7 @@ export default function AdminLookupsPage() {
       queryClient.invalidateQueries({ queryKey: ['lookups-category', effectiveCategory] })
     },
     onError: (error: unknown) => {
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || 'Failed to delete lookup value')
+      alert(getErrorMessage(error, 'Failed to delete lookup value'))
     },
   })
 
