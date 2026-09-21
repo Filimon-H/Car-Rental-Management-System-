@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cn } from '@/lib/utils'
+import { cn, toNumber } from '@/lib/utils'
 
 describe('cn', () => {
   it('returns empty string for no args', () => {
@@ -52,5 +52,33 @@ describe('cn', () => {
 
   it('handles empty string inputs', () => {
     expect(cn('', 'px-4', '')).toBe('px-4')
+  })
+})
+
+describe('toNumber', () => {
+  it('parses the Decimal strings the API actually sends', () => {
+    // Backend Decimal fields serialise as strings even where the TS interface
+    // declares number; adding them raw produced "ETBNaN" in the ledger totals.
+    expect(toNumber('100000.00')).toBe(100000)
+    expect(toNumber('-2500.50')).toBe(-2500.5)
+  })
+
+  it('passes real numbers through untouched', () => {
+    expect(toNumber(42)).toBe(42)
+    expect(toNumber(0)).toBe(0)
+    expect(toNumber(-7.25)).toBe(-7.25)
+  })
+
+  it('treats missing and unparseable values as zero rather than NaN', () => {
+    for (const bad of [null, undefined, '', 'abc', {} as unknown as string]) {
+      expect(toNumber(bad as never)).toBe(0)
+    }
+  })
+
+  it('sums mixed strings and numbers correctly', () => {
+    const entries = [{ amount: '100000.00' }, { amount: -50000 }, { amount: '-25000.00' }]
+    const total = entries.reduce((sum, e) => sum + toNumber(e.amount), 0)
+    expect(total).toBe(25000)
+    expect(Number.isNaN(total)).toBe(false)
   })
 })

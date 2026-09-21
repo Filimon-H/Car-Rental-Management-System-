@@ -139,18 +139,18 @@ export default function DashboardPage() {
     mutationFn: () => telegramService.createLinkCode(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['me', 'telegram'] })
-      toast({ title: 'Telegram link code ready', description: 'Open the bot and send /link with the code shown on this page.' })
+      toast({ title: t('toastMsg.linkCodeReady'), description: t('toastMsg.openBotSendLink') })
     },
-    onError: () => toast({ title: 'Could not generate Telegram code', description: 'Please log in again and retry.', variant: 'destructive' }),
+    onError: () => toast({ title: t('toastMsg.couldNotGenerateCode'), description: t('toastMsg.loginAgainRetry'), variant: 'destructive' }),
   })
 
   const unlinkTelegramMutation = useMutation({
     mutationFn: () => telegramService.unlink(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['me', 'telegram'] })
-      toast({ title: 'Telegram link removed' })
+      toast({ title: t('toastMsg.linkRemoved') })
     },
-    onError: () => toast({ title: 'Could not remove Telegram link', variant: 'destructive' }),
+    onError: () => toast({ title: t('toastMsg.couldNotRemoveLink'), variant: 'destructive' }),
   })
 
   const activeLinkCode = createLinkCodeMutation.data
@@ -161,9 +161,9 @@ export default function DashboardPage() {
     if (!activeLinkCode?.code) return
     try {
       await navigator.clipboard.writeText(activeLinkCode.code)
-      toast({ title: 'Code copied', description: 'Paste it into Telegram as /link CODE.' })
+      toast({ title: t('toastMsg.codeCopied'), description: t('toastMsg.pasteIntoTelegram') })
     } catch {
-      toast({ title: 'Could not copy code', variant: 'destructive' })
+      toast({ title: t('toastMsg.couldNotCopyCode'), variant: 'destructive' })
     }
   }
 
@@ -251,7 +251,7 @@ export default function DashboardPage() {
               <p className="mt-3 text-3xl font-bold tracking-tight text-red-700">
                 {formatCurrency(stats?.revenue.outstanding_balance ?? 0)}
               </p>
-              <p className="mt-2 text-sm text-red-600">Across active &amp; overdue</p>
+              <p className="mt-2 text-sm text-red-600">{t('dashboardCards.acrossActiveOverdue')}</p>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-100 text-red-600">
               <TrendingDown className="h-5 w-5" />

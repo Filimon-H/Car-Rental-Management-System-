@@ -374,9 +374,9 @@ export default function AgreementDetailPage() {
       <div className="mb-4 border-b border-gray-200">
         <nav className="-mb-px flex gap-6">
           {[
-            { id: 'details', label: 'Details', icon: FileText },
-            { id: 'ledger', label: 'Ledger', icon: CreditCard },
-            { id: 'vehicles', label: 'Vehicles', icon: Car },
+            { id: 'details', label: t('options.details'), icon: FileText },
+            { id: 'ledger', label: t('nav.ledger'), icon: CreditCard },
+            { id: 'vehicles', label: t('nav.vehicles'), icon: Car },
           ].map((tab) => (
             <button
               key={tab.id}

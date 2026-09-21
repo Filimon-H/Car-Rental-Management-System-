@@ -369,7 +369,7 @@ export default function CollateralCreatePage() {
                 >
                   <option value="">Select relationship...</option>
                   {RELATIONSHIPS.map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
+                    <option key={r.value} value={r.value}>{t(`options.${r.value}`, r.label)}</option>
                   ))}
                 </select>
               </div>

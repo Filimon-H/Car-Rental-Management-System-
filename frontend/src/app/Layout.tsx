@@ -120,67 +120,71 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+// Labels are translation keys, resolved at render time — a module-level
+// constant cannot call t(), and holding English here left the sidebar in
+// English whatever language was selected.
 const navGroups = [
   {
-    label: 'Overview',
-    items: [{ path: '/dashboard', icon: Home, label: 'Dashboard', adminOnly: false }],
+    label: 'nav.overview',
+    items: [{ path: '/dashboard', icon: Home, label: 'nav.dashboard', adminOnly: false }],
   },
   {
-    label: 'Rentals',
+    label: 'nav.rentals',
     items: [
-      { path: '/agreements', icon: FileText, label: 'Agreements', adminOnly: false },
-      { path: '/agreements/wedding', icon: Heart, label: 'Wedding', adminOnly: false },
+      { path: '/agreements', icon: FileText, label: 'nav.agreements', adminOnly: false },
+      { path: '/agreements/wedding', icon: Heart, label: 'nav.wedding', adminOnly: false },
     ],
   },
   {
-    label: 'Fleet & People',
+    label: 'nav.fleetAndPeople',
     items: [
-      { path: '/vehicles', icon: Car, label: 'Vehicles', adminOnly: false },
-      { path: '/drivers', icon: UserCheck, label: 'Drivers', adminOnly: false },
-      { path: '/customers', icon: Users, label: 'Customers', adminOnly: false },
-      { path: '/vendors', icon: Building2, label: 'Vendors', adminOnly: false },
-      { path: '/collaterals', icon: Shield, label: 'Collaterals', adminOnly: false },
+      { path: '/vehicles', icon: Car, label: 'nav.vehicles', adminOnly: false },
+      { path: '/drivers', icon: UserCheck, label: 'nav.drivers', adminOnly: false },
+      { path: '/customers', icon: Users, label: 'nav.customers', adminOnly: false },
+      { path: '/vendors', icon: Building2, label: 'nav.vendors', adminOnly: false },
+      { path: '/collaterals', icon: Shield, label: 'nav.collaterals', adminOnly: false },
     ],
   },
   {
-    label: 'Finance & Ops',
+    label: 'nav.financeAndOps',
     items: [
-      { path: '/ledger', icon: DollarSign, label: 'Ledger', adminOnly: false },
-      { path: '/inspections', icon: ClipboardList, label: 'Inspections', adminOnly: false },
-      { path: '/admin/users', icon: UserCog, label: 'User Management', adminOnly: true },
-      { path: '/admin/lookups', icon: Settings, label: 'Admin Settings', adminOnly: true },
+      { path: '/ledger', icon: DollarSign, label: 'nav.ledger', adminOnly: false },
+      { path: '/inspections', icon: ClipboardList, label: 'nav.inspections', adminOnly: false },
+      { path: '/admin/users', icon: UserCog, label: 'nav.userManagement', adminOnly: true },
+      { path: '/admin/lookups', icon: Settings, label: 'nav.adminSettings', adminOnly: true },
     ],
   },
 ]
 
-function getPageTitle(pathname: string): string {
-  if (pathname === '/dashboard') return 'Dashboard'
-  if (pathname.startsWith('/agreements/wedding/new')) return 'New Wedding Agreement'
-  if (pathname.startsWith('/agreements/wedding')) return 'Wedding Agreements'
-  if (pathname.startsWith('/agreements/new') || pathname === '/agreements/new') return 'New Agreement'
-  if (pathname.startsWith('/agreements/') && pathname.endsWith('/print')) return 'Print Agreement'
-  if (pathname.startsWith('/agreements/')) return 'Agreement Details'
-  if (pathname === '/agreements') return 'Agreements'
-  if (pathname.startsWith('/customers/new')) return 'New Customer'
-  if (pathname.includes('/collaterals/new')) return 'New Collateral'
-  if (pathname.includes('/collaterals/') && pathname.endsWith('/edit')) return 'Edit Collateral'
-  if (pathname.includes('/collaterals/')) return 'Collateral Details'
-  if (pathname.startsWith('/customers/') && pathname.endsWith('/edit')) return 'Edit Customer'
-  if (pathname.startsWith('/customers/')) return 'Customer Details'
-  if (pathname === '/customers') return 'Customers'
-  if (pathname.startsWith('/vehicles/new') || pathname === '/vehicles/new') return 'Add Vehicle'
-  if (pathname.startsWith('/vehicles/') && pathname.endsWith('/edit')) return 'Edit Vehicle'
-  if (pathname.startsWith('/vehicles/')) return 'Vehicle Details'
-  if (pathname === '/vehicles') return 'Vehicles'
-  if (pathname === '/vendors') return 'Vendors'
-  if (pathname === '/drivers') return 'Drivers'
-  if (pathname === '/collaterals') return 'Collaterals'
-  if (pathname.startsWith('/collaterals')) return 'Collaterals'
-  if (pathname === '/ledger') return 'Ledger'
-  if (pathname === '/inspections') return 'Inspections'
-  if (pathname === '/admin/users') return 'User Management'
-  if (pathname.startsWith('/admin')) return 'Admin Settings'
-  return 'FleetOps'
+/** Returns a translation key; the caller resolves it with t(). */
+function getPageTitleKey(pathname: string): string {
+  if (pathname === '/dashboard') return 'nav.dashboard'
+  if (pathname.startsWith('/agreements/wedding/new')) return 'pageTitle.newWeddingAgreement'
+  if (pathname.startsWith('/agreements/wedding')) return 'pageTitle.weddingAgreements'
+  if (pathname.startsWith('/agreements/new') || pathname === '/agreements/new') return 'pageTitle.newAgreement'
+  if (pathname.startsWith('/agreements/') && pathname.endsWith('/print')) return 'pageTitle.printAgreement'
+  if (pathname.startsWith('/agreements/')) return 'pageTitle.agreementDetails'
+  if (pathname === '/agreements') return 'nav.agreements'
+  if (pathname.startsWith('/customers/new')) return 'pageTitle.newCustomer'
+  if (pathname.includes('/collaterals/new')) return 'pageTitle.newCollateral'
+  if (pathname.includes('/collaterals/') && pathname.endsWith('/edit')) return 'collateralDetail.editCollateral'
+  if (pathname.includes('/collaterals/')) return 'collateralDetail.title'
+  if (pathname.startsWith('/customers/') && pathname.endsWith('/edit')) return 'customerDetail.editCustomer'
+  if (pathname.startsWith('/customers/')) return 'customerDetail.title'
+  if (pathname === '/customers') return 'nav.customers'
+  if (pathname.startsWith('/vehicles/new') || pathname === '/vehicles/new') return 'pageTitle.addVehicle'
+  if (pathname.startsWith('/vehicles/') && pathname.endsWith('/edit')) return 'pageTitle.editVehicle'
+  if (pathname.startsWith('/vehicles/')) return 'pageTitle.vehicleDetails'
+  if (pathname === '/vehicles') return 'nav.vehicles'
+  if (pathname === '/vendors') return 'nav.vendors'
+  if (pathname === '/drivers') return 'nav.drivers'
+  if (pathname === '/collaterals') return 'nav.collaterals'
+  if (pathname.startsWith('/collaterals')) return 'nav.collaterals'
+  if (pathname === '/ledger') return 'nav.ledger'
+  if (pathname === '/inspections') return 'nav.inspections'
+  if (pathname === '/admin/users') return 'nav.userManagement'
+  if (pathname.startsWith('/admin')) return 'nav.adminSettings'
+  return 'brand.fleetOps'
 }
 
 function UserAvatar({ name }: { name: string }) {
@@ -231,7 +235,7 @@ export default function Layout() {
   ]
 
   const currentLang = languages.find((item) => item.code === i18n.language) || languages[0]
-  const pageTitle = getPageTitle(location.pathname)
+  const pageTitle = t(getPageTitleKey(location.pathname))
   const todayLabel = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     month: 'short',
@@ -309,7 +313,7 @@ export default function Layout() {
               }`}
             >
               <FileText className="h-4 w-4" />
-              New Agreement
+              {t('nav.newAgreement')}
             </button>
           ) : (
             <button
@@ -318,7 +322,7 @@ export default function Layout() {
               className={`flex w-full items-center justify-center rounded-xl px-3 py-2.5 text-white ${
                 isDark ? 'bg-orange-brand' : 'bg-primary'
               }`}
-              title="New Agreement"
+              title={t('nav.newAgreement')}
             >
               <FileText className="h-4 w-4" />
             </button>
@@ -335,7 +339,7 @@ export default function Layout() {
             <div key={group.label} className="mb-4">
               {sidebarOpen && (
                 <p className={`mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] ${isDark ? 'text-night-subtle/60' : 'text-slate-500'}`}>
-                  {group.label}
+                  {t(group.label)}
                 </p>
               )}
               <div className="space-y-1">
@@ -344,7 +348,7 @@ export default function Layout() {
                     key={item.path}
                     to={item.path}
                     onClick={handleNavClick}
-                    title={!sidebarOpen ? item.label : undefined}
+                    title={!sidebarOpen ? t(item.label) : undefined}
                     className={({ isActive }) =>
                       `flex items-center rounded-xl transition-colors ${
                         sidebarOpen ? 'gap-3 px-3 py-2.5' : 'justify-center px-2 py-3'
@@ -362,7 +366,7 @@ export default function Layout() {
                     <item.icon className="h-[18px] w-[18px] flex-shrink-0" />
                     {sidebarOpen && (
                       <span className="truncate text-sm font-medium">
-                        {t(`nav.${item.label.toLowerCase().replace(/\s+/g, '')}`, item.label)}
+                        {t(item.label)}
                       </span>
                     )}
                   </NavLink>

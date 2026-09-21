@@ -8,6 +8,30 @@ import { vendorsService, Vendor } from '@/services/vendors'
 import { lookupsService } from '@/services/lookups'
 import { getErrorMessage } from '@/services/apiClient'
 
+/**
+ * Translate a built-in option label, leaving unknown ones untouched.
+ *
+ * Option lists are module-level constants that cannot call t(), and some
+ * values come from the lookups API at runtime. Passing the label through a
+ * key map translates the fixed set and leaves DB-driven values alone.
+ */
+const OPTION_KEYS: Record<string, string> = {
+  Daily: 'options.daily',
+  Temporary: 'options.temporary',
+  Other: 'options.other',
+  Business: 'options.business',
+  Field: 'options.field',
+  WEDDING: 'options.wedding',
+  LUXURY: 'options.luxuryCaps',
+  OTHER: 'options.otherCaps',
+  Benzin: 'options.benzin',
+  Disel: 'options.disel',
+  Electric: 'options.electric',
+  Hybrid: 'options.hybrid',
+  'Natural Gas': 'options.naturalGas',
+}
+
+
 const PLATE_CODE_OPTIONS: LookupValue[] = [
   { value: '01', label: '01' },
   { value: '02', label: '02' },
@@ -107,6 +131,7 @@ const MAKE_OPTIONS = [
 export default function VehicleUpsertPage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const optLabel = (label: string) => (OPTION_KEYS[label] ? t(OPTION_KEYS[label]) : label)
   const queryClient = useQueryClient()
   const { vehicleId } = useParams<{ vehicleId: string }>()
   const vehicleIdNum = vehicleId ? parseInt(vehicleId, 10) : null
@@ -445,7 +470,7 @@ export default function VehicleUpsertPage() {
                     className="w-full rounded-lg border px-3 py-2"
                   >
                     {plateCodeOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>{optLabel(o.label)}</option>
                     ))}
                   </select>
                 </div>
@@ -488,7 +513,7 @@ export default function VehicleUpsertPage() {
                   >
                     <option value="">{t('vehicleUpsert.selectModel')}</option>
                     {modelOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>{optLabel(o.label)}</option>
                     ))}
                   </select>
                 </div>
@@ -543,7 +568,7 @@ export default function VehicleUpsertPage() {
                     className="w-full rounded-lg border px-3 py-2"
                   >
                     {vehicleTypeOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>{optLabel(o.label)}</option>
                     ))}
                   </select>
                 </div>
@@ -555,7 +580,7 @@ export default function VehicleUpsertPage() {
                     className="w-full rounded-lg border px-3 py-2"
                   >
                     {serviceTypeOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>{optLabel(o.label)}</option>
                     ))}
                   </select>
                 </div>
@@ -570,7 +595,7 @@ export default function VehicleUpsertPage() {
                     className="w-full rounded-lg border px-3 py-2"
                   >
                     {conditionOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>{optLabel(o.label)}</option>
                     ))}
                   </select>
                 </div>
@@ -582,7 +607,7 @@ export default function VehicleUpsertPage() {
                     className="w-full rounded-lg border px-3 py-2"
                   >
                     {fuelTypeOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>{optLabel(o.label)}</option>
                     ))}
                   </select>
                 </div>

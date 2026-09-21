@@ -11,19 +11,22 @@ import { Button } from '@/components/ui/Button'
 import { useToast } from '@/hooks/use-toast'
 import customersService, { CustomerLedgerEntry } from '@/services/customers'
 import vendorsService from '@/services/vendors'
+import { toNumber } from '@/lib/utils'
+
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 
+// Translation keys, resolved where they are rendered.
 const TYPE_LABELS: Record<string, string> = {
-  charge: 'Rental Charge',
-  payment: 'Payment',
-  deposit: 'Deposit Received',
-  deposit_applied: 'Deposit Applied',
-  deposit_return: 'Deposit Return',
-  adjustment: 'Adjustment',
-  reversal: 'Reversal',
-  damage_charge: 'Damage Charge',
-  late_fee: 'Late Fee',
+  charge: 'entryType.rentalCharge',
+  payment: 'entryType.payment',
+  deposit: 'entryType.depositReceived',
+  deposit_applied: 'entryType.depositApplied',
+  deposit_return: 'entryType.depositReturn',
+  adjustment: 'entryType.adjustment',
+  reversal: 'entryType.reversal',
+  damage_charge: 'entryType.damageCharge',
+  late_fee: 'entryType.lateFee',
 }
 
 const TYPE_BADGE: Record<string, string> = {
@@ -199,10 +202,10 @@ function CustomersTab() {
   }
 
   // Totals across all entries
-  const totalCharged = entries?.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0) ?? 0
-  const totalPaid = entries?.filter(e => e.entry_type === 'payment').reduce((s, e) => s + Math.abs(e.amount), 0) ?? 0
-  const totalDeposits = entries?.filter(e => e.entry_type === 'deposit').reduce((s, e) => s + Math.abs(e.amount), 0) ?? 0
-  const balance = entries?.reduce((s, e) => s + e.amount, 0) ?? 0
+  const totalCharged = entries?.filter(e => toNumber(e.amount) > 0).reduce((s, e) => s + toNumber(e.amount), 0) ?? 0
+  const totalPaid = entries?.filter(e => e.entry_type === 'payment').reduce((s, e) => s + Math.abs(toNumber(e.amount)), 0) ?? 0
+  const totalDeposits = entries?.filter(e => e.entry_type === 'deposit').reduce((s, e) => s + Math.abs(toNumber(e.amount)), 0) ?? 0
+  const balance = entries?.reduce((s, e) => s + toNumber(e.amount), 0) ?? 0
 
   const isReversed = (id: number) => entries?.some(e => e.reversed_entry_id === id) ?? false
 
@@ -287,7 +290,7 @@ function CustomersTab() {
                 <SummaryCard label="Total Paid" value={fmt(totalPaid)} color="green" />
                 <SummaryCard label="Deposit Held" value={fmt(totalDeposits)} color="blue" />
                 <SummaryCard
-                  label={balance > 0 ? 'Balance Due' : balance < 0 ? 'Overpaid' : 'Settled'}
+                  label={balance > 0 ? t('ledger.balanceDue') : balance < 0 ? t('ledger.overpaid') : t('ledger.settled')}
                   value={fmt(balance)}
                   color={balance > 0 ? 'orange' : balance < 0 ? 'teal' : 'gray'}
                 />
@@ -303,9 +306,9 @@ function CustomersTab() {
 
             {Object.entries(grouped).map(([agrNum, agrEntries]) => {
               const expanded = expandedAgreements.has(agrNum)
-              const agrCharged = agrEntries.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0)
-              const agrPaid = agrEntries.filter(e => e.entry_type === 'payment').reduce((s, e) => s + Math.abs(e.amount), 0)
-              const agrBalance = agrEntries.reduce((s, e) => s + e.amount, 0)
+              const agrCharged = agrEntries.filter(e => toNumber(e.amount) > 0).reduce((s, e) => s + toNumber(e.amount), 0)
+              const agrPaid = agrEntries.filter(e => e.entry_type === 'payment').reduce((s, e) => s + Math.abs(toNumber(e.amount)), 0)
+              const agrBalance = agrEntries.reduce((s, e) => s + toNumber(e.amount), 0)
 
               return (
                 <div key={agrNum} className="overflow-hidden rounded-lg bg-white shadow">
@@ -325,7 +328,7 @@ function CustomersTab() {
                       <span className="text-red-600">Charged: <strong>{fmt(agrCharged)}</strong></span>
                       <span className="text-green-600">Paid: <strong>{fmt(agrPaid)}</strong></span>
                       <span className={`font-bold ${agrBalance > 0 ? 'text-orange-600' : agrBalance < 0 ? 'text-teal-600' : 'text-gray-500'}`}>
-                        {agrBalance > 0 ? 'Owes' : agrBalance < 0 ? 'Overpaid' : 'Settled'}: {fmt(agrBalance)}
+                        {agrBalance > 0 ? t('ledger.owes') : agrBalance < 0 ? t('ledger.overpaid') : t('ledger.settled')}: {fmt(agrBalance)}
                       </span>
                     </div>
                   </button>
@@ -349,7 +352,7 @@ function CustomersTab() {
                           {(() => {
                             let running = 0
                             return agrEntries.map((e, i) => {
-                              running += e.amount
+                              running += toNumber(e.amount)
                               const reversed = isReversed(e.id)
                               return (
                                 <tr key={e.id} className={`${e.entry_type === 'reversal' ? 'bg-amber-50' : 'hover:bg-gray-50'} ${reversed ? 'opacity-50' : ''}`}>
@@ -360,7 +363,7 @@ function CustomersTab() {
                                   </td>
                                   <td className="whitespace-nowrap px-4 py-2.5">
                                     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_BADGE[e.entry_type] ?? 'bg-gray-100 text-gray-700'} ${reversed ? 'line-through opacity-70' : ''}`}>
-                                      {TYPE_LABELS[e.entry_type] ?? e.entry_type}
+                                      {TYPE_LABELS[e.entry_type] ? t(TYPE_LABELS[e.entry_type]) : e.entry_type}
                                     </span>
                                     {reversed && <span className="ml-1 inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500"><RotateCcw className="h-2.5 w-2.5" />rev</span>}
                                   </td>
@@ -369,10 +372,10 @@ function CustomersTab() {
                                     {e.payment_method && <p className="text-xs text-gray-500">{PAYMENT_LABELS[e.payment_method] ?? e.payment_method}{e.payment_reference && ` · Ref: ${e.payment_reference}`}</p>}
                                   </td>
                                   <td className="whitespace-nowrap px-4 py-2.5 text-right">
-                                    {e.amount > 0 ? <span className="font-semibold text-red-600">{fmt(e.amount)}</span> : <span className="text-gray-300">—</span>}
+                                    {toNumber(e.amount) > 0 ? <span className="font-semibold text-red-600">{fmt(e.amount)}</span> : <span className="text-gray-300">—</span>}
                                   </td>
                                   <td className="whitespace-nowrap px-4 py-2.5 text-right">
-                                    {e.amount < 0 ? <span className="font-semibold text-green-600">{fmt(e.amount)}</span> : <span className="text-gray-300">—</span>}
+                                    {toNumber(e.amount) < 0 ? <span className="font-semibold text-green-600">{fmt(e.amount)}</span> : <span className="text-gray-300">—</span>}
                                   </td>
                                   <td className="whitespace-nowrap px-4 py-2.5 text-right">
                                     <span className={`font-bold ${running > 0 ? 'text-red-700' : running < 0 ? 'text-teal-600' : 'text-gray-500'}`}>{fmt(running)}</span>
@@ -434,12 +437,15 @@ function AgreementsTab() {
     },
   })
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB' }).format(amount)
+  const formatCurrency = (amount: number | string) =>
+    new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB' }).format(toNumber(amount))
 
+  // Decimal fields arrive from the API as JSON strings despite being typed
+  // number, so `prevBalance + entry.amount` concatenated instead of adding and
+  // the running balance rendered as "ETBNaN". Coerce at the boundary.
   const entriesWithBalance = ledgerEntries?.reduce((acc, entry, index) => {
     const prevBalance = index > 0 ? acc[index - 1].runningBalance : 0
-    const runningBalance = prevBalance + entry.amount
+    const runningBalance = prevBalance + toNumber(entry.amount)
     return [...acc, { ...entry, runningBalance }]
   }, [] as (LedgerEntry & { runningBalance: number })[])
 
@@ -449,9 +455,9 @@ function AgreementsTab() {
       a.customer_name.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const totalCharges = entriesWithBalance?.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0) ?? 0
-  const totalPayments = entriesWithBalance?.filter(e => e.amount < 0 && e.entry_type === 'payment').reduce((s, e) => s + Math.abs(e.amount), 0) ?? 0
-  const depositHeld = entriesWithBalance?.filter(e => e.entry_type === 'deposit').reduce((s, e) => s + Math.abs(e.amount), 0) ?? 0
+  const totalCharges = entriesWithBalance?.filter(e => toNumber(e.amount) > 0).reduce((s, e) => s + toNumber(e.amount), 0) ?? 0
+  const totalPayments = entriesWithBalance?.filter(e => toNumber(e.amount) < 0 && e.entry_type === 'payment').reduce((s, e) => s + Math.abs(toNumber(e.amount)), 0) ?? 0
+  const depositHeld = entriesWithBalance?.filter(e => e.entry_type === 'deposit').reduce((s, e) => s + Math.abs(toNumber(e.amount)), 0) ?? 0
   const currentBalance = entriesWithBalance?.[entriesWithBalance.length - 1]?.runningBalance ?? 0
 
   const isReversible = (entry: LedgerEntry) =>
@@ -511,7 +517,7 @@ function AgreementsTab() {
               <SummaryCard label="Total Paid" value={formatCurrency(totalPayments)} color="green" />
               <SummaryCard label="Deposit Held" value={formatCurrency(depositHeld)} color="blue" />
               <SummaryCard
-                label={currentBalance > 0 ? 'Balance Due' : currentBalance < 0 ? 'Overpaid' : 'Settled'}
+                label={currentBalance > 0 ? t('ledger.balanceDue') : currentBalance < 0 ? t('ledger.overpaid') : t('ledger.settled')}
                 value={formatCurrency(Math.abs(currentBalance))}
                 color={currentBalance > 0 ? 'orange' : currentBalance < 0 ? 'teal' : 'gray'}
               />
@@ -551,7 +557,7 @@ function AgreementsTab() {
                           </td>
                           <td className="whitespace-nowrap px-5 py-3">
                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_BADGE[entry.entry_type] ?? 'bg-gray-100 text-gray-700'} ${reversed ? 'line-through opacity-70' : ''}`}>
-                              {TYPE_LABELS[entry.entry_type] ?? entry.entry_type}
+                              {TYPE_LABELS[entry.entry_type] ? t(TYPE_LABELS[entry.entry_type]) : entry.entry_type}
                             </span>
                             {reversed && <span className="ml-1.5 inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500"><RotateCcw className="h-2.5 w-2.5" />reversed</span>}
                           </td>
@@ -634,7 +640,7 @@ function VendorsTab() {
     enabled: !!selectedVendor,
   })
 
-  const totalPaid = payments?.reduce((s, p) => s + p.amount, 0) ?? 0
+  const totalPaid = payments?.reduce((s, p) => s + toNumber(p.amount), 0) ?? 0
 
   const vendorName = (v: { company_name: string | null; contact_person: string | null }) =>
     v.company_name || v.contact_person || 'Unknown'
@@ -912,27 +918,27 @@ export default function LedgerPage() {
   const tabs: { id: Tab; label: string; icon: React.ReactNode; desc: string }[] = [
     {
       id: 'customers',
-      label: 'By Customer',
+      label: t('ledger.byCustomer'),
       icon: <Users className="h-4 w-4" />,
-      desc: 'All transactions for a person across agreements',
+      desc: t('ledger.byCustomerDesc'),
     },
     {
       id: 'agreements',
-      label: 'By Agreement',
+      label: t('ledger.byAgreement'),
       icon: <DollarSign className="h-4 w-4" />,
-      desc: 'Drill into a single agreement ledger',
+      desc: t('ledger.byAgreementDesc'),
     },
     {
       id: 'vendors',
-      label: 'Vendors',
+      label: t('ledger.vendorsTab'),
       icon: <Truck className="h-4 w-4" />,
-      desc: 'Payments made to external car suppliers',
+      desc: t('ledger.vendorsDesc'),
     },
     {
       id: 'summary',
-      label: 'Financial Summary',
+      label: t('ledger.financialSummary'),
       icon: <BarChart2 className="h-4 w-4" />,
-      desc: 'Daily / monthly / yearly totals',
+      desc: t('ledger.summaryDesc'),
     },
   ]
 

@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Banknote,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface TypeMeta {
   label: string
@@ -18,47 +19,47 @@ interface TypeMeta {
 
 const TYPE_META: Record<string, TypeMeta> = {
   charge: {
-    label: 'Rental Charge',
+    label: 'entryType.rentalCharge',
     badge: 'bg-red-100 text-red-800 border border-red-200',
     icon: <ArrowUpCircle className="h-3.5 w-3.5" />,
   },
   deposit: {
-    label: 'Deposit Received',
+    label: 'entryType.depositReceived',
     badge: 'bg-blue-100 text-blue-800 border border-blue-200',
     icon: <Shield className="h-3.5 w-3.5" />,
   },
   deposit_applied: {
-    label: 'Deposit Applied',
+    label: 'entryType.depositApplied',
     badge: 'bg-indigo-100 text-indigo-800 border border-indigo-200',
     icon: <Shield className="h-3.5 w-3.5" />,
   },
   deposit_return: {
-    label: 'Deposit Return',
+    label: 'entryType.depositReturn',
     badge: 'bg-teal-100 text-teal-800 border border-teal-200',
     icon: <RefreshCw className="h-3.5 w-3.5" />,
   },
   payment: {
-    label: 'Payment',
+    label: 'entryType.payment',
     badge: 'bg-green-100 text-green-800 border border-green-200',
     icon: <ArrowDownCircle className="h-3.5 w-3.5" />,
   },
   adjustment: {
-    label: 'Adjustment',
+    label: 'entryType.adjustment',
     badge: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
     icon: <RefreshCw className="h-3.5 w-3.5" />,
   },
   reversal: {
-    label: 'Reversal',
+    label: 'entryType.reversal',
     badge: 'bg-amber-100 text-amber-800 border border-amber-200',
     icon: <RotateCcw className="h-3.5 w-3.5" />,
   },
   damage_charge: {
-    label: 'Damage Charge',
+    label: 'entryType.damageCharge',
     badge: 'bg-red-200 text-red-900 border border-red-300',
     icon: <AlertCircle className="h-3.5 w-3.5" />,
   },
   late_fee: {
-    label: 'Late Fee',
+    label: 'entryType.lateFee',
     badge: 'bg-orange-100 text-orange-800 border border-orange-200',
     icon: <AlertCircle className="h-3.5 w-3.5" />,
   },
@@ -77,6 +78,7 @@ interface LedgerTableProps {
 }
 
 export default function LedgerTable({ agreementId }: LedgerTableProps) {
+  const { t } = useTranslation()
   const { data: entries, isLoading, error } = useQuery({
     queryKey: ['ledger', agreementId],
     queryFn: () => agreementsService.getLedger(agreementId),
@@ -233,7 +235,7 @@ export default function LedgerTable({ agreementId }: LedgerTableProps) {
                       }`}
                     >
                       {meta.icon}
-                      {meta.label}
+                      {t(meta.label)}
                     </span>
                     {reversed && (
                       <span className="ml-1.5 inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">

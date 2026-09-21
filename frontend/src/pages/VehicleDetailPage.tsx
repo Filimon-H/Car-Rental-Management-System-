@@ -57,10 +57,10 @@ export default function VehicleDetailPage() {
   const insuranceExpiry = vehicle.insurance_expiry ? vehicle.insurance_expiry.split('T')[0] : null
 
   const photos = [
-    { key: 'front', label: 'Front View', path: vehicle.photo_front },
-    { key: 'back', label: 'Back View', path: vehicle.photo_back },
-    { key: 'left', label: 'Left View', path: vehicle.photo_left },
-    { key: 'right', label: 'Right View', path: vehicle.photo_right },
+    { key: 'front', label: t('options.frontView'), path: vehicle.photo_front },
+    { key: 'back', label: t('options.backView'), path: vehicle.photo_back },
+    { key: 'left', label: t('options.leftView'), path: vehicle.photo_left },
+    { key: 'right', label: t('options.rightView'), path: vehicle.photo_right },
   ]
 
   return (
