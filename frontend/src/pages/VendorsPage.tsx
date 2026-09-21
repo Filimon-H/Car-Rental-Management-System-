@@ -30,6 +30,7 @@ function fmt(n: number) {
 // ---------------------------------------------------------------------------
 
 function VendorDetailPanel({ vendor, onClose, onEdit }: { vendor: Vendor; onClose: () => void; onEdit: () => void }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [tab, setTab] = useState<'summary' | 'payments'>('summary')
   const [showPaymentForm, setShowPaymentForm] = useState(false)
@@ -84,7 +85,7 @@ function VendorDetailPanel({ vendor, onClose, onEdit }: { vendor: Vendor; onClos
               onClick={onEdit}
               className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
-              <Edit className="h-3.5 w-3.5" /> Edit
+              <Edit className="h-3.5 w-3.5" /> {t('common.edit')}
             </button>
             <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
               <X className="h-4 w-4" />
@@ -117,31 +118,31 @@ function VendorDetailPanel({ vendor, onClose, onEdit }: { vendor: Vendor; onClos
             ) : summary ? (
               <div className="space-y-4">
                 <div className="rounded-xl bg-slate-50 p-4 text-sm">
-                  <div className="mb-1 font-medium text-slate-700">Commission Rate</div>
+                  <div className="mb-1 font-medium text-slate-700">{t('ledger.commissionRate')}</div>
                   <div className="text-2xl font-bold text-primary">{Number(summary.commission_rate).toFixed(1)}%</div>
                   <div className="mt-0.5 text-xs text-slate-400">of rental revenue paid to this vendor</div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-slate-100 p-3">
-                    <div className="text-xs text-slate-400">Earned (closed)</div>
+                    <div className="text-xs text-slate-400">{t('ledger.earnedClosed')}</div>
                     <div className="mt-1 font-bold text-slate-800">{fmt(summary.earned_amount)}</div>
                   </div>
                   <div className="rounded-xl border border-slate-100 p-3">
-                    <div className="text-xs text-slate-400">Reserved (active)</div>
+                    <div className="text-xs text-slate-400">{t('ledger.reservedActive')}</div>
                     <div className="mt-1 font-bold text-slate-800">{fmt(summary.reserved_amount)}</div>
                   </div>
                   <div className="rounded-xl border border-slate-100 p-3">
-                    <div className="text-xs text-slate-400">Total Paid Out</div>
+                    <div className="text-xs text-slate-400">{t('ledger.totalPaidOut')}</div>
                     <div className="mt-1 font-bold text-green-600">{fmt(summary.paid_amount)}</div>
                   </div>
                   <div className="rounded-xl border border-red-50 bg-red-50 p-3">
-                    <div className="text-xs text-red-400">Outstanding Owed</div>
+                    <div className="text-xs text-red-400">{t('ledger.outstandingOwed')}</div>
                     <div className="mt-1 font-bold text-red-600">{fmt(summary.outstanding_payable)}</div>
                   </div>
                 </div>
                 {summary.agreements.length > 0 && (
                   <div>
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Agreements</div>
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{t('agreements.title')}</div>
                     <div className="space-y-1.5">
                       {summary.agreements.map((a) => (
                         <div key={a.agreement_id} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm">
@@ -167,15 +168,15 @@ function VendorDetailPanel({ vendor, onClose, onEdit }: { vendor: Vendor; onClos
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary/90"
               >
                 <Plus className="h-4 w-4" />
-                Record Payment
+                {t('ledger.recordPayment')}
               </button>
 
               {showPaymentForm && (
                 <div className="rounded-xl border border-slate-100 p-4">
-                  <div className="mb-3 font-medium text-slate-800">New Payment</div>
+                  <div className="mb-3 font-medium text-slate-800">{t('ledger.newPayment')}</div>
                   <div className="space-y-3">
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">Amount (ETB)</label>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">{t('ledger.amountEtb')}</label>
                       <input
                         type="number"
                         min="1"
@@ -186,7 +187,7 @@ function VendorDetailPanel({ vendor, onClose, onEdit }: { vendor: Vendor; onClos
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">Payment Method</label>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">{t('ledger.paymentMethod')}</label>
                       <select
                         value={payForm.payment_method}
                         onChange={(e) => setPayForm({ ...payForm, payment_method: e.target.value })}
@@ -198,7 +199,7 @@ function VendorDetailPanel({ vendor, onClose, onEdit }: { vendor: Vendor; onClos
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">Reference (optional)</label>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">{t('ledger.referenceOptional')}</label>
                       <input
                         type="text"
                         value={payForm.payment_reference || ''}
@@ -208,7 +209,7 @@ function VendorDetailPanel({ vendor, onClose, onEdit }: { vendor: Vendor; onClos
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">Notes (optional)</label>
+                      <label className="mb-1 block text-xs font-medium text-slate-600">{t('ledger.notesOptional')}</label>
                       <input
                         type="text"
                         value={payForm.notes || ''}
@@ -222,7 +223,7 @@ function VendorDetailPanel({ vendor, onClose, onEdit }: { vendor: Vendor; onClos
                         onClick={() => setShowPaymentForm(false)}
                         className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
                       >
-                        Cancel
+                        {t('common.cancel')}
                       </button>
                       <button
                         onClick={() => payMutation.mutate(payForm)}
@@ -240,7 +241,7 @@ function VendorDetailPanel({ vendor, onClose, onEdit }: { vendor: Vendor; onClos
                 <div className="flex h-24 items-center justify-center text-slate-400 text-sm">Loading…</div>
               ) : payments?.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
-                  No payments recorded yet
+                  {t('ledger.noPaymentsRecorded')}
                 </div>
               ) : (
                 <div className="space-y-2">

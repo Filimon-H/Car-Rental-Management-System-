@@ -69,12 +69,13 @@ function ReverseModal({
   onConfirm: (reason: string) => void
   isLoading: boolean
 }) {
+  const { t } = useTranslation()
   const [reason, setReason] = useState('')
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Reverse Ledger Entry</h3>
+          <h3 className="text-lg font-semibold text-gray-900">{t('ledger.reverseLedgerEntry')}</h3>
           <button onClick={onClose} className="rounded-md p-1 text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
@@ -85,7 +86,7 @@ function ReverseModal({
         </div>
         <div className="mb-4">
           <label className="mb-1 block text-sm font-medium text-gray-700">
-            Reason <span className="text-red-500">*</span>
+            {t('ledger.reason')}<span className="text-red-500">*</span>
           </label>
           <textarea
             value={reason}
@@ -97,7 +98,7 @@ function ReverseModal({
         </div>
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={() => onConfirm(reason)}
@@ -153,6 +154,7 @@ function SummaryCard({ label, value, color, sub }: {
 // ─── Tab: Customers ────────────────────────────────────────────────────────────
 
 function CustomersTab() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: number; name: string } | null>(null)
@@ -210,7 +212,7 @@ function CustomersTab() {
       <div className="lg:col-span-1">
         <div className="rounded-lg bg-white shadow">
           <div className="border-b px-4 py-3">
-            <h2 className="font-semibold text-gray-700">Select Customer</h2>
+            <h2 className="font-semibold text-gray-700">{t('ledger.selectCustomer')}</h2>
           </div>
           <div className="p-4">
             <div className="relative mb-3">
@@ -240,10 +242,10 @@ function CustomersTab() {
                 </button>
               ))}
               {search.length >= 1 && !customers?.length && (
-                <p className="py-4 text-center text-xs text-gray-500">No customers found</p>
+                <p className="py-4 text-center text-xs text-gray-500">{t('customers.empty')}</p>
               )}
               {search.length === 0 && (
-                <p className="py-4 text-center text-xs text-gray-500">Start typing to search</p>
+                <p className="py-4 text-center text-xs text-gray-500">{t('ledger.startTypingToSearch')}</p>
               )}
             </div>
           </div>
@@ -256,7 +258,7 @@ function CustomersTab() {
           <div className="flex h-64 items-center justify-center rounded-lg bg-white shadow">
             <div className="text-center text-gray-500">
               <Users className="mx-auto mb-2 h-12 w-12 opacity-30" />
-              <p>Search for a customer to view their ledger</p>
+              <p>{t('ledger.searchCustomerLedger')}</p>
             </div>
           </div>
         ) : isLoading ? (
@@ -295,7 +297,7 @@ function CustomersTab() {
             {/* Grouped by agreement */}
             {Object.keys(grouped).length === 0 && (
               <div className="rounded-lg border border-dashed border-gray-200 bg-white py-12 text-center text-gray-500">
-                No ledger entries for this customer
+                {t('ledger.noLedgerEntriesForCustomer')}
               </div>
             )}
 
@@ -335,12 +337,12 @@ function CustomersTab() {
                         <thead className="bg-gray-50">
                           <tr>
                             <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-400">#</th>
-                            <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Date</th>
-                            <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Type</th>
-                            <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Description</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide text-red-500">Debit</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide text-green-600">Credit</th>
-                            <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Balance</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{t('ledger.date')}</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{t('sections.type')}</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{t('sections.description')}</th>
+                            <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide text-red-500">{t('ledger.debit')}</th>
+                            <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide text-green-600">{t('ledger.credit')}</th>
+                            <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">{t('ledger.balance')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -406,6 +408,7 @@ function CustomersTab() {
 // ─── Tab: Per-Agreement (original) ────────────────────────────────────────────
 
 function AgreementsTab() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedAgreement, setSelectedAgreement] = useState<number | null>(null)
@@ -462,7 +465,7 @@ function AgreementsTab() {
       <div className="lg:col-span-1">
         <div className="rounded-lg bg-white shadow">
           <div className="border-b px-4 py-3">
-            <h2 className="font-semibold text-gray-700">Select Agreement</h2>
+            <h2 className="font-semibold text-gray-700">{t('ledger.selectAgreement')}</h2>
           </div>
           <div className="p-4">
             <div className="relative mb-4">
@@ -498,7 +501,7 @@ function AgreementsTab() {
           <div className="flex h-64 items-center justify-center rounded-lg bg-white shadow">
             <div className="text-center text-gray-500">
               <Filter className="mx-auto mb-2 h-12 w-12 opacity-30" />
-              <p>Select an agreement to view ledger</p>
+              <p>{t('ledger.selectAgreementToView')}</p>
             </div>
           </div>
         ) : (
@@ -516,7 +519,7 @@ function AgreementsTab() {
 
             <div className="rounded-lg bg-white shadow">
               <div className="border-b px-6 py-4">
-                <h2 className="font-semibold text-gray-700">Ledger Entries</h2>
+                <h2 className="font-semibold text-gray-700">{t('ledger.ledgerEntries')}</h2>
               </div>
               {isLoading ? (
                 <div className="flex h-32 items-center justify-center">
@@ -527,13 +530,13 @@ function AgreementsTab() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="w-8 px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-400">#</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Date / Time</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Type</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Description</th>
-                      <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-red-500">Debit</th>
-                      <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-green-600">Credit</th>
-                      <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Balance</th>
-                      <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400">Actions</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">{t('ledger.dateTime')}</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">{t('sections.type')}</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">{t('sections.description')}</th>
+                      <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-red-500">{t('ledger.debit')}</th>
+                      <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-green-600">{t('ledger.credit')}</th>
+                      <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">{t('ledger.balance')}</th>
+                      <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-400">{t('common.actions')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
@@ -566,7 +569,7 @@ function AgreementsTab() {
                           <td className="whitespace-nowrap px-5 py-3 text-right">
                             {isReversible(entry) && (
                               <button onClick={() => setReversingEntry(entry)} className="inline-flex items-center gap-1 rounded-md border border-amber-300 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50">
-                                <RotateCcw className="h-3 w-3" />Reverse
+                                <RotateCcw className="h-3 w-3" />{t('ledger.reverse')}
                               </button>
                             )}
                           </td>
@@ -574,7 +577,7 @@ function AgreementsTab() {
                       )
                     })}
                     {(!entriesWithBalance || entriesWithBalance.length === 0) && (
-                      <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-500">No ledger entries found</td></tr>
+                      <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-500">{t('ledger.noLedgerEntriesFound')}</td></tr>
                     )}
                   </tbody>
                   {entriesWithBalance && entriesWithBalance.length > 0 && (
@@ -610,6 +613,7 @@ function AgreementsTab() {
 // ─── Tab: Vendors ──────────────────────────────────────────────────────────────
 
 function VendorsTab() {
+  const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [selectedVendor, setSelectedVendor] = useState<{ id: number; name: string } | null>(null)
 
@@ -641,14 +645,14 @@ function VendorsTab() {
       <div className="lg:col-span-1">
         <div className="rounded-lg bg-white shadow">
           <div className="border-b px-4 py-3">
-            <h2 className="font-semibold text-gray-700">Select Vendor</h2>
+            <h2 className="font-semibold text-gray-700">{t('ledger.selectVendor')}</h2>
           </div>
           <div className="p-4">
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search vendors..."
+                placeholder={t('vehicleUpsert.searchVendors')}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="w-full rounded-lg border py-2 pl-10 pr-4 text-sm"
@@ -720,16 +724,16 @@ function VendorsTab() {
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-purple-500 border-t-transparent" />
                 </div>
               ) : !payments?.length ? (
-                <div className="py-10 text-center text-gray-500">No payments recorded yet</div>
+                <div className="py-10 text-center text-gray-500">{t('ledger.noPaymentsRecorded')}</div>
               ) : (
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Date</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Agreement</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Method</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</th>
-                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-purple-600">Amount Paid Out</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{t('ledger.date')}</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{t('customerCreate.agreement')}</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{t('ledger.method')}</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{t('agreementCreate.notes')}</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-purple-600">{t('ledger.amountPaidOut')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -778,6 +782,7 @@ function VendorsTab() {
 // ─── Tab: Financial Summary ────────────────────────────────────────────────────
 
 function SummaryTab() {
+  const { t } = useTranslation()
   const [granularity, setGranularity] = useState<'daily' | 'monthly' | 'yearly'>('monthly')
 
   const { data: periods, isLoading } = useQuery({
@@ -797,8 +802,8 @@ function SummaryTab() {
       {/* Controls */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-semibold text-gray-800">Financial Summary</h3>
-          <p className="text-xs text-gray-500">Revenue and payouts aggregated by period</p>
+          <h3 className="font-semibold text-gray-800">{t('sections.financialSummary')}</h3>
+          <p className="text-xs text-gray-500">{t('ledger.revenueAggregated')}</p>
         </div>
         <div className="flex items-center gap-1 rounded-lg border bg-white p-1 shadow-sm">
           {(['daily', 'monthly', 'yearly'] as const).map(g => (
@@ -835,17 +840,17 @@ function SummaryTab() {
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
           </div>
         ) : !periods?.length ? (
-          <div className="py-12 text-center text-gray-500">No data available</div>
+          <div className="py-12 text-center text-gray-500">{t('dashboardCards.noDataAvailable')}</div>
         ) : (
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{GRAN_LABELS[granularity]}</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-red-500">Charged</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-green-600">Collected</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-blue-500">Deposits</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-purple-600">Vendor Paid</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-teal-600">Net Revenue</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-red-500">{t('ledger.charged')}</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-green-600">{t('ledger.collected')}</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-blue-500">{t('ledger.deposits')}</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-purple-600">{t('ledger.vendorPaid')}</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-teal-600">{t('ledger.netRevenue')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -864,7 +869,7 @@ function SummaryTab() {
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-gray-300 bg-gray-50">
-                <td className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Grand Total</td>
+                <td className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">{t('ledger.grandTotal')}</td>
                 <td className="px-5 py-3 text-right text-sm font-bold text-red-700">{fmt(grandTotalCharged)}</td>
                 <td className="px-5 py-3 text-right text-sm font-bold text-green-700">{fmt(grandTotalPayments)}</td>
                 <td className="px-5 py-3 text-right text-sm font-bold text-blue-600">—</td>

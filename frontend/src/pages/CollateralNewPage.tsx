@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Building2, Search } from 'lucide-react'
 import { customersService, Customer } from '@/services/customers'
+import { useTranslation } from 'react-i18next'
 
 export default function CollateralNewPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
 
@@ -23,11 +25,11 @@ export default function CollateralNewPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="border-b bg-white px-6 py-4">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/collaterals')} className="rounded-lg p-2 hover:bg-gray-100" title="Back">
+          <button onClick={() => navigate('/collaterals')} className="rounded-lg p-2 hover:bg-gray-100" title={t('common.back')}>
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Add Collateral Person</h1>
+            <h1 className="text-xl font-bold text-gray-900">{t('collateralDetail.addCollateralPerson')}</h1>
             <p className="text-sm text-gray-500">First select the customer this collateral person belongs to</p>
           </div>
         </div>
@@ -66,7 +68,7 @@ export default function CollateralNewPage() {
                       <div className="font-medium text-gray-900">{c.full_name}</div>
                       <div className="text-sm text-gray-500">{c.phone_primary}</div>
                     </div>
-                    <div className="text-sm text-gray-500">Select</div>
+                    <div className="text-sm text-gray-500">{t('common.select')}</div>
                   </button>
                 ))}
               </div>

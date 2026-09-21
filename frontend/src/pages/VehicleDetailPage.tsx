@@ -4,6 +4,7 @@ import { ArrowLeft, Car, Pencil } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { vehiclesService } from '@/services/vehicles'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
+import { useTranslation } from 'react-i18next'
 
 const toUploadUrl = (relativePath: string) => {
   const cleaned = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath
@@ -11,6 +12,7 @@ const toUploadUrl = (relativePath: string) => {
 }
 
 export default function VehicleDetailPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { vehicleId } = useParams<{ vehicleId: string }>()
   const id = vehicleId ? parseInt(vehicleId, 10) : NaN
@@ -39,7 +41,7 @@ export default function VehicleDetailPage() {
     return (
       <div className="p-6">
         <button onClick={() => navigate('/vehicles')} className="mb-4 inline-flex items-center gap-2 rounded-lg border px-3 py-2 hover:bg-gray-50">
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t('common.back')}
         </button>
         <div className="rounded-lg border bg-white p-6 text-gray-600">Vehicle not found.</div>
       </div>
@@ -66,11 +68,11 @@ export default function VehicleDetailPage() {
       <div className="border-b bg-white px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/vehicles')} className="rounded-lg p-2 hover:bg-gray-100" title="Back">
+            <button onClick={() => navigate('/vehicles')} className="rounded-lg p-2 hover:bg-gray-100" title={t('common.back')}>
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Vehicle Details</h1>
+              <h1 className="text-xl font-bold text-gray-900">{t('vehicleUpsert.vehicleDetails')}</h1>
               <p className="text-sm text-gray-500">{vehicle.plate_number}</p>
             </div>
           </div>
@@ -78,7 +80,7 @@ export default function VehicleDetailPage() {
             onClick={() => navigate(`/vehicles/${vehicle.id}/edit`)}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary-700"
           >
-            <Pencil className="h-4 w-4" /> Edit
+            <Pencil className="h-4 w-4" /> {t('common.edit')}
           </button>
         </div>
       </div>
@@ -98,12 +100,12 @@ export default function VehicleDetailPage() {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="rounded-lg bg-gray-50 p-4">
-                <div className="text-xs font-medium uppercase text-gray-500">Owner (Vendor)</div>
+                <div className="text-xs font-medium uppercase text-gray-500">{t('vehicleDetail.ownerVendor')}</div>
                 <div className="mt-1 text-sm text-gray-900">{vendorName || '—'}</div>
                 <div className="text-sm text-gray-600">{vehicle.vendor?.phone_primary || '—'}</div>
               </div>
               <div className="rounded-lg bg-gray-50 p-4">
-                <div className="text-xs font-medium uppercase text-gray-500">Insurance</div>
+                <div className="text-xs font-medium uppercase text-gray-500">{t('vehicleDetail.insurance')}</div>
                 <div className="mt-1 text-sm text-gray-900">Policy: {vehicle.insurance_policy_number || '—'}</div>
                 <div className="text-sm text-gray-600">Expiry: {insuranceExpiry || '—'}</div>
               </div>
@@ -111,19 +113,19 @@ export default function VehicleDetailPage() {
 
             <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="rounded-lg bg-gray-50 p-4">
-                <div className="text-xs font-medium uppercase text-gray-500">Plate</div>
+                <div className="text-xs font-medium uppercase text-gray-500">{t('vehicleDetail.plate')}</div>
                 <div className="mt-1 text-sm text-gray-900">{vehicle.plate_number}</div>
                 <div className="text-sm text-gray-600">
                   {vehicle.plate_code}{vehicle.plate_city ? ` • ${vehicle.plate_city}` : ''}
                 </div>
               </div>
               <div className="rounded-lg bg-gray-50 p-4">
-                <div className="text-xs font-medium uppercase text-gray-500">Pricing</div>
+                <div className="text-xs font-medium uppercase text-gray-500">{t('agreementCreate.pricing')}</div>
                 <div className="mt-1 text-sm text-gray-900">Daily Rate: {vehicle.daily_rate}</div>
                 <div className="text-sm text-gray-600">Status: {vehicle.status}</div>
               </div>
               <div className="rounded-lg bg-gray-50 p-4">
-                <div className="text-xs font-medium uppercase text-gray-500">Mileage</div>
+                <div className="text-xs font-medium uppercase text-gray-500">{t('vehicleDetail.mileage')}</div>
                 <div className="mt-1 text-sm text-gray-900">{vehicle.current_mileage ?? '—'}</div>
                 <div className="text-sm text-gray-600">Active: {vehicle.is_active ? 'Yes' : 'No'}</div>
               </div>
@@ -131,27 +133,27 @@ export default function VehicleDetailPage() {
 
             <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="rounded-lg bg-gray-50 p-4">
-                <div className="text-xs font-medium uppercase text-gray-500">Service / Fuel</div>
+                <div className="text-xs font-medium uppercase text-gray-500">{t('vehicleDetail.serviceFuel')}</div>
                 <div className="mt-1 text-sm text-gray-900">{vehicle.service_type} • {vehicle.fuel_type}</div>
               </div>
               <div className="rounded-lg bg-gray-50 p-4">
-                <div className="text-xs font-medium uppercase text-gray-500">Type / Seats</div>
+                <div className="text-xs font-medium uppercase text-gray-500">{t('vehicleDetail.typeSeats')}</div>
                 <div className="mt-1 text-sm text-gray-900">{vehicle.vehicle_type} • {vehicle.seats} seats</div>
               </div>
               <div className="rounded-lg bg-gray-50 p-4">
-                <div className="text-xs font-medium uppercase text-gray-500">Condition / Transmission</div>
+                <div className="text-xs font-medium uppercase text-gray-500">{t('vehicleDetail.conditionTransmission')}</div>
                 <div className="mt-1 text-sm text-gray-900">{vehicle.car_condition} • {vehicle.transmission}</div>
               </div>
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="rounded-lg bg-gray-50 p-4">
-                <div className="text-xs font-medium uppercase text-gray-500">Identification</div>
+                <div className="text-xs font-medium uppercase text-gray-500">{t('customerDetail.identification')}</div>
                 <div className="mt-1 text-sm text-gray-900">Motor: {vehicle.motor_number || '—'}</div>
                 <div className="text-sm text-gray-600">Chassis: {vehicle.chassis_number || '—'}</div>
               </div>
               <div className="rounded-lg bg-gray-50 p-4">
-                <div className="text-xs font-medium uppercase text-gray-500">Metadata</div>
+                <div className="text-xs font-medium uppercase text-gray-500">{t('common.metadata')}</div>
                 <div className="mt-1 text-sm text-gray-900">Created: {new Date(vehicle.created_at).toLocaleString()}</div>
                 <div className="text-sm text-gray-600">Updated: {new Date(vehicle.updated_at).toLocaleString()}</div>
               </div>
@@ -159,14 +161,14 @@ export default function VehicleDetailPage() {
 
             {vehicle.notes ? (
               <div className="mt-6 rounded-lg bg-gray-50 p-4">
-                <div className="text-xs font-medium uppercase text-gray-500">Notes</div>
+                <div className="text-xs font-medium uppercase text-gray-500">{t('agreementCreate.notes')}</div>
                 <div className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{vehicle.notes}</div>
               </div>
             ) : null}
           </div>
 
           <div className="rounded-lg border bg-white p-6">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">Vehicle Photos</h2>
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">{t('vehicleUpsert.vehiclePhotos')}</h2>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {photos.map((p) => (
                 <div key={p.key} className="overflow-hidden rounded-lg border bg-gray-50">
@@ -189,7 +191,7 @@ export default function VehicleDetailPage() {
                         }}
                       />
                     ) : (
-                      <div className="text-sm text-gray-500">No image</div>
+                      <div className="text-sm text-gray-500">{t('common.noImage')}</div>
                     )}
                   </div>
                 </div>

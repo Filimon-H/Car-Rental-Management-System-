@@ -100,8 +100,10 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        display: ["Inter", "system-ui", "sans-serif"],
+        // Noto Sans Ethiopic follows Inter so Amharic falls through to a font
+        // that can actually draw it; Latin text still renders in Inter.
+        sans: ["Inter", "Noto Sans Ethiopic", "system-ui", "sans-serif"],
+        display: ["Inter", "Noto Sans Ethiopic", "system-ui", "sans-serif"],
       },
     },
   },

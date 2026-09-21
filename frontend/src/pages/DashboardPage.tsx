@@ -233,11 +233,11 @@ export default function DashboardPage() {
         <div className="rounded-2xl bg-emerald-600 p-5 text-white shadow-sm">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">This Month</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">{t('dashboardCards.thisMonth')}</p>
               <p className="mt-3 text-3xl font-bold tracking-tight">
                 {formatCurrency(stats?.revenue.collected_this_month ?? 0)}
               </p>
-              <p className="mt-2 text-sm text-emerald-100">Collected in payments</p>
+              <p className="mt-2 text-sm text-emerald-100">{t('dashboardCards.collectedInPayments')}</p>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15">
               <TrendingUp className="h-5 w-5" />
@@ -247,7 +247,7 @@ export default function DashboardPage() {
         <div className="rounded-2xl border border-red-100 bg-red-50 p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Outstanding</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{t('ledger.outstanding')}</p>
               <p className="mt-3 text-3xl font-bold tracking-tight text-red-700">
                 {formatCurrency(stats?.revenue.outstanding_balance ?? 0)}
               </p>
@@ -261,11 +261,11 @@ export default function DashboardPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">All Time</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{t('dashboardCards.allTime')}</p>
               <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
                 {formatCurrency(stats?.revenue.total_all_time ?? 0)}
               </p>
-              <p className="mt-2 text-sm text-slate-500">Total payments received</p>
+              <p className="mt-2 text-sm text-slate-500">{t('dashboardCards.totalPaymentsReceived')}</p>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
               <FileText className="h-5 w-5" />
@@ -380,13 +380,13 @@ export default function DashboardPage() {
         <div onClick={() => navigate('/agreements')} className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50">
           <div className="mb-3 flex items-center gap-2">
             <Users className="h-4 w-4 text-slate-400" />
-            <p className="app-kicker m-0">Customer Agreements</p>
+            <p className="app-kicker m-0">{t('dashboardCards.customerAgreements')}</p>
           </div>
           <div className="text-3xl font-bold tracking-tight text-slate-900">{stats?.customer_agreements?.total ?? 0}</div>
-          <p className="mt-1 text-sm text-slate-500">Active & overdue agreements</p>
+          <p className="mt-1 text-sm text-slate-500">{t('dashboardCards.activeOverdue')}</p>
           <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Ending today</span>
+              <span className="text-slate-600">{t('dashboardCards.endingToday')}</span>
               <span className={`font-medium ${(stats?.customer_agreements?.ending_today ?? 0) > 0 ? 'text-amber-600' : 'text-slate-700'}`}>{stats?.customer_agreements?.ending_today ?? 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
@@ -398,7 +398,7 @@ export default function DashboardPage() {
               <span className="font-medium text-slate-700">{stats?.customer_agreements?.expiring_10_days ?? 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-red-600">Overdue</span>
+              <span className="text-red-600">{t('agreements.status.overdue')}</span>
               <span className={`font-medium ${(stats?.customer_agreements?.overdue ?? 0) > 0 ? 'text-red-600' : 'text-slate-700'}`}>{stats?.customer_agreements?.overdue ?? 0}</span>
             </div>
           </div>
@@ -408,13 +408,13 @@ export default function DashboardPage() {
         <div onClick={() => navigate('/agreements')} className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50">
           <div className="mb-3 flex items-center gap-2">
             <Building2 className="h-4 w-4 text-slate-400" />
-            <p className="app-kicker m-0">Vendor Agreements</p>
+            <p className="app-kicker m-0">{t('dashboardCards.vendorAgreements')}</p>
           </div>
           <div className="text-3xl font-bold tracking-tight text-slate-900">{stats?.vendor_agreements?.total ?? 0}</div>
-          <p className="mt-1 text-sm text-slate-500">Active & overdue agreements</p>
+          <p className="mt-1 text-sm text-slate-500">{t('dashboardCards.activeOverdue')}</p>
           <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Ending today</span>
+              <span className="text-slate-600">{t('dashboardCards.endingToday')}</span>
               <span className={`font-medium ${(stats?.vendor_agreements?.ending_today ?? 0) > 0 ? 'text-amber-600' : 'text-slate-700'}`}>{stats?.vendor_agreements?.ending_today ?? 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
@@ -426,7 +426,7 @@ export default function DashboardPage() {
               <span className="font-medium text-slate-700">{stats?.vendor_agreements?.expiring_10_days ?? 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-red-600">Overdue</span>
+              <span className="text-red-600">{t('agreements.status.overdue')}</span>
               <span className={`font-medium ${(stats?.vendor_agreements?.overdue ?? 0) > 0 ? 'text-red-600' : 'text-slate-700'}`}>{stats?.vendor_agreements?.overdue ?? 0}</span>
             </div>
           </div>
@@ -436,17 +436,17 @@ export default function DashboardPage() {
         <div onClick={() => navigate('/agreements')} className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50">
           <div className="mb-3 flex items-center gap-2">
             <Car className="h-4 w-4 text-sky-500" />
-            <p className="app-kicker text-sky-600 m-0">Upcoming Pickups</p>
+            <p className="app-kicker text-sky-600 m-0">{t('dashboardCards.upcomingPickups')}</p>
           </div>
           <div className="text-3xl font-bold tracking-tight text-slate-900">{stats?.pickups?.total ?? 0}</div>
-          <p className="mt-1 text-sm text-slate-500">Scheduled vehicle pickups</p>
+          <p className="mt-1 text-sm text-slate-500">{t('dashboardCards.scheduledPickups')}</p>
           <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Today</span>
+              <span className="text-slate-600">{t('dashboardCards.today')}</span>
               <span className={`font-medium ${(stats?.pickups?.today ?? 0) > 0 ? 'text-sky-600' : 'text-slate-700'}`}>{stats?.pickups?.today ?? 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Tomorrow</span>
+              <span className="text-slate-600">{t('dashboardCards.tomorrow')}</span>
               <span className="font-medium text-slate-700">{stats?.pickups?.tomorrow ?? 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
@@ -464,13 +464,13 @@ export default function DashboardPage() {
         <div onClick={() => navigate('/vehicles')} className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50">
           <div className="mb-3 flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-red-600" />
-            <p className="app-kicker text-red-700 m-0">Insurance Reminder</p>
+            <p className="app-kicker text-red-700 m-0">{t('dashboardCards.insuranceReminder')}</p>
           </div>
           <div className="text-3xl font-bold tracking-tight text-red-700">{stats?.vehicles?.insurance?.total ?? 0}</div>
-          <p className="mt-1 text-sm text-slate-500">Vehicles expiring soon or expired</p>
+          <p className="mt-1 text-sm text-slate-500">{t('dashboardCards.vehiclesExpiringSoon')}</p>
           <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Expiring Today</span>
+              <span className="text-slate-600">{t('dashboardCards.expiringToday')}</span>
               <span className={`font-medium ${(stats?.vehicles?.insurance?.today ?? 0) > 0 ? 'text-amber-600' : 'text-slate-700'}`}>{stats?.vehicles?.insurance?.today ?? 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
@@ -482,11 +482,11 @@ export default function DashboardPage() {
               <span className="font-medium text-slate-700">{stats?.vehicles?.insurance?.within_10_days ?? 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Within this month</span>
+              <span className="text-slate-600">{t('dashboardCards.withinThisMonth')}</span>
               <span className="font-medium text-slate-700">{stats?.vehicles?.insurance?.within_month ?? 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-red-600">Overdue (Expired)</span>
+              <span className="text-red-600">{t('dashboardCards.overdueExpired')}</span>
               <span className={`font-medium ${(stats?.vehicles?.insurance?.overdue ?? 0) > 0 ? 'text-red-600' : 'text-slate-700'}`}>{stats?.vehicles?.insurance?.overdue ?? 0}</span>
             </div>
           </div>
@@ -496,25 +496,25 @@ export default function DashboardPage() {
         <div onClick={() => navigate('/vehicles')} className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50">
           <div className="mb-3 flex items-center gap-2">
             <Car className="h-4 w-4 text-emerald-500" />
-            <p className="app-kicker text-emerald-600 m-0">Fleet Status</p>
+            <p className="app-kicker text-emerald-600 m-0">{t('dashboardCards.fleetStatus')}</p>
           </div>
           <div className="text-3xl font-bold tracking-tight text-slate-900">{stats?.vehicles?.total ?? 0}</div>
-          <p className="mt-1 text-sm text-slate-500">Total vehicles in fleet</p>
+          <p className="mt-1 text-sm text-slate-500">{t('dashboardCards.totalVehiclesFleet')}</p>
           <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Rented</span>
+              <span className="text-slate-600">{t('vehicles.status.rented')}</span>
               <span className="font-medium text-blue-600">{stats?.vehicles?.rented ?? 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Available</span>
+              <span className="text-slate-600">{t('vehicles.status.available')}</span>
               <span className="font-medium text-emerald-600">{stats?.vehicles?.available ?? 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Reserved</span>
+              <span className="text-slate-600">{t('vehicles.status.reserved')}</span>
               <span className="font-medium text-purple-600">{stats?.vehicles?.reserved ?? 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Maintenance</span>
+              <span className="text-slate-600">{t('vehicles.status.maintenance')}</span>
               <span className="font-medium text-amber-600">{stats?.vehicles?.maintenance ?? 0}</span>
             </div>
           </div>
@@ -531,14 +531,14 @@ export default function DashboardPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
                 <Bot className="h-4 w-4" />
               </div>
-              <span>Telegram Bot Notifications</span>
+              <span>{t('telegram.botNotifications')}</span>
               {telegramStatus?.linked ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Linked
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{t('agreements.vendorWedding.linked')}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />Not linked
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />{t('telegram.notLinked')}
                 </span>
               )}
             </div>
@@ -551,7 +551,7 @@ export default function DashboardPage() {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('dashboard.status')}</p>
                 <p className="mt-2 text-sm font-medium text-slate-900">
                   {isTelegramLoading ? 'Checking…' : telegramStatus?.linked
                     ? `Linked as @${telegramStatus.telegram_username ?? 'unknown'}`
@@ -571,7 +571,7 @@ export default function DashboardPage() {
                 {botLink && (
                   <a href={botLink} target="_blank" rel="noreferrer"
                     className="mt-2 inline-flex items-center gap-1.5 text-xs text-sky-300 hover:text-sky-200">
-                    Open in Telegram <ExternalLink className="h-3 w-3" />
+                    {t('telegram.openInTelegram')}<ExternalLink className="h-3 w-3" />
                   </a>
                 )}
               </div>
@@ -588,7 +588,7 @@ export default function DashboardPage() {
                 <button type="button" onClick={() => unlinkTelegramMutation.mutate()}
                   disabled={unlinkTelegramMutation.isPending}
                   className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
-                  Remove link
+                  {t('telegram.removeLink')}
                 </button>
               )}
             </div>
@@ -597,7 +597,7 @@ export default function DashboardPage() {
               <div className="rounded-xl border border-sky-100 bg-sky-50 p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-sky-500">Your code</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-sky-500">{t('telegram.yourCode')}</p>
                     <p className="mt-1 font-mono text-2xl font-bold tracking-widest text-slate-900">
                       {activeLinkCode.code}
                     </p>
@@ -605,7 +605,7 @@ export default function DashboardPage() {
                   </div>
                   <button type="button" onClick={handleCopyLinkCode}
                     className="flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100">
-                    <Copy className="h-4 w-4" /> Copy
+                    <Copy className="h-4 w-4" /> {t('common.copy')}
                   </button>
                 </div>
               </div>

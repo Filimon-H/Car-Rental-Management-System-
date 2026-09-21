@@ -25,4 +25,15 @@ i18n
     },
   })
 
+// Keep <html lang> in step with the active language: it drives font selection
+// for Ethiopic script and tells screen readers which language to speak.
+function applyDocumentLanguage(lng: string) {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = lng
+  }
+}
+
+applyDocumentLanguage(i18n.language || 'en')
+i18n.on('languageChanged', applyDocumentLanguage)
+
 export default i18n

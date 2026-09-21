@@ -3,10 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, Power } from 'lucide-react'
 import { lookupsService, LookupValue } from '@/services/lookups'
 import { getErrorMessage } from '@/services/apiClient'
+import { useTranslation } from 'react-i18next'
 
 type FormMode = 'create' | 'edit'
 
 export default function AdminLookupsPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
 
   const [selectedCategory, setSelectedCategory] = useState<string>('')
@@ -121,7 +123,7 @@ export default function AdminLookupsPage() {
     e.preventDefault()
 
     if (!form.category.trim() || !form.value.trim()) {
-      alert('Category and Value are required')
+      alert(t('validation.categoryValueRequired'))
       return
     }
 
@@ -157,7 +159,7 @@ export default function AdminLookupsPage() {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Admin Setting</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('adminLookups.adminSetting')}</h1>
           <p className="text-sm text-gray-500">Manage dropdown values used throughout the system</p>
         </div>
         <button
@@ -165,14 +167,14 @@ export default function AdminLookupsPage() {
           disabled={false}
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-50"
         >
-          <Plus className="h-5 w-5" /> Add Value
+          <Plus className="h-5 w-5" /> {t('adminLookups.addValue')}
         </button>
       </div>
 
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 md:col-span-3">
           <div className="rounded-lg border bg-white p-4">
-            <div className="mb-2 text-sm font-medium text-gray-700">Category</div>
+            <div className="mb-2 text-sm font-medium text-gray-700">{t('common.category')}</div>
             {loadingCategories || loadingDefaults ? (
               <div className="text-sm text-gray-500">Loading...</div>
             ) : defaultsError ? (
@@ -212,11 +214,11 @@ export default function AdminLookupsPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Value</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Label</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Sort</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">{t('common.value')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">{t('common.label')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">{t('common.sort')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">{t('dashboard.status')}</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -242,14 +244,14 @@ export default function AdminLookupsPage() {
                           <button
                             onClick={() => openEdit(row)}
                             className="p-1 text-gray-500 hover:text-primary"
-                            title="Edit"
+                            title={t('common.edit')}
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(row)}
                             className="p-1 text-gray-500 hover:text-red-600"
-                            title="Delete"
+                            title={t('common.delete')}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -296,7 +298,7 @@ export default function AdminLookupsPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Label</label>
+                <label className="mb-1 block text-sm font-medium">{t('common.label')}</label>
                 <input
                   value={form.label}
                   onChange={(e) => setForm((p) => ({ ...p, label: e.target.value }))}
@@ -304,7 +306,7 @@ export default function AdminLookupsPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Sort Order</label>
+                <label className="mb-1 block text-sm font-medium">{t('adminLookups.sortOrder')}</label>
                 <input
                   type="number"
                   value={form.sort_order}
@@ -315,7 +317,7 @@ export default function AdminLookupsPage() {
 
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setFormOpen(false)} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"

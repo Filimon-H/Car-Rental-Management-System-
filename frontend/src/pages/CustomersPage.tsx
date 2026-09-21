@@ -337,6 +337,7 @@ function CustomerModal({
   onClose: () => void
   onSuccess: () => void
 }) {
+  const { t } = useTranslation()
   const [formData, setFormData] = useState<CreateCustomerData>({
     business_type: customer?.business_type || 'individual',
     company_name: customer?.company_name || '',
@@ -413,12 +414,12 @@ function CustomerModal({
               }
               className={inputClass}
             >
-              <option value="individual">Individual</option>
-              <option value="company">Company</option>
-              <option value="government">Government</option>
-              <option value="embassy">Embassy</option>
+              <option value="individual">{t('customerCreate.individual')}</option>
+              <option value="company">{t('customerCreate.company')}</option>
+              <option value="government">{t('customerCreate.government')}</option>
+              <option value="embassy">{t('customerCreate.embassy')}</option>
               <option value="ngo">NGO</option>
-              <option value="church">Church</option>
+              <option value="church">{t('customerCreate.church')}</option>
             </select>
           </div>
 
@@ -436,12 +437,12 @@ function CustomerModal({
           )}
 
           <div>
-            <label className={labelClass}>TIN Number</label>
+            <label className={labelClass}>{t('customerCreate.tinNumber')}</label>
             <input
               type="text"
               value={formData.tin_number}
               onChange={(e) => setFormData({ ...formData, tin_number: e.target.value })}
-              placeholder="Tax Identification Number"
+              placeholder={t('customerCreate.tinPlaceholder')}
               className={inputClass}
             />
           </div>
@@ -481,7 +482,7 @@ function CustomerModal({
               />
             </div>
             <div>
-              <label className={labelClass}>Secondary Phone</label>
+              <label className={labelClass}>{t('customerCreate.secondaryPhone')}</label>
               <input
                 type="tel"
                 value={formData.phone_secondary}
@@ -492,7 +493,7 @@ function CustomerModal({
           </div>
 
           <div>
-            <label className={labelClass}>Email</label>
+            <label className={labelClass}>{t('customerCreate.email')}</label>
             <input
               type="email"
               value={formData.email}
@@ -511,9 +512,9 @@ function CustomerModal({
                     onChange={(e) => setFormData({ ...formData, id_type: e.target.value })}
                     className={inputClass}
                   >
-                    <option value="passport">Passport</option>
-                    <option value="national_id">National ID</option>
-                    <option value="kebele_id">Kebele ID</option>
+                    <option value="passport">{t('customerCreate.passport')}</option>
+                    <option value="national_id">{t('customerCreate.nationalId')}</option>
+                    <option value="kebele_id">{t('customerCreate.kebeleId')}</option>
                   </select>
                 </div>
                 <div>
@@ -544,7 +545,7 @@ function CustomerModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelClass}>House Number</label>
+              <label className={labelClass}>{t('customerCreate.houseNumber')}</label>
               <input
                 type="text"
                 value={formData.house_number}
@@ -553,7 +554,7 @@ function CustomerModal({
               />
             </div>
             <div>
-              <label className={labelClass}>Wereda</label>
+              <label className={labelClass}>{t('customerCreate.wereda')}</label>
               <input
                 type="text"
                 value={formData.wereda}
@@ -565,20 +566,20 @@ function CustomerModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelClass}>Subcity</label>
+              <label className={labelClass}>{t('customerCreate.subcity')}</label>
               <select
                 value={formData.subcity}
                 onChange={(e) => setFormData({ ...formData, subcity: e.target.value })}
                 className={inputClass}
               >
-                <option value="">Select Subcity</option>
-                <option value="Bole">Bole</option>
-                <option value="Lideta">Lideta</option>
-                <option value="Yeka">Yeka</option>
+                <option value="">{t('customerCreate.selectSubcity')}</option>
+                <option value="Bole">{t('subcity.bole')}</option>
+                <option value="Lideta">{t('subcity.lideta')}</option>
+                <option value="Yeka">{t('subcity.yeka')}</option>
               </select>
             </div>
             <div>
-              <label className={labelClass}>City</label>
+              <label className={labelClass}>{t('agreementCreate.city')}</label>
               <input
                 type="text"
                 value={formData.city}
@@ -589,7 +590,7 @@ function CustomerModal({
           </div>
 
           <div>
-            <label className={labelClass}>Notes</label>
+            <label className={labelClass}>{t('agreementCreate.notes')}</label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -604,7 +605,7 @@ function CustomerModal({
               onClick={onClose}
               className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"

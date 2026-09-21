@@ -124,7 +124,7 @@ export default function InspectionCreatePage() {
     e.preventDefault()
 
     if (!vehicleId) {
-      alert('Please select a vehicle')
+      alert(t('validation.selectVehicle'))
       return
     }
 
@@ -150,7 +150,7 @@ export default function InspectionCreatePage() {
         className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-800"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back
+        {t('common.back')}
       </button>
 
       <h1 className="mb-6 text-2xl font-bold text-gray-800">
@@ -160,16 +160,16 @@ export default function InspectionCreatePage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Info */}
         <div className="rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-4 text-lg font-semibold">Basic Information</h2>
+          <h2 className="mb-4 text-lg font-semibold">{t('sections.basicInformation')}</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium">Template</label>
+              <label className="mb-1 block text-sm font-medium">{t('inspection.template')}</label>
               <select
                 value={templateId || ''}
                 onChange={(e) => setTemplateId(e.target.value ? parseInt(e.target.value) : null)}
                 className="w-full rounded-lg border px-3 py-2"
               >
-                <option value="">Select template (optional)</option>
+                <option value="">{t('inspection.selectTemplateOptional')}</option>
                 {templates?.map(t => (
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
@@ -183,10 +183,10 @@ export default function InspectionCreatePage() {
                 required
                 className="w-full rounded-lg border px-3 py-2"
               >
-                <option value="pickup">Pickup</option>
-                <option value="return">Return</option>
-                <option value="periodic">Periodic</option>
-                <option value="damage_report">Damage Report</option>
+                <option value="pickup">{t('agreementActions.pickup')}</option>
+                <option value="return">{t('agreementActions.return')}</option>
+                <option value="periodic">{t('inspection.periodic')}</option>
+                <option value="damage_report">{t('inspection.damageReport')}</option>
               </select>
             </div>
             <div>
@@ -194,7 +194,7 @@ export default function InspectionCreatePage() {
               {vehicleId ? (
                 <div className="flex items-center justify-between rounded-lg border px-3 py-2">
                   <span>{vehicleInfo}</span>
-                  <button type="button" onClick={() => setShowVehicleLookup(true)} className="text-sm text-blue-600">Change</button>
+                  <button type="button" onClick={() => setShowVehicleLookup(true)} className="text-sm text-blue-600">{t('agreementCreate.change')}</button>
                 </div>
               ) : (
                 <button
@@ -207,7 +207,7 @@ export default function InspectionCreatePage() {
               )}
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Mileage (km)</label>
+              <label className="mb-1 block text-sm font-medium">{t('inspection.mileageKm')}</label>
               <input
                 type="number"
                 value={mileage}
@@ -216,7 +216,7 @@ export default function InspectionCreatePage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Fuel Level (%)</label>
+              <label className="mb-1 block text-sm font-medium">{t('inspection.fuelLevel')}</label>
               <input
                 type="number"
                 value={fuelLevel}
@@ -227,7 +227,7 @@ export default function InspectionCreatePage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Condition Rating</label>
+              <label className="mb-1 block text-sm font-medium">{t('inspection.conditionRating')}</label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map(rating => (
                   <button
@@ -249,7 +249,7 @@ export default function InspectionCreatePage() {
         {/* Checklist */}
         {selectedTemplate && groupedItems && (
           <div className="rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-semibold">Checklist</h2>
+            <h2 className="mb-4 text-lg font-semibold">{t('inspection.checklist')}</h2>
             {Object.entries(groupedItems).map(([category, items]) => (
               <div key={category} className="mb-6">
                 <h3 className="mb-3 text-sm font-medium uppercase text-gray-500">{category}</h3>
@@ -282,7 +282,7 @@ export default function InspectionCreatePage() {
                       </div>
                       <input
                         type="text"
-                        placeholder="Notes"
+                        placeholder={t('agreementCreate.notes')}
                         value={checklistResults[item.id]?.notes || ''}
                         onChange={(e) => handleItemNotesChange(item.id, e.target.value)}
                         className="w-40 rounded border px-2 py-1 text-sm"
@@ -298,17 +298,17 @@ export default function InspectionCreatePage() {
         {/* Damage Records */}
         <div className="rounded-lg bg-white p-6 shadow">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Damage Records</h2>
+            <h2 className="text-lg font-semibold">{t('inspection.damageRecords')}</h2>
             <button
               type="button"
               onClick={addDamageRecord}
               className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
             >
-              <Plus className="h-4 w-4" /> Add Damage
+              <Plus className="h-4 w-4" /> {t('agreementActions.addDamage')}
             </button>
           </div>
           {damageRecords.length === 0 ? (
-            <p className="text-center text-gray-500 py-4">No damage recorded</p>
+            <p className="text-center text-gray-500 py-4">{t('inspection.noDamageRecorded')}</p>
           ) : (
             <div className="space-y-4">
               {damageRecords.map(damage => (
@@ -341,9 +341,9 @@ export default function InspectionCreatePage() {
                       onChange={(e) => updateDamageRecord(damage.id, { severity: e.target.value as 'minor' | 'moderate' | 'severe' })}
                       className="rounded border px-2 py-1"
                     >
-                      <option value="minor">Minor</option>
-                      <option value="moderate">Moderate</option>
-                      <option value="severe">Severe</option>
+                      <option value="minor">{t('inspection.minor')}</option>
+                      <option value="moderate">{t('inspection.moderate')}</option>
+                      <option value="severe">{t('inspection.severe')}</option>
                     </select>
                     <input
                       type="number"
@@ -354,7 +354,7 @@ export default function InspectionCreatePage() {
                     />
                   </div>
                   <textarea
-                    placeholder="Description"
+                    placeholder={t('sections.description')}
                     value={damage.description}
                     onChange={(e) => updateDamageRecord(damage.id, { description: e.target.value })}
                     className="mt-2 w-full rounded border px-2 py-1"
@@ -368,7 +368,7 @@ export default function InspectionCreatePage() {
 
         {/* Notes */}
         <div className="rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-4 text-lg font-semibold">Additional Notes</h2>
+          <h2 className="mb-4 text-lg font-semibold">{t('customerCreate.additionalNotes')}</h2>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -385,7 +385,7 @@ export default function InspectionCreatePage() {
             onClick={() => navigate(-1)}
             className="rounded-lg border px-6 py-2 hover:bg-gray-50"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="submit"

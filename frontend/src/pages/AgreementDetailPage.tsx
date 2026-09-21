@@ -211,7 +211,7 @@ export default function AgreementDetailPage() {
   if (!agreementId) {
     return (
       <div className="p-6">
-        <div className="text-center text-red-500">Invalid agreement id</div>
+        <div className="text-center text-red-500">{t('agreementActions.invalidAgreementId')}</div>
       </div>
     )
   }
@@ -219,7 +219,7 @@ export default function AgreementDetailPage() {
   if (error || !agreement) {
     return (
       <div className="p-6">
-        <div className="text-center text-red-500">Agreement not found</div>
+        <div className="text-center text-red-500">{t('agreementPrint.notFound')}</div>
       </div>
     )
   }
@@ -250,7 +250,7 @@ export default function AgreementDetailPage() {
           className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-800"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Agreements
+          {t('agreementCreate.backToAgreements')}
         </button>
 
         <div className="flex items-start justify-between">
@@ -265,7 +265,7 @@ export default function AgreementDetailPage() {
               title="Print Agreement"
             >
               <Printer className="h-4 w-4" />
-              Print
+              {t('sections.print')}
             </button>
             <span
               className={`rounded-full px-3 py-1 text-sm font-semibold ${
@@ -293,7 +293,7 @@ export default function AgreementDetailPage() {
                   className="flex items-center gap-2 rounded-lg border border-red-300 px-4 py-2 text-red-600 hover:bg-red-50"
                 >
                   <Ban className="h-4 w-4" />
-                  Decline
+                  {t('agreementActions.decline')}
                 </button>
               </>
             )}
@@ -303,14 +303,14 @@ export default function AgreementDetailPage() {
                   onClick={handleActivate}
                   className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
                 >
-                  Activate (Handover)
+                  {t('agreementActions.activateHandover')}
                 </button>
                 <button
                   onClick={() => setShowCancelConfirm(true)}
                   className="flex items-center gap-2 rounded-lg border border-red-300 px-4 py-2 text-red-600 hover:bg-red-50"
                 >
                   <Ban className="h-4 w-4" />
-                  Cancel
+                  {t('common.cancel')}
                 </button>
               </>
             )}
@@ -319,7 +319,7 @@ export default function AgreementDetailPage() {
                 onClick={() => setShowReturnModal(true)}
                 className="rounded-lg bg-purple-600 px-4 py-2 text-white hover:bg-purple-700"
               >
-                Mark Returned
+                {t('agreementActions.markReturned')}
               </button>
             )}
             {agreement.status === 'returned' && (
@@ -327,7 +327,7 @@ export default function AgreementDetailPage() {
                 onClick={() => setShowSettlementModal(true)}
                 className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
               >
-                Close Agreement
+                {t('agreementActions.closeAgreement')}
               </button>
             )}
           </div>
@@ -337,19 +337,19 @@ export default function AgreementDetailPage() {
       {/* Summary Cards */}
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-5">
         <div className="rounded-lg bg-white p-4 shadow">
-          <div className="text-sm text-gray-500">Total Charges</div>
+          <div className="text-sm text-gray-500">{t('ledger.totalCharges')}</div>
           <div className="text-2xl font-bold text-gray-800">
             {formatCurrency(agreement.total_charges)}
           </div>
         </div>
         <div className="rounded-lg bg-white p-4 shadow">
-          <div className="text-sm text-gray-500">Total Payments</div>
+          <div className="text-sm text-gray-500">{t('ledger.totalPayments')}</div>
           <div className="text-2xl font-bold text-green-600">
             {formatCurrency(agreement.total_payments)}
           </div>
         </div>
         <div className="rounded-lg bg-white p-4 shadow">
-          <div className="text-sm text-gray-500">Balance Due</div>
+          <div className="text-sm text-gray-500">{t('ledger.balanceDue')}</div>
           <div
             className={`text-2xl font-bold ${
               shownBalance > 0 ? 'text-red-600' : 'text-green-600'
@@ -359,11 +359,11 @@ export default function AgreementDetailPage() {
           </div>
         </div>
         <div className="rounded-lg bg-white p-4 shadow">
-          <div className="text-sm text-gray-500">Deposit Held</div>
+          <div className="text-sm text-gray-500">{t('ledger.depositHeld')}</div>
           <div className="text-2xl font-bold text-gray-800">{formatCurrency(depositHeld)}</div>
         </div>
         <div className="rounded-lg bg-white p-4 shadow">
-          <div className="text-sm text-gray-500">Daily Rate</div>
+          <div className="text-sm text-gray-500">{t('weddingAgreementCreate.dailyRate')}</div>
           <div className="text-2xl font-bold text-gray-800">
             {formatCurrency(agreement.agreed_daily_rate)}
           </div>
@@ -400,7 +400,7 @@ export default function AgreementDetailPage() {
           <div className="space-y-6">
             <div className="rounded-lg border bg-gray-50 p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-gray-800">Deposit & Deductions</div>
+                <div className="text-sm font-semibold text-gray-800">{t('sections.depositDeductions')}</div>
                 {agreement.status === 'active' && (
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -408,21 +408,21 @@ export default function AgreementDetailPage() {
                       onClick={() => setShowDepositModal('receive')}
                       className="rounded-md bg-gray-900 px-3 py-2 text-xs font-medium text-white hover:bg-gray-800"
                     >
-                      Receive Deposit
+                      {t('ledger.receiveDeposit')}
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowChargeModal('damage')}
                       className="rounded-md border bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
                     >
-                      Add Damage Charge
+                      {t('agreementActions.addDamageCharge')}
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowChargeModal('late')}
                       className="rounded-md border bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
                     >
-                      Add Late Fee
+                      {t('agreementActions.addLateFee')}
                     </button>
                     <button
                       type="button"
@@ -430,7 +430,7 @@ export default function AgreementDetailPage() {
                       disabled={depositHeld <= 0 || shownBalance <= 0}
                       className="rounded-md bg-primary px-3 py-2 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50"
                     >
-                      Apply Deposit
+                      {t('ledger.applyDeposit')}
                     </button>
                     <button
                       type="button"
@@ -438,17 +438,17 @@ export default function AgreementDetailPage() {
                       disabled={depositHeld <= 0}
                       className="rounded-md bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
                     >
-                      Refund Deposit
+                      {t('ledger.refundDeposit')}
                     </button>
                   </div>
                 )}
               </div>
 
               <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
-                <div className="flex justify-between"><span className="text-gray-500">Deposit Received</span><span className="font-medium">{formatCurrency(depositReceived)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Deposit Applied</span><span className="font-medium">{formatCurrency(depositApplied)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Deposit Refunded</span><span className="font-medium">{formatCurrency(depositReturned)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Deposit Held</span><span className="font-medium">{formatCurrency(depositHeld)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">{t('ledger.depositReceived')}</span><span className="font-medium">{formatCurrency(depositReceived)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">{t('ledger.depositApplied')}</span><span className="font-medium">{formatCurrency(depositApplied)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">{t('ledger.depositRefunded')}</span><span className="font-medium">{formatCurrency(depositReturned)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">{t('ledger.depositHeld')}</span><span className="font-medium">{formatCurrency(depositHeld)}</span></div>
               </div>
               <div className="mt-3 text-xs text-gray-500">Deposit is deductible for damage/late fees. Apply deposit to cover charges; refund remaining deposit when appropriate.</div>
             </div>
@@ -457,33 +457,33 @@ export default function AgreementDetailPage() {
             <div className="rounded-lg border p-4">
               <h3 className="mb-3 flex items-center gap-2 font-semibold text-gray-800">
                 <User className="h-5 w-5 text-blue-500" />
-                Customer Information
+                {t('sections.customerInformation')}
               </h3>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Name</span>
+                  <span className="text-gray-500">{t('customers.columns.name')}</span>
                   <span className="font-medium">{agreement.customer_name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Customer ID</span>
+                  <span className="text-gray-500">{t('sections.customerId')}</span>
                   <span>#{agreement.customer_id}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Phone</span>
+                  <span className="text-gray-500">{t('agreementCreate.phone')}</span>
                   <span className="font-medium">{customer?.phone_primary || '—'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">City</span>
+                  <span className="text-gray-500">{t('agreementCreate.city')}</span>
                   <span className="font-medium">{customer?.city || '—'}</span>
                 </div>
 
                 {/* Identity */}
                 <div className="flex justify-between">
-                  <span className="text-gray-500">ID Type</span>
+                  <span className="text-gray-500">{t('agreementCreate.idType')}</span>
                   <span className="font-medium capitalize">{customer?.id_type?.replace('_', ' ') || '—'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">ID Number</span>
+                  <span className="text-gray-500">{t('agreementCreate.idNumber')}</span>
                   <span className="font-medium">{customer?.id_number || '—'}</span>
                 </div>
 
@@ -493,7 +493,7 @@ export default function AgreementDetailPage() {
                   <span className="font-medium">{customer?.driver_license_number || '—'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">License Expiry</span>
+                  <span className="text-gray-500">{t('drivers.columns.licenseExpiry')}</span>
                   <span className="font-medium">
                     {customer?.driver_license_expiry
                       ? new Date(customer.driver_license_expiry).toLocaleDateString('en-GB')
@@ -503,11 +503,11 @@ export default function AgreementDetailPage() {
 
                 {/* Emergency contact */}
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Emergency Contact</span>
+                  <span className="text-gray-500">{t('sections.emergencyContact')}</span>
                   <span className="font-medium">{customer?.emergency_contact_name || '—'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Emergency Phone</span>
+                  <span className="text-gray-500">{t('sections.emergencyPhone')}</span>
                   <span className="font-medium">{customer?.emergency_contact_phone || '—'}</span>
                 </div>
               </div>
@@ -518,31 +518,31 @@ export default function AgreementDetailPage() {
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
                 <h3 className="mb-3 flex items-center gap-2 font-semibold text-gray-800">
                   <Car className="h-5 w-5 text-primary" />
-                  Vehicle Information
+                  {t('sections.vehicleInformation')}
                 </h3>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Plate Number</span>
+                    <span className="text-gray-500">{t('vehicles.plateNumber')}</span>
                     <span className="font-medium">{vehicle.plate_number || '—'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Plate Code</span>
+                    <span className="text-gray-500">{t('vehicleFields.plateCode')}</span>
                     <span className="font-medium">{vehicle.plate_code || '—'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Model</span>
+                    <span className="text-gray-500">{t('vehicles.model')}</span>
                     <span className="font-medium">{vehicle.model || '—'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Service Type</span>
+                    <span className="text-gray-500">{t('inspection.serviceType')}</span>
                     <span className="font-medium">{vehicle.service_type || '—'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Fuel Type</span>
+                    <span className="text-gray-500">{t('vehicleUpsert.fuelType')}</span>
                     <span className="font-medium">{vehicle.fuel_type || '—'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Insurance Expiry</span>
+                    <span className="text-gray-500">{t('vehicleUpsert.insuranceExpiry')}</span>
                     <span className="font-medium">{vehicle.insurance_expiry ? vehicle.insurance_expiry.split('T')[0] : '—'}</span>
                   </div>
                 </div>
@@ -554,21 +554,21 @@ export default function AgreementDetailPage() {
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
                 <h3 className="mb-3 flex items-center gap-2 font-semibold text-gray-800">
                   <UserCheck className="h-5 w-5 text-blue-600" />
-                  Driver Information
+                  {t('sections.driverInformation')}
                 </h3>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Name</span>
+                    <span className="text-gray-500">{t('customers.columns.name')}</span>
                     <span className="font-medium">
                       {agreement.driver.first_name} {agreement.driver.last_name}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Phone</span>
+                    <span className="text-gray-500">{t('agreementCreate.phone')}</span>
                     <span>{agreement.driver.phone_primary}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">License Number</span>
+                    <span className="text-gray-500">{t('driver.licenseNumber')}</span>
                     <span>{agreement.driver.license_number}</span>
                   </div>
                 </div>
@@ -580,54 +580,54 @@ export default function AgreementDetailPage() {
               <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
                 <h3 className="mb-3 flex items-center gap-2 font-semibold text-gray-800">
                   <Shield className="h-5 w-5 text-orange-600" />
-                  Collateral Person
+                  {t('collaterals.columns.person')}
                 </h3>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Name</span>
+                    <span className="text-gray-500">{t('customers.columns.name')}</span>
                     <span className="font-medium">
                       {agreement.collateral_person.first_name} {agreement.collateral_person.last_name}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Phone</span>
+                    <span className="text-gray-500">{t('agreementCreate.phone')}</span>
                     <span>{agreement.collateral_person.phone_primary}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">ID Type</span>
+                    <span className="text-gray-500">{t('agreementCreate.idType')}</span>
                     <span>{agreement.collateral_person.id_type}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">ID Number</span>
+                    <span className="text-gray-500">{t('agreementCreate.idNumber')}</span>
                     <span>{agreement.collateral_person.id_number}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Secondary Phone</span>
+                    <span className="text-gray-500">{t('customerCreate.secondaryPhone')}</span>
                     <span>{collateral?.phone_secondary || '—'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Email</span>
+                    <span className="text-gray-500">{t('customerCreate.email')}</span>
                     <span>{collateral?.email || '—'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">City</span>
+                    <span className="text-gray-500">{t('agreementCreate.city')}</span>
                     <span>{collateral?.city || '—'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Subcity</span>
+                    <span className="text-gray-500">{t('customerCreate.subcity')}</span>
                     <span>{collateral?.subcity || '—'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Wereda</span>
+                    <span className="text-gray-500">{t('customerCreate.wereda')}</span>
                     <span>{collateral?.wereda || '—'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">House No</span>
+                    <span className="text-gray-500">{t('sections.houseNo')}</span>
                     <span>{collateral?.house_number || '—'}</span>
                   </div>
                   {agreement.collateral_person.relationship_to_customer && (
                     <div className="flex justify-between md:col-span-2">
-                      <span className="text-gray-500">Relationship</span>
+                      <span className="text-gray-500">{t('agreementCreate.relationship')}</span>
                       <span>{agreement.collateral_person.relationship_to_customer}</span>
                     </div>
                   )}
@@ -638,33 +638,33 @@ export default function AgreementDetailPage() {
             {/* Rental Period & Locations */}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
-                <h3 className="mb-4 font-semibold text-gray-800">Rental Period</h3>
+                <h3 className="mb-4 font-semibold text-gray-800">{t('agreementCreate.rentalPeriod')}</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Pickup</span>
+                    <span className="text-gray-500">{t('agreementActions.pickup')}</span>
                     <span>{formatDate(agreement.pickup_datetime)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Expected Return</span>
+                    <span className="text-gray-500">{t('agreementActions.expectedReturn')}</span>
                     <span>{formatDate(agreement.expected_return_datetime)}</span>
                   </div>
                   {agreement.actual_return_datetime && (
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Actual Return</span>
+                      <span className="text-gray-500">{t('agreementActions.actualReturn')}</span>
                       <span>{formatDate(agreement.actual_return_datetime)}</span>
                     </div>
                   )}
                 </div>
               </div>
               <div>
-                <h3 className="mb-4 font-semibold text-gray-800">Locations</h3>
+                <h3 className="mb-4 font-semibold text-gray-800">{t('sections.locations')}</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Pickup Location</span>
+                    <span className="text-gray-500">{t('agreementCreate.pickupLocation')}</span>
                     <span>{agreement.pickup_location || '-'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Return Location</span>
+                    <span className="text-gray-500">{t('agreementCreate.returnLocation')}</span>
                     <span>{agreement.return_location || '-'}</span>
                   </div>
                 </div>
@@ -675,7 +675,7 @@ export default function AgreementDetailPage() {
             {agreement.advance_payment && agreement.advance_payment > 0 && (
               <div className="rounded-lg border border-green-200 bg-green-50 p-4">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-gray-700">Advance Payment</span>
+                  <span className="font-medium text-gray-700">{t('ledger.advancePayment')}</span>
                   <span className="text-lg font-bold text-green-700">
                     {formatCurrency(agreement.advance_payment)}
                   </span>
@@ -686,7 +686,7 @@ export default function AgreementDetailPage() {
             {/* Notes */}
             {agreement.notes && (
               <div>
-                <h3 className="mb-2 font-semibold text-gray-800">Notes</h3>
+                <h3 className="mb-2 font-semibold text-gray-800">{t('agreementCreate.notes')}</h3>
                 <p className="text-gray-600">{agreement.notes}</p>
               </div>
             )}
@@ -697,7 +697,7 @@ export default function AgreementDetailPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-semibold text-gray-800">Financial Ledger</h3>
+                <h3 className="text-base font-semibold text-gray-800">{t('ledger.financialLedger')}</h3>
                 <p className="text-xs text-gray-500">Append-only audit trail — every charge, payment, and adjustment</p>
               </div>
               {agreement.status === 'active' && (
@@ -852,6 +852,7 @@ function AmountModal({
   defaultAmount?: string
   showDescription?: boolean
 }) {
+  const { t } = useTranslation()
   const [amount, setAmount] = useState(defaultAmount ?? '')
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bank_transfer' | 'telebirr' | 'cbe_birr' | 'check' | 'other'>('cash')
   const [description, setDescription] = useState('')
@@ -862,7 +863,7 @@ function AmountModal({
     e.preventDefault()
     const parsed = Number.parseFloat(amount)
     if (!Number.isFinite(parsed) || parsed <= 0) {
-      setError('Please enter a valid amount greater than 0.')
+      setError(t('validation.validAmountRequired'))
       return
     }
     if (typeof maxAmount === 'number' && parsed > maxAmount) {
@@ -883,12 +884,12 @@ function AmountModal({
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold">{title}</h2>
           <button type="button" onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700">
-            Close
+            {t('common.close')}
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Amount (ETB)</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.amountEtb')}</label>
             <input
               type="number"
               step="0.01"
@@ -901,25 +902,25 @@ function AmountModal({
 
           {requirePaymentMethod && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Payment Method</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.paymentMethod')}</label>
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'bank_transfer' | 'telebirr' | 'cbe_birr' | 'check' | 'other')}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2"
               >
-                <option value="cash">Cash</option>
-                <option value="bank_transfer">Bank Transfer</option>
-                <option value="telebirr">TeleBirr</option>
-                <option value="cbe_birr">CBE Birr</option>
-                <option value="check">Check</option>
-                <option value="other">Other</option>
+                <option value="cash">{t('payment.cash')}</option>
+                <option value="bank_transfer">{t('payment.bankTransfer')}</option>
+                <option value="telebirr">{t('payment.telebirr')}</option>
+                <option value="cbe_birr">{t('payment.cbeBirr')}</option>
+                <option value="check">{t('payment.check')}</option>
+                <option value="other">{t('payment.other')}</option>
               </select>
             </div>
           )}
 
           {showDescription && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Description (optional)</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.descriptionOptional')}</label>
               <input
                 type="text"
                 value={description}
@@ -930,7 +931,7 @@ function AmountModal({
           )}
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Notes (optional)</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.notesOptional')}</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -943,7 +944,7 @@ function AmountModal({
 
           <div className="flex justify-end gap-3">
             <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -970,6 +971,7 @@ function PaymentModal({
   isLoading: boolean
   balance: number
 }) {
+  const { t } = useTranslation()
   const [amount, setAmount] = useState(balance > 0 ? balance.toString() : '')
   const [method, setMethod] = useState<PostPaymentData['payment_method']>('cash')
   const [reference, setReference] = useState('')
@@ -981,7 +983,7 @@ function PaymentModal({
     const trimmed = amount.trim()
     const parsed = Number.parseFloat(trimmed)
     if (!Number.isFinite(parsed) || parsed <= 0) {
-      setError('Please enter a valid payment amount greater than 0.')
+      setError(t('validation.validPaymentRequired'))
       return
     }
 
@@ -996,10 +998,10 @@ function PaymentModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-full max-w-md rounded-lg bg-white p-6">
-        <h2 className="mb-4 text-xl font-bold">Post Payment</h2>
+        <h2 className="mb-4 text-xl font-bold">{t('ledger.postPayment')}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Amount (ETB)</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.amountEtb')}</label>
             <input
               type="number"
               step="0.01"
@@ -1014,23 +1016,23 @@ function PaymentModal({
             {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Payment Method</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.paymentMethod')}</label>
             <select
               value={method}
               onChange={(e) => setMethod(e.target.value as PostPaymentData['payment_method'])}
               className="w-full rounded-lg border border-gray-300 px-3 py-2"
             >
-              <option value="cash">Cash</option>
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="telebirr">TeleBirr</option>
-              <option value="cbe_birr">CBE Birr</option>
-              <option value="check">Check</option>
-              <option value="other">Other</option>
+              <option value="cash">{t('payment.cash')}</option>
+              <option value="bank_transfer">{t('payment.bankTransfer')}</option>
+              <option value="telebirr">{t('payment.telebirr')}</option>
+              <option value="cbe_birr">{t('payment.cbeBirr')}</option>
+              <option value="check">{t('payment.check')}</option>
+              <option value="other">{t('payment.other')}</option>
             </select>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              Reference (optional)
+              {t('ledger.referenceOptional')}
             </label>
             <input
               type="text"
@@ -1045,7 +1047,7 @@ function PaymentModal({
               onClick={onClose}
               className="rounded-lg border px-4 py-2 hover:bg-gray-50"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -1070,6 +1072,7 @@ function ReturnModal({
   onSubmit: (data: { actual_return_datetime: string; return_mileage?: number; notes?: string }) => void
   isLoading: boolean
 }) {
+  const { t } = useTranslation()
   const [returnDate, setReturnDate] = useState(new Date().toISOString().slice(0, 16))
   const [mileage, setMileage] = useState('')
   const [notes, setNotes] = useState('')
@@ -1086,10 +1089,10 @@ function ReturnModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-full max-w-md rounded-lg bg-white p-6">
-        <h2 className="mb-4 text-xl font-bold">Mark Vehicle Returned</h2>
+        <h2 className="mb-4 text-xl font-bold">{t('agreementActions.markVehicleReturned')}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Return Date & Time</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementActions.returnDateTime')}</label>
             <input
               type="datetime-local"
               value={returnDate}
@@ -1099,7 +1102,7 @@ function ReturnModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Return Mileage (optional)</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementActions.returnMileageOptional')}</label>
             <input
               type="number"
               value={mileage}
@@ -1109,7 +1112,7 @@ function ReturnModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Notes (optional)</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.notesOptional')}</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -1120,7 +1123,7 @@ function ReturnModal({
           </div>
           <div className="flex justify-end gap-3">
             <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -1157,6 +1160,7 @@ function SettlementModal({
   onClose_final: () => void
   isLoading: boolean
 }) {
+  const { t } = useTranslation()
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB' }).format(amount)
 
@@ -1167,7 +1171,7 @@ function SettlementModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-full max-w-lg rounded-lg bg-white p-6">
-        <h2 className="mb-4 text-xl font-bold">Settlement & Close Agreement</h2>
+        <h2 className="mb-4 text-xl font-bold">{t('agreementActions.settlementClose')}</h2>
 
         <div className="mb-6 space-y-3 rounded-lg bg-gray-50 p-4">
           <div className="flex justify-between">
@@ -1192,7 +1196,7 @@ function SettlementModal({
         </div>
 
         <div className="mb-6 space-y-3">
-          <h3 className="font-medium text-gray-700">Settlement Actions</h3>
+          <h3 className="font-medium text-gray-700">{t('agreementActions.settlementActions')}</h3>
 
           {canApplyDeposit && (
             <button
@@ -1227,7 +1231,7 @@ function SettlementModal({
 
         <div className="flex justify-end gap-3">
           <button onClick={onClose} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={onClose_final}
@@ -1260,16 +1264,17 @@ function CancelConfirmModal({
   onConfirm: (reason: string) => void
   isLoading: boolean
 }) {
+  const { t } = useTranslation()
   const [reason, setReason] = useState('')
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-1 text-lg font-bold text-gray-900">Cancel Agreement</h2>
+        <h2 className="mb-1 text-lg font-bold text-gray-900">{t('agreementActions.cancelAgreement')}</h2>
         <p className="mb-4 text-sm text-gray-500">
-          Cancel <span className="font-medium">{agreementNumber}</span>? The vehicle will be released back to available. This cannot be undone.
+          {t('common.cancel')}<span className="font-medium">{agreementNumber}</span>? The vehicle will be released back to available. This cannot be undone.
         </p>
         <div className="mb-4">
-          <label className="mb-1 block text-sm font-medium text-gray-700">Reason (optional)</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.reasonOptional')}</label>
           <input
             type="text"
             value={reason}
@@ -1280,7 +1285,7 @@ function CancelConfirmModal({
         </div>
         <div className="flex justify-end gap-3">
           <button onClick={onClose} className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
-            Go Back
+            {t('sections.goBack')}
           </button>
           <button
             onClick={() => onConfirm(reason)}

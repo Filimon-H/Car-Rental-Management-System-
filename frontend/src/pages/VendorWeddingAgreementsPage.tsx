@@ -208,6 +208,7 @@ export default function VendorWeddingAgreementsPage() {
 }
 
 function CreateVendorSupplyModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation()
   const [showVendorLookup, setShowVendorLookup] = useState(false)
   const [selectedVendor, setSelectedVendor] = useState<VendorSearchResult | null>(null)
   const [formData, setFormData] = useState({
@@ -233,7 +234,7 @@ function CreateVendorSupplyModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6">
-        <h2 className="mb-4 text-xl font-bold">New Vendor Wedding Supply</h2>
+        <h2 className="mb-4 text-xl font-bold">{t('vendorPage.newWeddingSupply')}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Vendor Selection */}
           <div>
@@ -249,7 +250,7 @@ function CreateVendorSupplyModal({ onClose }: { onClose: () => void }) {
                   onClick={() => setShowVendorLookup(true)}
                   className="text-sm text-purple-600 hover:underline"
                 >
-                  Change
+                  {t('agreementCreate.change')}
                 </button>
               </div>
             ) : (
@@ -329,7 +330,7 @@ function CreateVendorSupplyModal({ onClose }: { onClose: () => void }) {
 
           {/* Notes */}
           <div>
-            <label className="mb-1 block text-sm font-medium">Notes</label>
+            <label className="mb-1 block text-sm font-medium">{t('agreementCreate.notes')}</label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -345,14 +346,14 @@ function CreateVendorSupplyModal({ onClose }: { onClose: () => void }) {
               onClick={onClose}
               className="rounded-lg border px-4 py-2 hover:bg-gray-50"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={!selectedVendor}
               className="rounded-lg bg-purple-500 px-4 py-2 text-white hover:bg-purple-600 disabled:opacity-50"
             >
-              Create Agreement
+              {t('agreementCreate.createAgreement')}
             </button>
           </div>
         </form>

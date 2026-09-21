@@ -7,8 +7,10 @@ import { customerDocumentsService, CustomerDocument } from '@/services/customerD
 import { collateralsService, CollateralPerson } from '@/services/collaterals'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
 import { useProtectedFileUrl } from '@/hooks/use-protected-file-url'
+import { useTranslation } from 'react-i18next'
 
 export default function CustomerDetailPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { customerId } = useParams<{ customerId: string }>()
   const customerIdNum = parseInt(customerId || '0', 10)
@@ -70,9 +72,9 @@ export default function CustomerDetailPage() {
   if (!customer) {
     return (
       <div className="flex h-screen flex-col items-center justify-center">
-        <p className="text-lg text-gray-600">Customer not found</p>
+        <p className="text-lg text-gray-600">{t('customerDetail.notFound')}</p>
         <button onClick={() => navigate('/customers')} className="mt-4 text-blue-600 hover:underline">
-          Back to Customers
+          {t('customerDetail.backToCustomers')}
         </button>
       </div>
     )
@@ -91,7 +93,7 @@ export default function CustomerDetailPage() {
             </button>
             <div>
               <h1 className="text-xl font-bold text-gray-900">{customer.full_name}</h1>
-              <p className="text-sm text-gray-500">Customer Details</p>
+              <p className="text-sm text-gray-500">{t('customerDetail.title')}</p>
             </div>
           </div>
           <button
@@ -99,7 +101,7 @@ export default function CustomerDetailPage() {
             className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
           >
             <Edit className="h-4 w-4" />
-            Edit Customer
+            {t('customerDetail.editCustomer')}
           </button>
         </div>
       </div>
@@ -112,7 +114,7 @@ export default function CustomerDetailPage() {
             <div className="rounded-lg border bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-gray-700">
                 <User className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Personal Information</h2>
+                <h2 className="text-lg font-semibold">{t('customerCreate.personalInformation')}</h2>
               </div>
               <dl className="space-y-3">
                 <InfoRow label="Full Name" value={customer.full_name} />
@@ -130,7 +132,7 @@ export default function CustomerDetailPage() {
             <div className="rounded-lg border bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-gray-700">
                 <Phone className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Contact Information</h2>
+                <h2 className="text-lg font-semibold">{t('customerCreate.contactInformation')}</h2>
               </div>
               <dl className="space-y-3">
                 <InfoRow label="Primary Phone" value={customer.phone_primary} />
@@ -148,7 +150,7 @@ export default function CustomerDetailPage() {
               <div className="rounded-lg border bg-white p-6 shadow-sm">
                 <div className="mb-4 flex items-center gap-2 text-gray-700">
                   <FileText className="h-5 w-5" />
-                  <h2 className="text-lg font-semibold">ID & License</h2>
+                  <h2 className="text-lg font-semibold">{t('customerCreate.idAndLicense')}</h2>
                 </div>
                 <dl className="space-y-3">
                   <InfoRow label="ID Type" value={customer.id_type || '-'} />
@@ -168,7 +170,7 @@ export default function CustomerDetailPage() {
             <div className="rounded-lg border bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-gray-700">
                 <MapPin className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Address</h2>
+                <h2 className="text-lg font-semibold">{t('customerCreate.address')}</h2>
               </div>
               <dl className="space-y-3">
                 {customer.house_number && <InfoRow label="House Number" value={customer.house_number} />}
@@ -184,7 +186,7 @@ export default function CustomerDetailPage() {
             <div className="rounded-lg border bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-gray-700">
                 <Image className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Uploaded Documents</h2>
+                <h2 className="text-lg font-semibold">{t('customerDetail.uploadedDocuments')}</h2>
               </div>
               {loadingDocuments ? (
                 <div className="flex items-center justify-center py-8">
@@ -197,7 +199,7 @@ export default function CustomerDetailPage() {
                   ))}
                 </div>
               ) : (
-                <p className="py-8 text-center text-gray-500">No documents uploaded</p>
+                <p className="py-8 text-center text-gray-500">{t('customerDetail.noDocumentsUploaded')}</p>
               )}
             </div>
           )}
@@ -207,7 +209,7 @@ export default function CustomerDetailPage() {
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2 text-gray-700">
                 <Shield className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Collateral Persons</h2>
+                <h2 className="text-lg font-semibold">{t('collaterals.title')}</h2>
               </div>
               <button
                 onClick={() => navigate(`/customers/${customerIdNum}/collaterals/new`)}
@@ -227,7 +229,7 @@ export default function CustomerDetailPage() {
                 ))}
               </div>
             ) : (
-              <p className="py-8 text-center text-gray-500">No collateral persons added</p>
+              <p className="py-8 text-center text-gray-500">{t('collateralDetail.noCollateralPersons')}</p>
             )}
           </div>
 
@@ -236,7 +238,7 @@ export default function CustomerDetailPage() {
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2 text-gray-700">
                 <Send className="h-5 w-5 text-telegram" />
-                <h2 className="text-lg font-semibold">Telegram Bot Access</h2>
+                <h2 className="text-lg font-semibold">{t('customerDetail.telegramBotAccess')}</h2>
               </div>
               {customer.telegram_username && (
                 <span className="text-sm text-telegram font-medium">@{customer.telegram_username.replace('@', '')}</span>
@@ -249,10 +251,10 @@ export default function CustomerDetailPage() {
                   Generate a one-time link code so this customer can connect to{' '}
                   <span className="font-medium text-telegram">@Novacar67_bot</span> and manage their bookings.
                   {customer.telegram_username && (
-                    <> Send it to their Telegram handle <span className="font-medium">@{customer.telegram_username.replace('@', '')}</span>.</>
+                    <> {t('customerDetail.sendViaTelegram')}<span className="font-medium">@{customer.telegram_username.replace('@', '')}</span>.</>
                   )}
                   {!customer.telegram_username && customer.phone_primary && (
-                    <> Send it via SMS/WhatsApp to <span className="font-medium">{customer.phone_primary}</span>.</>
+                    <> {t('customerDetail.sendViaSms')}<span className="font-medium">{customer.phone_primary}</span>.</>
                   )}
                 </p>
                 {botCodeError && <p className="text-red-500 text-sm mb-3">{botCodeError}</p>}
@@ -268,14 +270,14 @@ export default function CustomerDetailPage() {
             ) : (
               <div className="space-y-4">
                 <div>
-                  <p className="text-xs text-gray-500 mb-1 font-medium uppercase tracking-wide">Link Code (send to customer)</p>
+                  <p className="text-xs text-gray-500 mb-1 font-medium uppercase tracking-wide">{t('customerDetail.linkCode')}</p>
                   <div className="flex items-center gap-2 bg-gray-50 border rounded-lg px-4 py-3">
                     <code className="text-xl font-mono font-bold text-gray-900 tracking-widest flex-1">/link {botLinkCode.code}</code>
                     <button
                       onClick={() => copyToClipboard(`/link ${botLinkCode.code}`, 'code')}
                       className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 transition-colors"
                     >
-                      {copiedCode ? <><Check className="h-4 w-4 text-green-500" /><span className="text-green-500">Copied</span></> : <><Copy className="h-4 w-4" />Copy</>}
+                      {copiedCode ? <><Check className="h-4 w-4 text-green-500" /><span className="text-green-500">{t('common.copied')}</span></> : <><Copy className="h-4 w-4" />{t('common.copy')}</>}
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
@@ -284,7 +286,7 @@ export default function CustomerDetailPage() {
                 </div>
 
                 <div>
-                  <p className="text-xs text-gray-500 mb-1 font-medium uppercase tracking-wide">Ready-to-send message</p>
+                  <p className="text-xs text-gray-500 mb-1 font-medium uppercase tracking-wide">{t('customerDetail.readyToSendMessage')}</p>
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-gray-700 whitespace-pre-wrap font-mono">
                     {botLinkCode.bot_message}
                   </div>
@@ -292,7 +294,7 @@ export default function CustomerDetailPage() {
                     onClick={() => copyToClipboard(botLinkCode.bot_message, 'msg')}
                     className="mt-2 flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 transition-colors"
                   >
-                    {copiedMsg ? <><Check className="h-3.5 w-3.5" />Copied!</> : <><Copy className="h-3.5 w-3.5" />Copy full message</>}
+                    {copiedMsg ? <><Check className="h-3.5 w-3.5" />Copied!</> : <><Copy className="h-3.5 w-3.5" />{t('customerDetail.copyFullMessage')}</>}
                   </button>
                 </div>
 
@@ -312,7 +314,7 @@ export default function CustomerDetailPage() {
                     onClick={() => { setBotLinkCode(null); handleGenerateBotCode() }}
                     className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
                   >
-                    Generate new code
+                    {t('customerDetail.generateNewCode')}
                   </button>
                 </div>
               </div>
@@ -324,7 +326,7 @@ export default function CustomerDetailPage() {
             <div className="rounded-lg border bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-gray-700">
                 <FileText className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Notes</h2>
+                <h2 className="text-lg font-semibold">{t('agreementCreate.notes')}</h2>
               </div>
               <p className="text-gray-600 whitespace-pre-wrap">{customer.notes}</p>
             </div>

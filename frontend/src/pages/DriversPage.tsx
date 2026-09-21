@@ -231,6 +231,7 @@ export default function DriversPage() {
 }
 
 function DriverModal({ driver, onClose, onSuccess }: { driver: Driver | null; onClose: () => void; onSuccess: () => void }) {
+  const { t } = useTranslation()
   const [formData, setFormData] = useState<CreateDriverData>({
     first_name: driver?.first_name || '',
     last_name: driver?.last_name || '',
@@ -290,12 +291,12 @@ function DriverModal({ driver, onClose, onSuccess }: { driver: Driver | null; on
               <input type="tel" value={formData.phone_primary} onChange={e => setFormData({...formData, phone_primary: e.target.value})} required className="w-full rounded-lg border px-3 py-2" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Secondary Phone</label>
+              <label className="mb-1 block text-sm font-medium">{t('customerCreate.secondaryPhone')}</label>
               <input type="tel" value={formData.phone_secondary} onChange={e => setFormData({...formData, phone_secondary: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Email</label>
+            <label className="mb-1 block text-sm font-medium">{t('customerCreate.email')}</label>
             <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -304,69 +305,69 @@ function DriverModal({ driver, onClose, onSuccess }: { driver: Driver | null; on
               <input type="text" value={formData.license_number} onChange={e => setFormData({...formData, license_number: e.target.value})} required className="w-full rounded-lg border px-3 py-2" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">License Expiry</label>
+              <label className="mb-1 block text-sm font-medium">{t('drivers.columns.licenseExpiry')}</label>
               <input type="date" value={formData.license_expiry} onChange={e => setFormData({...formData, license_expiry: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium">License Class</label>
+              <label className="mb-1 block text-sm font-medium">{t('driver.licenseClass')}</label>
               <input type="text" value={formData.license_class} onChange={e => setFormData({...formData, license_class: e.target.value})} className="w-full rounded-lg border px-3 py-2" placeholder="e.g. Class 3" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">ID Type</label>
+              <label className="mb-1 block text-sm font-medium">{t('agreementCreate.idType')}</label>
               <select value={formData.id_type} onChange={e => setFormData({...formData, id_type: e.target.value})} className="w-full rounded-lg border px-3 py-2">
-                <option value="national_id">National ID</option>
-                <option value="passport">Passport</option>
-                <option value="kebele_id">Kebele ID</option>
+                <option value="national_id">{t('customerCreate.nationalId')}</option>
+                <option value="passport">{t('customerCreate.passport')}</option>
+                <option value="kebele_id">{t('customerCreate.kebeleId')}</option>
               </select>
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">ID Number</label>
+            <label className="mb-1 block text-sm font-medium">{t('agreementCreate.idNumber')}</label>
             <input type="text" value={formData.id_number} onChange={e => setFormData({...formData, id_number: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium">House Number</label>
+              <label className="mb-1 block text-sm font-medium">{t('customerCreate.houseNumber')}</label>
               <input type="text" value={formData.house_number} onChange={e => setFormData({...formData, house_number: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Wereda</label>
+              <label className="mb-1 block text-sm font-medium">{t('customerCreate.wereda')}</label>
               <input type="text" value={formData.wereda} onChange={e => setFormData({...formData, wereda: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium">Subcity</label>
+              <label className="mb-1 block text-sm font-medium">{t('customerCreate.subcity')}</label>
               <select value={formData.subcity} onChange={e => setFormData({...formData, subcity: e.target.value})} className="w-full rounded-lg border px-3 py-2">
-                <option value="">Select Subcity</option>
-                <option value="Bole">Bole</option>
-                <option value="Lideta">Lideta</option>
-                <option value="Yeka">Yeka</option>
+                <option value="">{t('customerCreate.selectSubcity')}</option>
+                <option value="Bole">{t('subcity.bole')}</option>
+                <option value="Lideta">{t('subcity.lideta')}</option>
+                <option value="Yeka">{t('subcity.yeka')}</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">City</label>
+              <label className="mb-1 block text-sm font-medium">{t('agreementCreate.city')}</label>
               <input type="text" value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium">Emergency Contact Name</label>
+              <label className="mb-1 block text-sm font-medium">{t('sections.emergencyContactName')}</label>
               <input type="text" value={formData.emergency_contact_name} onChange={e => setFormData({...formData, emergency_contact_name: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Emergency Contact Phone</label>
+              <label className="mb-1 block text-sm font-medium">{t('sections.emergencyContactPhone')}</label>
               <input type="tel" value={formData.emergency_contact_phone} onChange={e => setFormData({...formData, emergency_contact_phone: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Notes</label>
+            <label className="mb-1 block text-sm font-medium">{t('agreementCreate.notes')}</label>
             <textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} rows={2} className="w-full rounded-lg border px-3 py-2" />
           </div>
           <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 hover:bg-gray-50">Cancel</button>
+            <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 hover:bg-gray-50">{t('common.cancel')}</button>
             <button type="submit" disabled={isLoading} className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-50">
               {isLoading ? 'Saving...' : 'Save'}
             </button>

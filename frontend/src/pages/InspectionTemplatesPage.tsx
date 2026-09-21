@@ -53,7 +53,7 @@ export default function InspectionTemplatesPage() {
         <div className="lg:col-span-1">
           <div className="rounded-lg bg-white shadow">
             <div className="border-b px-4 py-3">
-              <h2 className="font-semibold text-gray-700">Available Templates</h2>
+              <h2 className="font-semibold text-gray-700">{t('inspection.availableTemplates')}</h2>
             </div>
             {isLoading ? (
               <div className="flex h-32 items-center justify-center">
@@ -80,7 +80,7 @@ export default function InspectionTemplatesPage() {
                 ))}
                 {templates?.length === 0 && (
                   <div className="px-4 py-8 text-center text-gray-500">
-                    No templates found
+                    {t('inspection.noTemplatesFound')}
                   </div>
                 )}
               </div>
@@ -113,7 +113,7 @@ export default function InspectionTemplatesPage() {
 
               {/* Checklist Items by Category */}
               <div className="p-6">
-                <h3 className="mb-4 font-semibold text-gray-700">Checklist Items</h3>
+                <h3 className="mb-4 font-semibold text-gray-700">{t('inspection.checklistItems')}</h3>
                 {groupedItems && Object.entries(groupedItems).map(([category, items]) => (
                   <div key={category} className="mb-6">
                     <h4 className="mb-2 text-sm font-medium uppercase text-gray-500">
@@ -128,7 +128,7 @@ export default function InspectionTemplatesPage() {
                           <CheckSquare className="h-5 w-5 text-gray-400" />
                           <span className="flex-1 text-gray-700">{item.label}</span>
                           {item.required && (
-                            <span className="text-xs text-red-500">Required</span>
+                            <span className="text-xs text-red-500">{t('sections.required')}</span>
                           )}
                         </div>
                       ))}
@@ -139,7 +139,7 @@ export default function InspectionTemplatesPage() {
                 {/* Damage Categories */}
                 {selectedTemplate.damage_categories.length > 0 && (
                   <div className="mt-6 border-t pt-6">
-                    <h3 className="mb-3 font-semibold text-gray-700">Damage Categories</h3>
+                    <h3 className="mb-3 font-semibold text-gray-700">{t('inspection.damageCategories')}</h3>
                     <div className="flex flex-wrap gap-2">
                       {selectedTemplate.damage_categories.map((category) => (
                         <span
@@ -158,7 +158,7 @@ export default function InspectionTemplatesPage() {
             <div className="flex h-64 items-center justify-center rounded-lg bg-white shadow">
               <div className="text-center text-gray-500">
                 <ClipboardList className="mx-auto h-12 w-12 text-gray-300" />
-                <p className="mt-2">Select a template to view details</p>
+                <p className="mt-2">{t('inspection.selectTemplateToView')}</p>
               </div>
             </div>
           )}

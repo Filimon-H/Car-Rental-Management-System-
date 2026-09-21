@@ -6,8 +6,10 @@ import { collateralsService } from '@/services/collaterals'
 import { collateralDocumentsService, CollateralDocument } from '@/services/collateralDocuments'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
 import { useProtectedFileUrl } from '@/hooks/use-protected-file-url'
+import { useTranslation } from 'react-i18next'
 
 export default function CollateralDetailPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { customerId, collateralId } = useParams<{ customerId: string; collateralId: string }>()
   const customerIdNum = customerId ? parseInt(customerId, 10) : null
@@ -36,7 +38,7 @@ export default function CollateralDetailPage() {
   if (!collateral) {
     return (
       <div className="flex h-screen flex-col items-center justify-center">
-        <p className="text-lg text-gray-600">Collateral person not found</p>
+        <p className="text-lg text-gray-600">{t('collateralDetail.notFound')}</p>
         <button
           onClick={() => (customerIdNum ? navigate(`/customers/${customerIdNum}`) : navigate('/collaterals'))}
           className="mt-4 text-blue-600 hover:underline"
@@ -60,7 +62,7 @@ export default function CollateralDetailPage() {
             </button>
             <div>
               <h1 className="text-xl font-bold text-gray-900">{collateral.first_name} {collateral.last_name}</h1>
-              <p className="text-sm text-gray-500">Collateral Details</p>
+              <p className="text-sm text-gray-500">{t('collateralDetail.title')}</p>
             </div>
           </div>
           <button
@@ -74,7 +76,7 @@ export default function CollateralDetailPage() {
             className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
           >
             <Edit className="h-4 w-4" />
-            Edit Collateral
+            {t('collateralDetail.editCollateral')}
           </button>
         </div>
       </div>
@@ -85,7 +87,7 @@ export default function CollateralDetailPage() {
             <div className="rounded-lg border bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-gray-700">
                 <User className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Personal Information</h2>
+                <h2 className="text-lg font-semibold">{t('customerCreate.personalInformation')}</h2>
               </div>
               <dl className="space-y-3">
                 <InfoRow label="Full Name" value={`${collateral.first_name} ${collateral.last_name}`} />
@@ -96,7 +98,7 @@ export default function CollateralDetailPage() {
             <div className="rounded-lg border bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-gray-700">
                 <Phone className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Contact Information</h2>
+                <h2 className="text-lg font-semibold">{t('customerCreate.contactInformation')}</h2>
               </div>
               <dl className="space-y-3">
                 <InfoRow label="Primary Phone" value={collateral.phone_primary} />
@@ -108,7 +110,7 @@ export default function CollateralDetailPage() {
             <div className="rounded-lg border bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-gray-700">
                 <FileText className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Identification</h2>
+                <h2 className="text-lg font-semibold">{t('customerDetail.identification')}</h2>
               </div>
               <dl className="space-y-3">
                 <InfoRow label="ID Type" value={collateral.id_type || '-'} />
@@ -119,7 +121,7 @@ export default function CollateralDetailPage() {
             <div className="rounded-lg border bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-gray-700">
                 <MapPin className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Address</h2>
+                <h2 className="text-lg font-semibold">{t('customerCreate.address')}</h2>
               </div>
               <dl className="space-y-3">
                 {collateral.house_number && <InfoRow label="House Number" value={collateral.house_number} />}
@@ -133,7 +135,7 @@ export default function CollateralDetailPage() {
           <div className="rounded-lg border bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-2 text-gray-700">
               <Image className="h-5 w-5" />
-              <h2 className="text-lg font-semibold">Uploaded Documents</h2>
+              <h2 className="text-lg font-semibold">{t('customerDetail.uploadedDocuments')}</h2>
             </div>
             {loadingDocuments ? (
               <div className="flex items-center justify-center py-8">
@@ -146,7 +148,7 @@ export default function CollateralDetailPage() {
                 ))}
               </div>
             ) : (
-              <p className="py-8 text-center text-gray-500">No documents uploaded</p>
+              <p className="py-8 text-center text-gray-500">{t('customerDetail.noDocumentsUploaded')}</p>
             )}
           </div>
         </div>

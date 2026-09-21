@@ -63,7 +63,7 @@ export default function LoginPage() {
                 <Car className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">FleetOps</h1>
+                <h1 className="text-2xl font-bold tracking-tight">{t('brand.fleetOps')}</h1>
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{t('auth.adminDashboard')}</p>
               </div>
             </div>
@@ -103,7 +103,7 @@ export default function LoginPage() {
                   <Car className="h-4.5 w-4.5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold tracking-tight text-slate-900">FleetOps</h1>
+                  <h1 className="text-xl font-bold tracking-tight text-slate-900">{t('brand.fleetOps')}</h1>
                   <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{t('auth.adminDashboard')}</p>
                 </div>
               </div>
@@ -124,7 +124,7 @@ export default function LoginPage() {
                 <div className={`flex items-start gap-3 rounded-xl border-2 border-red-400 bg-red-50 p-4 ${shake ? 'animate-[shake_0.5s_ease-in-out]' : ''}`}>
                   <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
                   <div>
-                    <p className="text-sm font-bold text-red-700">Incorrect username or password</p>
+                    <p className="text-sm font-bold text-red-700">{t('authErrors.incorrectCredentials')}</p>
                     <p className="mt-0.5 text-xs text-red-600">{error}</p>
                   </div>
                 </div>

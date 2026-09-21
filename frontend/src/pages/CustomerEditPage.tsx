@@ -6,6 +6,7 @@ import { customersService, CreateCustomerData, DuplicateCheckResult } from '@/se
 import { customerDocumentsService, CustomerDocument, DocumentType } from '@/services/customerDocuments'
 import { DocumentDropzone } from '@/components/documents/DocumentDropzone'
 import { getErrorMessage } from '@/services/apiClient'
+import { useTranslation } from 'react-i18next'
 
 // Phone normalization: 09XXXXXXXX -> +2519XXXXXXXX
 function normalizeEthiopianPhone(phone: string): string {
@@ -32,6 +33,7 @@ const SUBCITIES = [
 ]
 
 export default function CustomerEditPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { customerId } = useParams<{ customerId: string }>()
   const customerIdNum = parseInt(customerId || '0', 10)
@@ -303,9 +305,9 @@ export default function CustomerEditPage() {
   if (!customer) {
     return (
       <div className="flex h-screen flex-col items-center justify-center">
-        <p className="text-lg text-gray-600">Customer not found</p>
+        <p className="text-lg text-gray-600">{t('customerDetail.notFound')}</p>
         <button onClick={() => navigate('/customers')} className="mt-4 text-blue-600 hover:underline">
-          Back to Customers
+          {t('customerDetail.backToCustomers')}
         </button>
       </div>
     )
@@ -320,7 +322,7 @@ export default function CustomerEditPage() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Edit Customer</h1>
+            <h1 className="text-xl font-bold text-gray-900">{t('customerDetail.editCustomer')}</h1>
             <p className="text-sm text-gray-500">{customer.full_name}</p>
           </div>
         </div>
@@ -329,7 +331,7 @@ export default function CustomerEditPage() {
       <div className="flex">
         {/* Left Sidebar - Progress Checklist */}
         <div className="w-64 border-r bg-white p-6">
-          <h3 className="mb-4 text-sm font-semibold text-gray-500 uppercase">Progress</h3>
+          <h3 className="mb-4 text-sm font-semibold text-gray-500 uppercase">{t('customerCreate.progress')}</h3>
           <div className="space-y-3">
             <ChecklistItem label="Personal Info" complete={isPersonalComplete} />
             <ChecklistItem label="Contact Info" complete={isContactComplete} />
@@ -338,19 +340,19 @@ export default function CustomerEditPage() {
           </div>
 
           <div className="mt-8 border-t pt-6">
-            <h3 className="mb-4 text-sm font-semibold text-gray-500 uppercase">Wizard Steps</h3>
+            <h3 className="mb-4 text-sm font-semibold text-gray-500 uppercase">{t('customerCreate.wizardSteps')}</h3>
             <div className="space-y-2">
               <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-blue-700">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs text-white">1</div>
-                <span className="text-sm font-medium">Customer</span>
+                <span className="text-sm font-medium">{t('agreementCreate.customer')}</span>
               </div>
               <div className="flex items-center gap-2 px-3 py-2 text-gray-500">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs">2</div>
-                <span className="text-sm">Collateral</span>
+                <span className="text-sm">{t('customerCreate.collateral')}</span>
               </div>
               <div className="flex items-center gap-2 px-3 py-2 text-gray-500">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs">3</div>
-                <span className="text-sm">Agreement</span>
+                <span className="text-sm">{t('customerCreate.agreement')}</span>
               </div>
             </div>
           </div>
@@ -360,7 +362,7 @@ export default function CustomerEditPage() {
         <div className="flex-1 p-6">
           <form className="mx-auto max-w-3xl space-y-8">
             {/* Business Type Section */}
-            <Section icon={<Building2 className="h-5 w-5" />} title="Business Type">
+            <Section icon={<Building2 className="h-5 w-5" />} title={t('customerCreate.businessType')}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Business Type *</label>
@@ -374,12 +376,12 @@ export default function CustomerEditPage() {
                     }}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
-                    <option value="individual">Individual</option>
-                    <option value="company">Company</option>
-                    <option value="government">Government</option>
-                    <option value="embassy">Embassy</option>
+                    <option value="individual">{t('customerCreate.individual')}</option>
+                    <option value="company">{t('customerCreate.company')}</option>
+                    <option value="government">{t('customerCreate.government')}</option>
+                    <option value="embassy">{t('customerCreate.embassy')}</option>
                     <option value="ngo">NGO</option>
-                    <option value="church">Church</option>
+                    <option value="church">{t('customerCreate.church')}</option>
                   </select>
                 </div>
                 {!isIndividual && (
@@ -396,12 +398,12 @@ export default function CustomerEditPage() {
                 )}
                 {!isIndividual && (
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">TIN Number</label>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.tinNumber')}</label>
                     <input
                       type="text"
                       value={formData.tin_number}
                       onChange={(e) => updateField('tin_number', e.target.value)}
-                      placeholder="Tax Identification Number"
+                      placeholder={t('customerCreate.tinPlaceholder')}
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
@@ -410,7 +412,7 @@ export default function CustomerEditPage() {
             </Section>
 
             {/* Personal Info Section */}
-            <Section icon={<User className="h-5 w-5" />} title="Personal Information">
+            <Section icon={<User className="h-5 w-5" />} title={t('customerCreate.personalInformation')}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">First Name *</label>
@@ -438,7 +440,7 @@ export default function CustomerEditPage() {
             </Section>
 
             {/* Contact Info Section */}
-            <Section icon={<Phone className="h-5 w-5" />} title="Contact Information">
+            <Section icon={<Phone className="h-5 w-5" />} title={t('customerCreate.contactInformation')}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Primary Phone *</label>
@@ -455,7 +457,7 @@ export default function CustomerEditPage() {
                   {fieldErrors.phone_primary && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone_primary}</p>}
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Secondary Phone</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.secondaryPhone')}</label>
                   <input
                     type="tel"
                     value={formData.phone_secondary}
@@ -468,7 +470,7 @@ export default function CustomerEditPage() {
                 </div>
               </div>
               <div className="mt-4">
-                <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.email')}</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <input
@@ -490,7 +492,7 @@ export default function CustomerEditPage() {
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
                   <div className="flex-1">
-                    <h3 className="font-medium text-yellow-800">Possible Duplicate Customer</h3>
+                    <h3 className="font-medium text-yellow-800">{t('customerCreate.possibleDuplicate')}</h3>
                     <p className="mt-1 text-sm text-yellow-700">
                       A customer with this {duplicateWarning.match === 'id_number' ? 'ID number' : duplicateWarning.match === 'license_number' ? 'license number' : 'phone number'} already exists: <strong>{duplicateWarning.customer_name}</strong>
                     </p>
@@ -499,7 +501,7 @@ export default function CustomerEditPage() {
                       onClick={() => window.open(`/customers`, '_blank')}
                       className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-yellow-800 hover:text-yellow-900"
                     >
-                      View existing customers <ExternalLink className="h-4 w-4" />
+                      {t('customerCreate.viewExisting')}<ExternalLink className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -508,7 +510,7 @@ export default function CustomerEditPage() {
 
             {/* ID & License Section - Only for Individual */}
             {isIndividual && (
-              <Section icon={<FileText className="h-5 w-5" />} title="ID & License">
+              <Section icon={<FileText className="h-5 w-5" />} title={t('customerCreate.idAndLicense')}>
                 {checkingDuplicate && (
                   <div className="mb-4 text-sm text-gray-500">Checking for duplicates...</div>
                 )}
@@ -520,9 +522,9 @@ export default function CustomerEditPage() {
                       onChange={(e) => updateField('id_type', e.target.value)}
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     >
-                      <option value="passport">Passport</option>
-                      <option value="national_id">National ID</option>
-                      <option value="kebele_id">Kebele ID</option>
+                      <option value="passport">{t('customerCreate.passport')}</option>
+                      <option value="national_id">{t('customerCreate.nationalId')}</option>
+                      <option value="kebele_id">{t('customerCreate.kebeleId')}</option>
                     </select>
                   </div>
                   <div>
@@ -553,7 +555,7 @@ export default function CustomerEditPage() {
 
             {/* Document Upload Section - Only for Individual */}
             {isIndividual && (
-              <Section icon={<Upload className="h-5 w-5" />} title="Document Uploads">
+              <Section icon={<Upload className="h-5 w-5" />} title={t('customerCreate.documentUploads')}>
                 <p className="mb-4 text-sm text-gray-500">
                   Upload or replace photos/scans of ID documents.
                 </p>
@@ -586,10 +588,10 @@ export default function CustomerEditPage() {
             )}
 
             {/* Address Section */}
-            <Section icon={<MapPin className="h-5 w-5" />} title="Address">
+            <Section icon={<MapPin className="h-5 w-5" />} title={t('customerCreate.address')}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">House Number</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.houseNumber')}</label>
                   <input
                     type="text"
                     value={formData.house_number}
@@ -598,7 +600,7 @@ export default function CustomerEditPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Wereda</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.wereda')}</label>
                   <input
                     type="text"
                     value={formData.wereda}
@@ -610,20 +612,20 @@ export default function CustomerEditPage() {
               </div>
               <div className="mt-4 grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Subcity</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.subcity')}</label>
                   <select
                     value={formData.subcity}
                     onChange={(e) => updateField('subcity', e.target.value)}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
-                    <option value="">Select Subcity</option>
+                    <option value="">{t('customerCreate.selectSubcity')}</option>
                     {SUBCITIES.map((sc) => (
                       <option key={sc} value={sc}>{sc}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">City</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementCreate.city')}</label>
                   <input
                     type="text"
                     value={formData.city}
@@ -636,7 +638,7 @@ export default function CustomerEditPage() {
             </Section>
 
             {/* Notes Section */}
-            <Section icon={<FileText className="h-5 w-5" />} title="Additional Notes">
+            <Section icon={<FileText className="h-5 w-5" />} title={t('customerCreate.additionalNotes')}>
               <textarea
                 value={formData.notes}
                 onChange={(e) => updateField('notes', e.target.value)}
@@ -653,7 +655,7 @@ export default function CustomerEditPage() {
                 onClick={() => navigate('/customers')}
                 className="rounded-lg border border-gray-300 px-6 py-2 text-gray-700 hover:bg-gray-50"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <div className="flex gap-3">
                 <button

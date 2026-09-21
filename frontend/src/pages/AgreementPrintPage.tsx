@@ -5,8 +5,10 @@ import { customersService } from '@/services/customers'
 import { collateralsService } from '@/services/collaterals'
 import { vehiclesService } from '@/services/vehicles'
 import { ArrowLeft, Printer } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 export default function AgreementPrintPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
@@ -71,7 +73,7 @@ export default function AgreementPrintPage() {
   if (!agreement) {
     return (
       <div className="p-6">
-        <div className="text-center text-red-500">Agreement not found</div>
+        <div className="text-center text-red-500">{t('agreementPrint.notFound')}</div>
       </div>
     )
   }
@@ -85,14 +87,14 @@ export default function AgreementPrintPage() {
           className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Agreement
+          {t('agreementPrint.backToAgreement')}
         </button>
         <button
           onClick={handlePrint}
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary-700"
         >
           <Printer className="h-4 w-4" />
-          Print / Save as PDF
+          {t('agreementPrint.printSavePdf')}
         </button>
       </div>
 
@@ -100,7 +102,7 @@ export default function AgreementPrintPage() {
       <div className="mx-auto max-w-4xl bg-white p-8 print:max-w-none print:p-0">
         {/* Header */}
         <div className="mb-8 border-b-2 border-gray-800 pb-4 text-center">
-          <h1 className="text-2xl font-bold uppercase tracking-wide">Car Rental Agreement</h1>
+          <h1 className="text-2xl font-bold uppercase tracking-wide">{t('agreementPrint.carRentalAgreement')}</h1>
           <p className="mt-2 text-lg font-semibold">{agreement.agreement_number}</p>
           <p className="text-sm text-gray-600">
             Date: {formatDate(agreement.created_at || new Date().toISOString())}
@@ -110,13 +112,13 @@ export default function AgreementPrintPage() {
         {/* Parties Section */}
         <div className="mb-6 grid grid-cols-2 gap-8">
           <div>
-            <h2 className="mb-2 border-b font-bold uppercase text-gray-700">Lessor (Company)</h2>
-            <p className="font-semibold">Car Rental Management</p>
+            <h2 className="mb-2 border-b font-bold uppercase text-gray-700">{t('agreementPrint.lessorCompany')}</h2>
+            <p className="font-semibold">{t('auth.carRentalManagement')}</p>
             <p>Addis Ababa, Ethiopia</p>
             <p>Phone: +251 XXX XXX XXX</p>
           </div>
           <div>
-            <h2 className="mb-2 border-b font-bold uppercase text-gray-700">Lessee (Customer)</h2>
+            <h2 className="mb-2 border-b font-bold uppercase text-gray-700">{t('agreementPrint.lesseeCustomer')}</h2>
             <p className="font-semibold">{customer?.full_name || agreement.customer_name}</p>
             <p>Phone: {customer?.phone_primary || 'N/A'}</p>
             {customer?.id_type && (
@@ -130,7 +132,7 @@ export default function AgreementPrintPage() {
 
         {/* Vehicle Details */}
         <div className="mb-6">
-          <h2 className="mb-2 border-b font-bold uppercase text-gray-700">Vehicle Details</h2>
+          <h2 className="mb-2 border-b font-bold uppercase text-gray-700">{t('vehicleUpsert.vehicleDetails')}</h2>
           <table className="w-full text-sm">
             <tbody>
               <tr>
@@ -157,7 +159,7 @@ export default function AgreementPrintPage() {
 
         {/* Rental Period */}
         <div className="mb-6">
-          <h2 className="mb-2 border-b font-bold uppercase text-gray-700">Rental Period</h2>
+          <h2 className="mb-2 border-b font-bold uppercase text-gray-700">{t('agreementCreate.rentalPeriod')}</h2>
           <table className="w-full text-sm">
             <tbody>
               <tr>
@@ -182,7 +184,7 @@ export default function AgreementPrintPage() {
 
         {/* Financial Terms */}
         <div className="mb-6">
-          <h2 className="mb-2 border-b font-bold uppercase text-gray-700">Financial Terms</h2>
+          <h2 className="mb-2 border-b font-bold uppercase text-gray-700">{t('agreementPrint.financialTerms')}</h2>
           <table className="w-full text-sm">
             <tbody>
               <tr>
@@ -212,7 +214,7 @@ export default function AgreementPrintPage() {
         {/* Collateral/Guarantor */}
         {collateral && (
           <div className="mb-6">
-            <h2 className="mb-2 border-b font-bold uppercase text-gray-700">Guarantor Information</h2>
+            <h2 className="mb-2 border-b font-bold uppercase text-gray-700">{t('customerDetail.guarantorInformation')}</h2>
             <table className="w-full text-sm">
               <tbody>
                 <tr>
@@ -234,7 +236,7 @@ export default function AgreementPrintPage() {
 
         {/* Terms and Conditions */}
         <div className="mb-6">
-          <h2 className="mb-2 border-b font-bold uppercase text-gray-700">Terms and Conditions</h2>
+          <h2 className="mb-2 border-b font-bold uppercase text-gray-700">{t('agreementPrint.termsAndConditions')}</h2>
           <ol className="list-inside list-decimal space-y-1 text-xs">
             <li>The Lessee agrees to return the vehicle in the same condition as received.</li>
             <li>The Lessee is responsible for all traffic violations during the rental period.</li>
@@ -250,7 +252,7 @@ export default function AgreementPrintPage() {
         {/* Notes */}
         {agreement.notes && (
           <div className="mb-6">
-            <h2 className="mb-2 border-b font-bold uppercase text-gray-700">Additional Notes</h2>
+            <h2 className="mb-2 border-b font-bold uppercase text-gray-700">{t('customerCreate.additionalNotes')}</h2>
             <p className="text-sm">{agreement.notes}</p>
           </div>
         )}
@@ -259,12 +261,12 @@ export default function AgreementPrintPage() {
         <div className="mt-12 grid grid-cols-2 gap-8">
           <div>
             <div className="mb-2 border-b border-gray-400" style={{ height: '60px' }}></div>
-            <p className="text-sm font-medium">Lessor Signature</p>
+            <p className="text-sm font-medium">{t('agreementPrint.lessorSignature')}</p>
             <p className="text-xs text-gray-600">Date: _______________</p>
           </div>
           <div>
             <div className="mb-2 border-b border-gray-400" style={{ height: '60px' }}></div>
-            <p className="text-sm font-medium">Lessee Signature</p>
+            <p className="text-sm font-medium">{t('agreementPrint.lesseeSignature')}</p>
             <p className="text-xs text-gray-600">Date: _______________</p>
           </div>
         </div>

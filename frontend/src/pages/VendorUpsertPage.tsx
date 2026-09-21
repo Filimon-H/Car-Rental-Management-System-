@@ -115,7 +115,7 @@ export default function VendorUpsertPage() {
           </button>
           <div>
             <h1 className="text-xl font-bold text-gray-900">{isEdit ? 'Edit Vendor' : 'Add Vendor'}</h1>
-            <p className="text-sm text-gray-500">Vendor details and contact information</p>
+            <p className="text-sm text-gray-500">{t('vendorPage.detailsAndContact')}</p>
           </div>
         </div>
       </div>
@@ -137,8 +137,8 @@ export default function VendorUpsertPage() {
                   onChange={e => setFormData({...formData, vendor_type: e.target.value})}
                   error={fieldErrors.vendor_type}
                 >
-                  <option value="company">Company</option>
-                  <option value="individual">Individual</option>
+                  <option value="company">{t('customerCreate.company')}</option>
+                  <option value="individual">{t('customerCreate.individual')}</option>
                 </SelectField>
               </div>
 
@@ -218,7 +218,7 @@ export default function VendorUpsertPage() {
             </div>
 
             <div className="border-t border-gray-100 pt-6">
-              <h3 className="mb-4 text-sm font-semibold text-gray-900">Commission</h3>
+              <h3 className="mb-4 text-sm font-semibold text-gray-900">{t('ledger.commission')}</h3>
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <Field
@@ -238,7 +238,7 @@ export default function VendorUpsertPage() {
             </div>
 
             <div className="border-t border-gray-100 pt-6">
-              <h3 className="mb-4 text-sm font-semibold text-gray-900">Bank Information</h3>
+              <h3 className="mb-4 text-sm font-semibold text-gray-900">{t('sections.bankInformation')}</h3>
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <Field
@@ -288,7 +288,7 @@ export default function VendorUpsertPage() {
                 onClick={() => navigate('/vendors')} 
                 className="rounded-lg border border-gray-300 px-6 py-2 text-sm font-medium hover:bg-gray-50 transition-colors"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button 
                 type="submit" 
