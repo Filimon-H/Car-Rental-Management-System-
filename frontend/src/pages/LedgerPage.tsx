@@ -92,7 +92,7 @@ function ReverseModal({
             onChange={(e) => setReason(e.target.value)}
             rows={3}
             placeholder="Explain why this entry is being reversed..."
-            className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
         <div className="flex gap-3">
@@ -145,7 +145,7 @@ function SummaryCard({ label, value, color, sub }: {
     <div className={`rounded-lg border px-4 py-3 ${colors[color]}`}>
       <p className={`text-xs font-semibold uppercase tracking-wide ${labelColors[color]}`}>{label}</p>
       <p className={`mt-0.5 text-lg font-bold ${textColors[color]}`}>{value}</p>
-      {sub && <p className="text-xs text-gray-400">{sub}</p>}
+      {sub && <p className="text-xs text-gray-500">{sub}</p>}
     </div>
   )
 }
@@ -220,7 +220,7 @@ function CustomersTab() {
                 placeholder="Type name or phone..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full rounded-lg border py-2 pl-10 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border py-2 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
             <div className="max-h-80 space-y-1 overflow-y-auto">
@@ -236,14 +236,14 @@ function CustomersTab() {
                     <User className="h-3.5 w-3.5 text-gray-400" />
                     <span className="font-medium">{c.full_name}</span>
                   </div>
-                  <p className="mt-0.5 pl-5 text-xs text-gray-400">{c.phone_primary}</p>
+                  <p className="mt-0.5 pl-5 text-xs text-gray-500">{c.phone_primary}</p>
                 </button>
               ))}
               {search.length >= 1 && !customers?.length && (
-                <p className="py-4 text-center text-xs text-gray-400">No customers found</p>
+                <p className="py-4 text-center text-xs text-gray-500">No customers found</p>
               )}
               {search.length === 0 && (
-                <p className="py-4 text-center text-xs text-gray-400">Start typing to search</p>
+                <p className="py-4 text-center text-xs text-gray-500">Start typing to search</p>
               )}
             </div>
           </div>
@@ -254,7 +254,7 @@ function CustomersTab() {
       <div className="lg:col-span-3">
         {!selectedCustomer ? (
           <div className="flex h-64 items-center justify-center rounded-lg bg-white shadow">
-            <div className="text-center text-gray-400">
+            <div className="text-center text-gray-500">
               <Users className="mx-auto mb-2 h-12 w-12 opacity-30" />
               <p>Search for a customer to view their ledger</p>
             </div>
@@ -273,7 +273,7 @@ function CustomersTab() {
                 </div>
                 <div>
                   <p className="font-semibold text-gray-800">{selectedCustomer.name}</p>
-                  <p className="text-xs text-gray-400">{Object.keys(grouped).length} agreement{Object.keys(grouped).length !== 1 ? 's' : ''} · {entries?.length ?? 0} entries</p>
+                  <p className="text-xs text-gray-500">{Object.keys(grouped).length} agreement{Object.keys(grouped).length !== 1 ? 's' : ''} · {entries?.length ?? 0} entries</p>
                 </div>
               </div>
             </div>
@@ -294,7 +294,7 @@ function CustomersTab() {
 
             {/* Grouped by agreement */}
             {Object.keys(grouped).length === 0 && (
-              <div className="rounded-lg border border-dashed border-gray-200 bg-white py-12 text-center text-gray-400">
+              <div className="rounded-lg border border-dashed border-gray-200 bg-white py-12 text-center text-gray-500">
                 No ledger entries for this customer
               </div>
             )}
@@ -351,10 +351,10 @@ function CustomersTab() {
                               const reversed = isReversed(e.id)
                               return (
                                 <tr key={e.id} className={`${e.entry_type === 'reversal' ? 'bg-amber-50' : 'hover:bg-gray-50'} ${reversed ? 'opacity-50' : ''}`}>
-                                  <td className="px-4 py-2.5 text-xs text-gray-400">{i + 1}</td>
+                                  <td className="px-4 py-2.5 text-xs text-gray-500">{i + 1}</td>
                                   <td className="whitespace-nowrap px-4 py-2.5">
                                     <p className="font-medium text-gray-700">{fmtDate(e.created_at)}</p>
-                                    <p className="text-xs text-gray-400">{fmtTime(e.created_at)}</p>
+                                    <p className="text-xs text-gray-500">{fmtTime(e.created_at)}</p>
                                   </td>
                                   <td className="whitespace-nowrap px-4 py-2.5">
                                     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_BADGE[e.entry_type] ?? 'bg-gray-100 text-gray-700'} ${reversed ? 'line-through opacity-70' : ''}`}>
@@ -364,7 +364,7 @@ function CustomersTab() {
                                   </td>
                                   <td className="max-w-xs px-4 py-2.5">
                                     <p className={`text-gray-700 ${reversed ? 'line-through' : ''}`}>{e.description}</p>
-                                    {e.payment_method && <p className="text-xs text-gray-400">{PAYMENT_LABELS[e.payment_method] ?? e.payment_method}{e.payment_reference && ` · Ref: ${e.payment_reference}`}</p>}
+                                    {e.payment_method && <p className="text-xs text-gray-500">{PAYMENT_LABELS[e.payment_method] ?? e.payment_method}{e.payment_reference && ` · Ref: ${e.payment_reference}`}</p>}
                                   </td>
                                   <td className="whitespace-nowrap px-4 py-2.5 text-right">
                                     {e.amount > 0 ? <span className="font-semibold text-red-600">{fmt(e.amount)}</span> : <span className="text-gray-300">—</span>}
@@ -496,7 +496,7 @@ function AgreementsTab() {
       <div className="lg:col-span-3">
         {!selectedAgreement ? (
           <div className="flex h-64 items-center justify-center rounded-lg bg-white shadow">
-            <div className="text-center text-gray-400">
+            <div className="text-center text-gray-500">
               <Filter className="mx-auto mb-2 h-12 w-12 opacity-30" />
               <p>Select an agreement to view ledger</p>
             </div>
@@ -541,10 +541,10 @@ function AgreementsTab() {
                       const reversed = isReversed(entry.id)
                       return (
                         <tr key={entry.id} className={`${entry.entry_type === 'reversal' ? 'bg-amber-50' : 'hover:bg-gray-50'} ${reversed ? 'opacity-50' : ''}`}>
-                          <td className="px-3 py-3 text-center text-xs text-gray-400">{idx + 1}</td>
+                          <td className="px-3 py-3 text-center text-xs text-gray-500">{idx + 1}</td>
                           <td className="whitespace-nowrap px-5 py-3">
                             <p className="font-medium text-gray-700">{new Date(entry.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
-                            <p className="text-xs text-gray-400">{new Date(entry.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+                            <p className="text-xs text-gray-500">{new Date(entry.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
                           </td>
                           <td className="whitespace-nowrap px-5 py-3">
                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_BADGE[entry.entry_type] ?? 'bg-gray-100 text-gray-700'} ${reversed ? 'line-through opacity-70' : ''}`}>
@@ -554,8 +554,8 @@ function AgreementsTab() {
                           </td>
                           <td className="max-w-xs px-5 py-3">
                             <p className={`text-gray-700 ${reversed ? 'line-through' : ''}`}>{entry.description}</p>
-                            {entry.payment_method && <p className="mt-0.5 text-xs text-gray-400">{entry.payment_method.replace(/_/g, ' ')}{entry.payment_reference && <> · Ref: <span className="font-mono">{entry.payment_reference}</span></>}</p>}
-                            {entry.created_by_name && <p className="mt-0.5 text-xs text-gray-400">by {entry.created_by_name}</p>}
+                            {entry.payment_method && <p className="mt-0.5 text-xs text-gray-500">{entry.payment_method.replace(/_/g, ' ')}{entry.payment_reference && <> · Ref: <span className="font-mono">{entry.payment_reference}</span></>}</p>}
+                            {entry.created_by_name && <p className="mt-0.5 text-xs text-gray-500">by {entry.created_by_name}</p>}
                           </td>
                           <td className="whitespace-nowrap px-5 py-3 text-right">{entry.amount > 0 ? <span className="font-semibold text-red-600">{formatCurrency(entry.amount)}</span> : <span className="text-gray-300">—</span>}</td>
                           <td className="whitespace-nowrap px-5 py-3 text-right">{entry.amount < 0 ? <span className="font-semibold text-green-600">{formatCurrency(Math.abs(entry.amount))}</span> : <span className="text-gray-300">—</span>}</td>
@@ -574,7 +574,7 @@ function AgreementsTab() {
                       )
                     })}
                     {(!entriesWithBalance || entriesWithBalance.length === 0) && (
-                      <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-400">No ledger entries found</td></tr>
+                      <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-500">No ledger entries found</td></tr>
                     )}
                   </tbody>
                   {entriesWithBalance && entriesWithBalance.length > 0 && (
@@ -667,7 +667,7 @@ function VendorsTab() {
                     <Building2 className="h-3.5 w-3.5 text-gray-400" />
                     <span className="font-medium">{vendorName(v)}</span>
                   </div>
-                  <p className="mt-0.5 pl-5 text-xs text-gray-400">{v.phone_primary} · {v.commission_rate}% commission</p>
+                  <p className="mt-0.5 pl-5 text-xs text-gray-500">{v.phone_primary} · {v.commission_rate}% commission</p>
                 </button>
               ))}
             </div>
@@ -679,7 +679,7 @@ function VendorsTab() {
       <div className="lg:col-span-3">
         {!selectedVendor ? (
           <div className="flex h-64 items-center justify-center rounded-lg bg-white shadow">
-            <div className="text-center text-gray-400">
+            <div className="text-center text-gray-500">
               <Truck className="mx-auto mb-2 h-12 w-12 opacity-30" />
               <p>Select a vendor to view their payment history</p>
             </div>
@@ -694,7 +694,7 @@ function VendorsTab() {
                 </div>
                 <div>
                   <p className="font-semibold text-gray-800">{selectedVendor.name}</p>
-                  <p className="text-xs text-gray-400">{payments?.length ?? 0} payments recorded</p>
+                  <p className="text-xs text-gray-500">{payments?.length ?? 0} payments recorded</p>
                 </div>
               </div>
             </div>
@@ -713,14 +713,14 @@ function VendorsTab() {
             <div className="overflow-hidden rounded-lg bg-white shadow">
               <div className="border-b px-5 py-3">
                 <h3 className="font-semibold text-gray-700">Payment History — Money Paid to Vendor</h3>
-                <p className="text-xs text-gray-400">These are outgoing payments from NOD Car Rental to the vendor</p>
+                <p className="text-xs text-gray-500">These are outgoing payments from NOD Car Rental to the vendor</p>
               </div>
               {paymentsLoading ? (
                 <div className="flex h-24 items-center justify-center">
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-purple-500 border-t-transparent" />
                 </div>
               ) : !payments?.length ? (
-                <div className="py-10 text-center text-gray-400">No payments recorded yet</div>
+                <div className="py-10 text-center text-gray-500">No payments recorded yet</div>
               ) : (
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-50">
@@ -737,7 +737,7 @@ function VendorsTab() {
                       <tr key={p.id} className="hover:bg-gray-50">
                         <td className="whitespace-nowrap px-4 py-3">
                           <p className="font-medium text-gray-700">{fmtDate(p.created_at)}</p>
-                          <p className="text-xs text-gray-400">{fmtTime(p.created_at)}</p>
+                          <p className="text-xs text-gray-500">{fmtTime(p.created_at)}</p>
                         </td>
                         <td className="px-4 py-3 font-mono text-xs text-gray-500">
                           {p.agreement_id ? `AGR-#${p.agreement_id}` : '—'}
@@ -746,7 +746,7 @@ function VendorsTab() {
                           <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
                             {PAYMENT_LABELS[p.payment_method] ?? p.payment_method}
                           </span>
-                          {p.payment_reference && <p className="mt-0.5 text-xs text-gray-400">Ref: {p.payment_reference}</p>}
+                          {p.payment_reference && <p className="mt-0.5 text-xs text-gray-500">Ref: {p.payment_reference}</p>}
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-500">{p.notes ?? '—'}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-right font-bold text-purple-700">
@@ -798,7 +798,7 @@ function SummaryTab() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold text-gray-800">Financial Summary</h3>
-          <p className="text-xs text-gray-400">Revenue and payouts aggregated by period</p>
+          <p className="text-xs text-gray-500">Revenue and payouts aggregated by period</p>
         </div>
         <div className="flex items-center gap-1 rounded-lg border bg-white p-1 shadow-sm">
           {(['daily', 'monthly', 'yearly'] as const).map(g => (
@@ -835,7 +835,7 @@ function SummaryTab() {
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
           </div>
         ) : !periods?.length ? (
-          <div className="py-12 text-center text-gray-400">No data available</div>
+          <div className="py-12 text-center text-gray-500">No data available</div>
         ) : (
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50">
@@ -941,7 +941,7 @@ export default function LedgerPage() {
             <h1 className="text-2xl font-bold text-gray-800">
               {t('ledger.title', 'Ledger & Payments')}
             </h1>
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-500">
               {t('ledger.subtitle', 'Financial audit trail — append-only, never modified')}
             </p>
           </div>

@@ -332,7 +332,7 @@ export default function CollateralEditPage() {
           <div className="mt-8 border-t pt-6">
             <h3 className="mb-4 text-sm font-semibold text-gray-500 uppercase">Wizard Steps</h3>
             <div className="space-y-2">
-              <div className="flex items-center gap-2 px-3 py-2 text-gray-400">
+              <div className="flex items-center gap-2 px-3 py-2 text-gray-500">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs">1</div>
                 <span className="text-sm">Customer</span>
               </div>
@@ -340,7 +340,7 @@ export default function CollateralEditPage() {
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs text-white">2</div>
                 <span className="text-sm font-medium">Collateral</span>
               </div>
-              <div className="flex items-center gap-2 px-3 py-2 text-gray-400">
+              <div className="flex items-center gap-2 px-3 py-2 text-gray-500">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs">3</div>
                 <span className="text-sm">Agreement</span>
               </div>
@@ -362,7 +362,7 @@ export default function CollateralEditPage() {
                     onChange={(e) => updateField('first_name', e.target.value)}
                     onBlur={() => handleNameBlur('first_name')}
                     required
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -373,7 +373,7 @@ export default function CollateralEditPage() {
                     onChange={(e) => updateField('last_name', e.target.value)}
                     onBlur={() => handleNameBlur('last_name')}
                     required
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
@@ -383,7 +383,7 @@ export default function CollateralEditPage() {
                   value={formData.relationship_to_customer}
                   onChange={(e) => updateField('relationship_to_customer', e.target.value)}
                   required
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="">Select relationship...</option>
                   {RELATIONSHIPS.map((r) => (
@@ -405,7 +405,7 @@ export default function CollateralEditPage() {
                     onBlur={() => handlePhoneBlur('phone_primary')}
                     required
                     placeholder="09XXXXXXXX or +251..."
-                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_primary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_primary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                   />
                   <p className="mt-1 text-xs text-gray-500">Will auto-format to +251 format</p>
                   {fieldErrors.phone_primary && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone_primary}</p>}
@@ -418,7 +418,7 @@ export default function CollateralEditPage() {
                     onChange={(e) => updateFieldWithValidation('phone_secondary', e.target.value)}
                     onBlur={() => handlePhoneBlur('phone_secondary')}
                     placeholder="09XXXXXXXX or +251..."
-                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_secondary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_secondary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                   />
                   {fieldErrors.phone_secondary && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone_secondary}</p>}
                 </div>
@@ -433,7 +433,7 @@ export default function CollateralEditPage() {
                     onChange={(e) => updateFieldWithValidation('email', e.target.value)}
                     onBlur={handleEmailBlur}
                     placeholder="collateral@example.com"
-                    className={`w-full rounded-lg border py-2 pl-10 pr-3 focus:outline-none focus:ring-1 ${emailTouched && fieldErrors.email ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className={`w-full rounded-lg border py-2 pl-10 pr-3 focus:outline-none focus:ring-1 ${emailTouched && fieldErrors.email ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                   />
                 </div>
                 {emailTouched && fieldErrors.email && <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>}
@@ -448,7 +448,7 @@ export default function CollateralEditPage() {
                   <select
                     value={formData.id_type}
                     onChange={(e) => updateField('id_type', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="national_id">National ID</option>
                     <option value="passport">Passport</option>
@@ -462,7 +462,7 @@ export default function CollateralEditPage() {
                     value={formData.id_number}
                     onChange={(e) => updateField('id_number', e.target.value)}
                     required
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
@@ -496,7 +496,7 @@ export default function CollateralEditPage() {
                     type="text"
                     value={formData.occupation}
                     onChange={(e) => updateField('occupation', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -505,7 +505,7 @@ export default function CollateralEditPage() {
                     type="text"
                     value={formData.employer_name}
                     onChange={(e) => updateField('employer_name', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
@@ -517,7 +517,7 @@ export default function CollateralEditPage() {
                   onChange={(e) => updateField('employer_phone', e.target.value)}
                   onBlur={() => handlePhoneBlur('employer_phone')}
                   placeholder="09XXXXXXXX or +251..."
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
             </Section>
@@ -531,7 +531,7 @@ export default function CollateralEditPage() {
                     type="text"
                     value={formData.house_number}
                     onChange={(e) => updateField('house_number', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -540,7 +540,7 @@ export default function CollateralEditPage() {
                     type="text"
                     value={formData.wereda}
                     onChange={(e) => updateField('wereda', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
@@ -550,7 +550,7 @@ export default function CollateralEditPage() {
                   <select
                     value={formData.subcity}
                     onChange={(e) => updateField('subcity', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="">Select Subcity</option>
                     {SUBCITIES.map((sc) => (
@@ -564,7 +564,7 @@ export default function CollateralEditPage() {
                     type="text"
                     value={formData.city}
                     onChange={(e) => updateField('city', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
@@ -577,7 +577,7 @@ export default function CollateralEditPage() {
                 onChange={(e) => updateField('notes', e.target.value)}
                 rows={3}
                 placeholder="Any additional notes about this collateral person..."
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </Section>
 

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { ArrowLeft } from 'lucide-react'
 import { vendorsService, CreateVendorData } from '@/services/vendors'
 import { getErrorMessage, getFieldErrors } from '@/services/apiClient'
+import { Field, SelectField, TextareaField } from '@/components/ui/Field'
 
 export default function VendorUpsertPage() {
   const navigate = useNavigate()
@@ -103,15 +104,7 @@ export default function VendorUpsertPage() {
     }
   }
 
-  const fieldClass = (field: string) =>
-    `w-full rounded-lg border px-3 py-2 focus:ring-1 ${
-      fieldErrors[field]
-        ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-        : 'border-gray-300 focus:border-primary focus:ring-primary'
-    }`
 
-  const FieldError = ({ field }: { field: string }) =>
-    fieldErrors[field] ? <p className="mt-1 text-sm text-red-600">{fieldErrors[field]}</p> : null
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -138,97 +131,89 @@ export default function VendorUpsertPage() {
 
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="mb-1.5 block text-sm font-medium">Type</label>
-                <select 
-                  value={formData.vendor_type} 
-                  onChange={e => setFormData({...formData, vendor_type: e.target.value})} 
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:ring-1 focus:ring-primary"
+                <SelectField
+                  label="Type"
+                  value={formData.vendor_type}
+                  onChange={e => setFormData({...formData, vendor_type: e.target.value})}
+                  error={fieldErrors.vendor_type}
                 >
                   <option value="company">Company</option>
                   <option value="individual">Individual</option>
-                </select>
+                </SelectField>
               </div>
 
               {isCompany && (
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium">Company Name *</label>
-                  <input 
-                    required 
-                    type="text" 
-                    value={formData.company_name} 
-                    onChange={e => setFormData({...formData, company_name: e.target.value})} 
-                    className={fieldClass('company_name')} 
-                  />
-                <FieldError field="company_name" />
+                  <Field
+                  label="Company Name"
+                  required
+                  type="text"
+                  value={formData.company_name}
+                  onChange={e => setFormData({...formData, company_name: e.target.value})}
+                  error={fieldErrors.company_name}
+                />
                 </div>
               )}
 
               <div className={!isCompany ? 'col-span-1' : 'col-span-2'}>
-                <label className="mb-1.5 block text-sm font-medium">Contact Person {!isCompany && '*'}</label>
-                <input 
-                  type="text" 
-                  required={!isCompany} 
-                  value={formData.contact_person} 
-                  onChange={e => setFormData({...formData, contact_person: e.target.value})} 
-                  className={fieldClass('contact_person')} 
+                <Field
+                  label="Contact Person"
+                  type="text"
+                  value={formData.contact_person}
+                  onChange={e => setFormData({...formData, contact_person: e.target.value})}
+                  error={fieldErrors.contact_person}
                 />
-                <FieldError field="contact_person" />
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium">Primary Phone *</label>
-                <input 
-                  required 
-                  type="tel" 
-                  value={formData.phone_primary} 
-                  onChange={e => setFormData({...formData, phone_primary: e.target.value})} 
-                  className={fieldClass('phone_primary')} 
+                <Field
+                  label="Primary Phone"
+                  required
+                  type="tel"
+                  value={formData.phone_primary}
+                  onChange={e => setFormData({...formData, phone_primary: e.target.value})}
+                  error={fieldErrors.phone_primary}
                 />
-                <FieldError field="phone_primary" />
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium">Secondary Phone</label>
-                <input 
-                  type="tel" 
-                  value={formData.phone_secondary} 
-                  onChange={e => setFormData({...formData, phone_secondary: e.target.value})} 
-                  className={fieldClass('phone_secondary')} 
+                <Field
+                  label="Secondary Phone"
+                  type="tel"
+                  value={formData.phone_secondary}
+                  onChange={e => setFormData({...formData, phone_secondary: e.target.value})}
+                  error={fieldErrors.phone_secondary}
                 />
-                <FieldError field="phone_secondary" />
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium">Email</label>
-                <input 
-                  type="email" 
-                  value={formData.email} 
-                  onChange={e => setFormData({...formData, email: e.target.value})} 
-                  className={fieldClass('email')} 
+                <Field
+                  label="Email"
+                  type="email"
+                  value={formData.email}
+                  onChange={e => setFormData({...formData, email: e.target.value})}
+                  error={fieldErrors.email}
                 />
-                <FieldError field="email" />
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium">City</label>
-                <input 
-                  type="text" 
-                  value={formData.city} 
-                  onChange={e => setFormData({...formData, city: e.target.value})} 
-                  className={fieldClass('city')} 
+                <Field
+                  label="City"
+                  type="text"
+                  value={formData.city}
+                  onChange={e => setFormData({...formData, city: e.target.value})}
+                  error={fieldErrors.city}
                 />
-                <FieldError field="city" />
               </div>
 
               <div className="col-span-2">
-                <label className="mb-1.5 block text-sm font-medium">Address</label>
-                <input 
-                  type="text" 
-                  value={formData.address} 
-                  onChange={e => setFormData({...formData, address: e.target.value})} 
-                  className={fieldClass('address')} 
+                <Field
+                  label="Address"
+                  type="text"
+                  value={formData.address}
+                  onChange={e => setFormData({...formData, address: e.target.value})}
+                  error={fieldErrors.address}
                 />
-                <FieldError field="address" />
               </div>
             </div>
 
@@ -236,11 +221,8 @@ export default function VendorUpsertPage() {
               <h3 className="mb-4 text-sm font-semibold text-gray-900">Commission</h3>
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label htmlFor="commission_rate" className="mb-1.5 block text-sm font-medium">
-                    Commission Rate (%) *
-                  </label>
-                  <input
-                    id="commission_rate"
+                  <Field
+                    label="Commission Rate (%)"
                     required
                     type="number"
                     min={0}
@@ -248,12 +230,9 @@ export default function VendorUpsertPage() {
                     step="0.01"
                     value={formData.commission_rate ?? ''}
                     onChange={e => setFormData({...formData, commission_rate: e.target.value})}
-                    className={fieldClass('commission_rate')}
+                    error={fieldErrors.commission_rate}
+                    hint="Share of rental revenue paid to this vendor. Defaults to 70%."
                   />
-                  <FieldError field="commission_rate" />
-                  <p className="mt-1 text-sm text-gray-500">
-                    Share of rental revenue paid to this vendor. Defaults to 70%.
-                  </p>
                 </div>
               </div>
             </div>
@@ -262,48 +241,44 @@ export default function VendorUpsertPage() {
               <h3 className="mb-4 text-sm font-semibold text-gray-900">Bank Information</h3>
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium">Bank Name</label>
-                  <input 
-                    type="text" 
-                    value={formData.bank_name} 
-                    onChange={e => setFormData({...formData, bank_name: e.target.value})} 
-                    className={fieldClass('bank_name')} 
-                  />
-                <FieldError field="bank_name" />
+                  <Field
+                  label="Bank Name"
+                  type="text"
+                  value={formData.bank_name}
+                  onChange={e => setFormData({...formData, bank_name: e.target.value})}
+                  error={fieldErrors.bank_name}
+                />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium">Account Number</label>
-                  <input 
-                    type="text" 
-                    value={formData.bank_account_number} 
-                    onChange={e => setFormData({...formData, bank_account_number: e.target.value})} 
-                    className={fieldClass('bank_account_number')} 
-                  />
-                <FieldError field="bank_account_number" />
+                  <Field
+                  label="Account Number"
+                  type="text"
+                  value={formData.bank_account_number}
+                  onChange={e => setFormData({...formData, bank_account_number: e.target.value})}
+                  error={fieldErrors.bank_account_number}
+                />
                 </div>
                 <div className="col-span-2">
-                  <label className="mb-1.5 block text-sm font-medium">Account Holder</label>
-                  <input 
-                    type="text" 
-                    value={formData.bank_account_holder} 
-                    onChange={e => setFormData({...formData, bank_account_holder: e.target.value})} 
-                    className={fieldClass('bank_account_holder')} 
-                  />
-                <FieldError field="bank_account_holder" />
+                  <Field
+                  label="Account Holder"
+                  type="text"
+                  value={formData.bank_account_holder}
+                  onChange={e => setFormData({...formData, bank_account_holder: e.target.value})}
+                  error={fieldErrors.bank_account_holder}
+                />
                 </div>
               </div>
             </div>
 
             <div className="border-t border-gray-100 pt-6">
               <div>
-                <label className="mb-1.5 block text-sm font-medium">Notes</label>
-                <textarea 
-                  value={formData.notes} 
-                  onChange={e => setFormData({...formData, notes: e.target.value})} 
-                  rows={3} 
-                  className={fieldClass('notes')}
+                <TextareaField
+                  label="Notes"
+                  rows={3}
+                  value={formData.notes}
+                  onChange={e => setFormData({...formData, notes: e.target.value})}
+                  error={fieldErrors.notes}
                 />
-                <FieldError field="notes" />
               </div>
             </div>
 

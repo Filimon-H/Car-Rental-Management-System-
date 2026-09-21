@@ -698,7 +698,7 @@ export default function AgreementDetailPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-semibold text-gray-800">Financial Ledger</h3>
-                <p className="text-xs text-gray-400">Append-only audit trail — every charge, payment, and adjustment</p>
+                <p className="text-xs text-gray-500">Append-only audit trail — every charge, payment, and adjustment</p>
               </div>
               {agreement.status === 'active' && (
                 <button

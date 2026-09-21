@@ -278,7 +278,7 @@ export default function CustomerDetailPage() {
                       {copiedCode ? <><Check className="h-4 w-4 text-green-500" /><span className="text-green-500">Copied</span></> : <><Copy className="h-4 w-4" />Copy</>}
                     </button>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-gray-500 mt-1">
                     Expires: {new Date(botLinkCode.expires_at).toLocaleString()} · Single-use
                   </p>
                 </div>

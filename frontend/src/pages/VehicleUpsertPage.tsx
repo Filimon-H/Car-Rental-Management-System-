@@ -381,7 +381,7 @@ export default function VehicleUpsertPage() {
                   placeholder={t('vehicleUpsert.searchVendors')}
                   value={vendorSearch}
                   onChange={(e) => setVendorSearch(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
               <div className="mt-4 max-h-80 overflow-y-auto rounded-lg border">

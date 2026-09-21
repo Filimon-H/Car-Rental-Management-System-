@@ -41,7 +41,7 @@ export default function CollateralNewPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search customers by name, phone, or ID..."
-              className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
@@ -66,7 +66,7 @@ export default function CollateralNewPage() {
                       <div className="font-medium text-gray-900">{c.full_name}</div>
                       <div className="text-sm text-gray-500">{c.phone_primary}</div>
                     </div>
-                    <div className="text-sm text-gray-400">Select</div>
+                    <div className="text-sm text-gray-500">Select</div>
                   </button>
                 ))}
               </div>

@@ -116,7 +116,7 @@ export default function LedgerTable({ agreementId }: LedgerTableProps) {
 
   if (!entries || entries.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 py-12 text-center text-gray-400">
+      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 py-12 text-center text-gray-500">
         <Banknote className="mx-auto mb-2 h-8 w-8 opacity-40" />
         <p className="text-sm">No ledger entries yet</p>
       </div>
@@ -215,14 +215,14 @@ export default function LedgerTable({ agreementId }: LedgerTableProps) {
                   className={`${isReversal ? 'bg-amber-50' : 'hover:bg-gray-50'} ${rowFade}`}
                 >
                   {/* Seq */}
-                  <td className="px-3 py-3 text-center text-xs text-gray-400">
+                  <td className="px-3 py-3 text-center text-xs text-gray-500">
                     {entry.seq}
                   </td>
 
                   {/* Date */}
                   <td className="whitespace-nowrap px-4 py-3">
                     <p className="font-medium text-gray-700">{fmtDate(entry.created_at)}</p>
-                    <p className="text-xs text-gray-400">{fmtTime(entry.created_at)}</p>
+                    <p className="text-xs text-gray-500">{fmtTime(entry.created_at)}</p>
                   </td>
 
                   {/* Type badge */}
@@ -249,7 +249,7 @@ export default function LedgerTable({ agreementId }: LedgerTableProps) {
                       {entry.description}
                     </p>
                     {entry.payment_method && (
-                      <p className="mt-0.5 text-xs text-gray-400">
+                      <p className="mt-0.5 text-xs text-gray-500">
                         {PAYMENT_METHOD_LABELS[entry.payment_method] ?? entry.payment_method}
                         {entry.payment_reference && (
                           <> · Ref: <span className="font-mono">{entry.payment_reference}</span></>
@@ -257,10 +257,10 @@ export default function LedgerTable({ agreementId }: LedgerTableProps) {
                       </p>
                     )}
                     {entry.notes && (
-                      <p className="mt-0.5 text-xs italic text-gray-400">{entry.notes}</p>
+                      <p className="mt-0.5 text-xs italic text-gray-500">{entry.notes}</p>
                     )}
                     {entry.created_by_name && (
-                      <p className="mt-0.5 text-xs text-gray-400">by {entry.created_by_name}</p>
+                      <p className="mt-0.5 text-xs text-gray-500">by {entry.created_by_name}</p>
                     )}
                   </td>
 
@@ -302,7 +302,7 @@ export default function LedgerTable({ agreementId }: LedgerTableProps) {
                       <p className="text-xs font-normal text-teal-500">overpaid</p>
                     )}
                     {entry.runningBalance === 0 && (
-                      <p className="text-xs font-normal text-gray-400">settled</p>
+                      <p className="text-xs font-normal text-gray-500">settled</p>
                     )}
                   </td>
                 </tr>

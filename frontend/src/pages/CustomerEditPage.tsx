@@ -344,11 +344,11 @@ export default function CustomerEditPage() {
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs text-white">1</div>
                 <span className="text-sm font-medium">Customer</span>
               </div>
-              <div className="flex items-center gap-2 px-3 py-2 text-gray-400">
+              <div className="flex items-center gap-2 px-3 py-2 text-gray-500">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs">2</div>
                 <span className="text-sm">Collateral</span>
               </div>
-              <div className="flex items-center gap-2 px-3 py-2 text-gray-400">
+              <div className="flex items-center gap-2 px-3 py-2 text-gray-500">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs">3</div>
                 <span className="text-sm">Agreement</span>
               </div>
@@ -372,7 +372,7 @@ export default function CustomerEditPage() {
                         updateField('company_name', '')
                       }
                     }}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="individual">Individual</option>
                     <option value="company">Company</option>
@@ -390,7 +390,7 @@ export default function CustomerEditPage() {
                       value={formData.company_name}
                       onChange={(e) => updateField('company_name', e.target.value)}
                       required={!isIndividual}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
                 )}
@@ -402,7 +402,7 @@ export default function CustomerEditPage() {
                       value={formData.tin_number}
                       onChange={(e) => updateField('tin_number', e.target.value)}
                       placeholder="Tax Identification Number"
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
                 )}
@@ -420,7 +420,7 @@ export default function CustomerEditPage() {
                     onChange={(e) => updateField('first_name', e.target.value)}
                     onBlur={() => handleNameBlur('first_name')}
                     required
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -431,7 +431,7 @@ export default function CustomerEditPage() {
                     onChange={(e) => updateField('last_name', e.target.value)}
                     onBlur={() => handleNameBlur('last_name')}
                     required
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
@@ -449,7 +449,7 @@ export default function CustomerEditPage() {
                     onBlur={() => handlePhoneBlur('phone_primary')}
                     required
                     placeholder="09XXXXXXXX or +251..."
-                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_primary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_primary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                   />
                   <p className="mt-1 text-xs text-gray-500">Will auto-format to +251 format</p>
                   {fieldErrors.phone_primary && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone_primary}</p>}
@@ -462,7 +462,7 @@ export default function CustomerEditPage() {
                     onChange={(e) => updateField('phone_secondary', e.target.value)}
                     onBlur={() => handlePhoneBlur('phone_secondary')}
                     placeholder="09XXXXXXXX or +251..."
-                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_secondary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_secondary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                   />
                   {fieldErrors.phone_secondary && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone_secondary}</p>}
                 </div>
@@ -477,7 +477,7 @@ export default function CustomerEditPage() {
                     onChange={(e) => updateField('email', e.target.value)}
                     onBlur={handleEmailBlur}
                     placeholder="customer@example.com"
-                    className={`w-full rounded-lg border py-2 pl-10 pr-3 focus:outline-none focus:ring-1 ${emailTouched && fieldErrors.email ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className={`w-full rounded-lg border py-2 pl-10 pr-3 focus:outline-none focus:ring-1 ${emailTouched && fieldErrors.email ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                   />
                 </div>
                 {emailTouched && fieldErrors.email && <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>}
@@ -518,7 +518,7 @@ export default function CustomerEditPage() {
                     <select
                       value={formData.id_type}
                       onChange={(e) => updateField('id_type', e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     >
                       <option value="passport">Passport</option>
                       <option value="national_id">National ID</option>
@@ -533,7 +533,7 @@ export default function CustomerEditPage() {
                       onChange={(e) => updateField('id_number', e.target.value)}
                       onBlur={handleIdNumberBlur}
                       required={isIndividual}
-                      className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${duplicateWarning?.match === 'id_number' ? 'border-yellow-400 focus:border-yellow-500 focus:ring-yellow-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                      className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${duplicateWarning?.match === 'id_number' ? 'border-yellow-400 focus:border-yellow-500 focus:ring-yellow-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                     />
                   </div>
                 </div>
@@ -545,7 +545,7 @@ export default function CustomerEditPage() {
                     onChange={(e) => updateField('driver_license_number', e.target.value)}
                     onBlur={handleLicenseBlur}
                     required={isIndividual}
-                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${duplicateWarning?.match === 'license_number' ? 'border-yellow-400 focus:border-yellow-500 focus:ring-yellow-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${duplicateWarning?.match === 'license_number' ? 'border-yellow-400 focus:border-yellow-500 focus:ring-yellow-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                   />
                 </div>
               </Section>
@@ -594,7 +594,7 @@ export default function CustomerEditPage() {
                     type="text"
                     value={formData.house_number}
                     onChange={(e) => updateField('house_number', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -604,7 +604,7 @@ export default function CustomerEditPage() {
                     value={formData.wereda}
                     onChange={(e) => updateField('wereda', e.target.value)}
                     onBlur={() => handleLocationBlur('wereda')}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
@@ -614,7 +614,7 @@ export default function CustomerEditPage() {
                   <select
                     value={formData.subcity}
                     onChange={(e) => updateField('subcity', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="">Select Subcity</option>
                     {SUBCITIES.map((sc) => (
@@ -629,7 +629,7 @@ export default function CustomerEditPage() {
                     value={formData.city}
                     onChange={(e) => updateField('city', e.target.value)}
                     onBlur={() => handleLocationBlur('city')}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
@@ -642,7 +642,7 @@ export default function CustomerEditPage() {
                 onChange={(e) => updateField('notes', e.target.value)}
                 rows={3}
                 placeholder="Any additional notes about this customer..."
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </Section>
 
