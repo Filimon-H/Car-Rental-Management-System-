@@ -1,6 +1,7 @@
 {
   "common": {
     "appName": "መኪና ኪራይ",
+    "back": "ተመለስ",
     "loading": "በመጫን ላይ...",
     "error": "ስህተት",
     "success": "ተሳክቷል",

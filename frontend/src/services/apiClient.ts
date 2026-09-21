@@ -4,7 +4,68 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 export interface ApiError {
   error_code: string
-  detail: string
+  /**
+   * FastAPI sends a string for handled errors (HTTPException) but an array of
+   * per-field objects for request-validation failures (422). Callers must not
+   * render this directly — use `getErrorMessage` / `getFieldErrors`.
+   */
+  detail: string | ValidationErrorItem[]
+}
+
+/** One entry of FastAPI's 422 `detail` array. */
+export interface ValidationErrorItem {
+  /** Path to the offending value, e.g. ['body', 'email']. */
+  loc: (string | number)[]
+  msg: string
+  type: string
+}
+
+function isValidationDetail(detail: unknown): detail is ValidationErrorItem[] {
+  return (
+    Array.isArray(detail) &&
+    detail.every((item) => !!item && typeof item === 'object' && 'msg' in item)
+  )
+}
+
+/**
+ * Map a 422 response onto its field names, so a form can highlight the inputs
+ * that failed. The leading 'body'/'query' segment of `loc` is dropped, leaving
+ * the field name as the form knows it. Returns {} for non-validation errors.
+ */
+export function getFieldErrors(error: unknown): Record<string, string> {
+  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+  if (!isValidationDetail(detail)) return {}
+
+  const fields: Record<string, string> = {}
+  for (const item of detail) {
+    const path = item.loc.filter((part) => part !== 'body' && part !== 'query')
+    const key = path.join('.') || '_'
+    // Keep the first message per field; later ones are usually less specific.
+    if (!(key in fields)) fields[key] = item.msg
+  }
+  return fields
+}
+
+/**
+ * Human-readable message for any API error. Handles FastAPI's two `detail`
+ * shapes — a plain string, and the 422 array that would otherwise render as
+ * "[object Object]".
+ */
+export function getErrorMessage(error: unknown, fallback = 'Something went wrong'): string {
+  const response = (error as { response?: { data?: { detail?: unknown } } })?.response
+  const detail = response?.data?.detail
+
+  if (typeof detail === 'string' && detail) return detail
+
+  if (isValidationDetail(detail)) {
+    const messages = Object.entries(getFieldErrors(error)).map(([field, msg]) =>
+      field === '_' ? msg : `${field}: ${msg}`
+    )
+    if (messages.length) return messages.join('; ')
+  }
+
+  const message = (error as { message?: string })?.message
+  return message || fallback
 }
 
 class ApiClient {

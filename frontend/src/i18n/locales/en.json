@@ -1,6 +1,7 @@
 {
   "common": {
     "appName": "Car Rental",
+    "back": "Back",
     "loading": "Loading...",
     "error": "Error",
     "success": "Success",

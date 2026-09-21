@@ -84,8 +84,22 @@ export interface CreateVendorData {
   bank_name?: string
   bank_account_number?: string
   bank_account_holder?: string
-  commission_rate?: number
+  commission_rate?: number | string
   notes?: string
+}
+
+/**
+ * Drop blank optional fields before sending.
+ *
+ * The form holds every optional input as '' rather than undefined, and the API
+ * validates them by type — an empty string is not a valid EmailStr, so posting
+ * a vendor with the Email box left blank came back 422. Omitting the key lets
+ * the server apply its own default (or leave the column null).
+ */
+function stripBlanks<T extends object>(data: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== '' && value !== null && value !== undefined)
+  ) as Partial<T>
 }
 
 export const vendorsService = {
@@ -107,11 +121,11 @@ export const vendorsService = {
   },
 
   async create(data: CreateVendorData): Promise<Vendor> {
-    return apiClient.post('/vendors', data)
+    return apiClient.post('/vendors', stripBlanks(data))
   },
 
   async update(id: number, data: Partial<CreateVendorData>): Promise<Vendor> {
-    return apiClient.put(`/vendors/${id}`, data)
+    return apiClient.put(`/vendors/${id}`, stripBlanks(data))
   },
 
   async delete(id: number): Promise<void> {
