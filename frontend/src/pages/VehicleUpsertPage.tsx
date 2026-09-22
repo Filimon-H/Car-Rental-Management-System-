@@ -67,6 +67,11 @@ const FUEL_TYPE_OPTIONS: LookupValue[] = [
   { value: 'natural_gas', label: 'Natural Gas' },
 ]
 
+// Mirrors the backend's photo limits so a bad file is caught before Save
+// rather than failing the whole multi-photo request.
+const PHOTO_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const PHOTO_MAX_BYTES = 10 * 1024 * 1024
+
 const COLOR_OPTIONS = [
   'Black',
   'White',
@@ -200,6 +205,7 @@ export default function VehicleUpsertPage() {
   // "-" or "-1" is preserved and can be reported, instead of being discarded
   // by the controlled round trip.
   const [dailyRateText, setDailyRateText] = useState('0')
+  const [photoError, setPhotoError] = useState<string | null>(null)
   const dailyRateInvalid = dailyRateText.trim() !== '' && Number.parseFloat(dailyRateText) < 0
 
   const mapVendorSummaryToVendor = (v: { id: number; vendor_type: string; company_name?: string | null; contact_person?: string | null; phone_primary: string; email?: string | null }): Vendor => {
@@ -259,8 +265,10 @@ export default function VehicleUpsertPage() {
   const createMutation = useMutation({
     mutationFn: vehiclesService.create,
     onSuccess: (created) => {
+      // Navigation happens in handleSubmit, after any photo upload has
+      // succeeded — leaving here meant a rejected photo showed no error
+      // because the page had already moved on.
       queryClient.invalidateQueries({ queryKey: ['vehicles'] })
-      navigate('/vehicles')
       return created
     },
     onError: (error: unknown) => {
@@ -273,7 +281,6 @@ export default function VehicleUpsertPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] })
       queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleIdNum] })
-      navigate('/vehicles')
     },
     onError: (error: unknown) => {
       alert(getErrorMessage(error, t('vehicleUpsert.errorUpdating')))
@@ -373,21 +380,32 @@ export default function VehicleUpsertPage() {
     if (!canSave) return
 
     const hasPhotos = Boolean(photoFiles.front || photoFiles.back || photoFiles.left || photoFiles.right)
+    setPhotoError(null)
+
+    // The vehicle is saved first, then its photos. A rejected upload must
+    // report itself and keep the user on the form rather than navigating away
+    // as if everything had worked.
+    const uploadPhotos = async (id: number) => {
+      try {
+        await vehiclesService.uploadPhotos(id, photoFiles)
+        queryClient.invalidateQueries({ queryKey: ['vehicle', id] })
+        return true
+      } catch (error) {
+        setPhotoError(getErrorMessage(error, t('vehicleUpsert.errorUploadingPhotos')))
+        return false
+      }
+    }
 
     if (isEdit) {
       await updateMutation.mutateAsync(formData)
-
-      if (hasPhotos && vehicleIdNum) {
-        await vehiclesService.uploadPhotos(vehicleIdNum, photoFiles)
-        queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleIdNum] })
-      }
+      if (hasPhotos && vehicleIdNum && !(await uploadPhotos(vehicleIdNum))) return
+      navigate('/vehicles')
       return
     }
 
     const created = await createMutation.mutateAsync(formData)
-    if (hasPhotos && created?.id) {
-      await vehiclesService.uploadPhotos(created.id, photoFiles)
-    }
+    if (hasPhotos && created?.id && !(await uploadPhotos(created.id))) return
+    navigate('/vehicles')
   }
 
   const insuranceExpiryDateValue = useMemo(() => {
@@ -798,6 +816,15 @@ export default function VehicleUpsertPage() {
                 />
               </div>
 
+              {photoError && (
+                <div
+                  role="alert"
+                  className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                >
+                  {photoError}
+                </div>
+              )}
+
               <div className="mt-6 flex justify-end gap-3">
                 <button type="button" onClick={() => navigate('/vehicles')} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
                   {t('vehicleUpsert.cancel')}
@@ -830,6 +857,7 @@ function PhotoDropzone({
   t: (key: string) => string
 }) {
   const [isDragging, setIsDragging] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -847,14 +875,27 @@ function PhotoDropzone({
 
   const handleFile = useCallback(
     (file: File) => {
-      if (!file.type.startsWith('image/')) return
+      // Report a rejected file instead of dropping it. Returning silently
+      // left the user with no feedback and, worse, let a bad file reach Save
+      // and fail the whole multi-photo request server-side.
+      if (!PHOTO_MIME_TYPES.includes(file.type)) {
+        setError(t('vehicleUpsert.photoTypeInvalid'))
+        onFileSelected(null)
+        return
+      }
+      if (file.size > PHOTO_MAX_BYTES) {
+        setError(t('vehicleUpsert.photoTooLarge'))
+        onFileSelected(null)
+        return
+      }
 
+      setError(null)
       if (previewUrl) URL.revokeObjectURL(previewUrl)
       const url = URL.createObjectURL(file)
       setPreviewUrl(url)
       onFileSelected(file)
     },
-    [onFileSelected, previewUrl]
+    [onFileSelected, previewUrl, t]
   )
 
   const handleDrop = useCallback(
@@ -892,7 +933,7 @@ function PhotoDropzone({
           isDragging ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-gray-400'
         }`}
       >
-        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleChange} />
+        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleChange} />
         <div className="flex h-56 items-center justify-center">
           {shown ? (
             <img src={shown} alt={label} className="h-full w-full object-cover" />
@@ -901,6 +942,11 @@ function PhotoDropzone({
           )}
         </div>
       </div>
+      {error && (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      )}
       {(previewUrl || existingUrl) && (
         <button
           type="button"
@@ -910,6 +956,7 @@ function PhotoDropzone({
               URL.revokeObjectURL(previewUrl)
               setPreviewUrl(null)
             }
+            setError(null)
             onFileSelected(null)
           }}
           className="text-xs text-red-600 hover:underline"

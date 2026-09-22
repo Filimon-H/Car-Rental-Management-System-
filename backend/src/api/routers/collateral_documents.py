@@ -23,6 +23,8 @@ from src.schemas.collateral_document import (
 router = APIRouter()
 
 UPLOAD_DIR = Path("uploads/collateral_documents")
+from src.core.upload_validation import describe_content, is_real_document
+
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf", ".webp"}
 MAX_FILE_SIZE = 10 * 1024 * 1024
 
@@ -108,6 +110,17 @@ async def upload_collateral_document(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"File too large. Maximum size: {MAX_FILE_SIZE // (1024*1024)}MB",
+        )
+
+    # The extension and Content-Type are caller-supplied, so confirm the bytes
+    # really are an image or PDF before storing the file.
+    if not is_real_document(content):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"File is not a valid image or PDF (detected: {describe_content(content)}). "
+                "Allowed: JPEG, PNG, WebP, PDF."
+            ),
         )
 
     unique_id = uuid.uuid4().hex[:12]

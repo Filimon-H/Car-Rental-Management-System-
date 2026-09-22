@@ -176,3 +176,56 @@ class TestUpdateKeepsWorking:
 
         stored = db.query(Vehicle).filter(Vehicle.plate_number == "QA-1002").one()
         assert stored.insurance_policy == "POL-123"
+
+
+class TestPhotoUploadValidation:
+    """Photos are judged by their bytes, not by the filename or Content-Type."""
+
+    JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 64
+    TEXT = b"this is a text file pretending to be a jpg\n"
+
+    def _vehicle_id(self, client, vendor, auth_headers) -> int:
+        created = client.post("/api/vehicles", headers=auth_headers, json=payload(vendor.id))
+        return created.json()["id"]
+
+    def test_text_disguised_as_jpg_is_rejected(self, client, vendor: Vendor, auth_headers):
+        vehicle_id = self._vehicle_id(client, vendor, auth_headers)
+        response = client.post(
+            f"/api/vehicles/{vehicle_id}/photos",
+            headers=auth_headers,
+            files={"front": ("x.jpg", self.TEXT, "image/jpeg")},
+        )
+        assert response.status_code == 400, response.text
+        assert "not a valid image" in response.json()["detail"]
+
+    def test_a_real_jpeg_is_accepted(self, client, vendor: Vendor, auth_headers):
+        vehicle_id = self._vehicle_id(client, vendor, auth_headers)
+        response = client.post(
+            f"/api/vehicles/{vehicle_id}/photos",
+            headers=auth_headers,
+            files={"front": ("front.jpg", self.JPEG, "image/jpeg")},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["photo_front"]
+
+    def test_one_bad_file_stores_none_of_them(
+        self, client, db: Session, vendor: Vendor, auth_headers
+    ):
+        # All sides share one request. A valid front photo must not be written
+        # when the left photo is rejected, or the caller cannot tell what
+        # landed and what did not.
+        vehicle_id = self._vehicle_id(client, vendor, auth_headers)
+        response = client.post(
+            f"/api/vehicles/{vehicle_id}/photos",
+            headers=auth_headers,
+            files={
+                "front": ("front.jpg", self.JPEG, "image/jpeg"),
+                "left": ("left.jpg", self.TEXT, "image/jpeg"),
+            },
+        )
+        assert response.status_code == 400, response.text
+
+        db.expire_all()
+        stored = db.query(Vehicle).filter(Vehicle.id == vehicle_id).one()
+        assert stored.photo_front is None
+        assert stored.photo_left is None

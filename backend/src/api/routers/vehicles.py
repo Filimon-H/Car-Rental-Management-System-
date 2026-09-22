@@ -22,6 +22,8 @@ from src.schemas.vehicle import (
     VehicleUpdate,
 )
 
+from src.core.upload_validation import describe_content, is_real_image
+
 router = APIRouter()
 
 _PHOTO_ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
@@ -172,6 +174,10 @@ async def upload_vehicle_photos(
     if right is not None:
         uploads.append(("right", right))
 
+    # Validate every file before writing any of them. The photos share one
+    # request, so a partial write would leave some sides updated and others
+    # not, with no way for the caller to tell which.
+    validated: list[tuple[str, UploadFile, bytes]] = []
     for kind, file in uploads:
         _validate_photo(file)
         content = await file.read()
@@ -180,6 +186,20 @@ async def upload_vehicle_photos(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Photo too large. Maximum size: {_PHOTO_MAX_SIZE // (1024 * 1024)}MB",
             )
+        # The extension and Content-Type are both caller-supplied, so confirm
+        # the bytes really are an image before storing them.
+        if not is_real_image(content):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"{kind} photo is not a valid image "
+                    f"(detected: {describe_content(content)}). "
+                    "Allowed: JPEG, PNG, WebP."
+                ),
+            )
+        validated.append((kind, file, content))
+
+    for kind, file, content in validated:
         import io
         relative_path = storage_service.save_vehicle_photo(
             file=io.BytesIO(content),
