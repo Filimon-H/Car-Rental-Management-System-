@@ -7,6 +7,9 @@ import { vehiclesService, CreateVehicleData, LookupValue } from '@/services/vehi
 import { vendorsService, Vendor } from '@/services/vendors'
 import { lookupsService } from '@/services/lookups'
 import { getErrorMessage } from '@/services/apiClient'
+import { parseOptionalNumber } from '@/lib/utils'
+
+
 
 /**
  * Translate a built-in option label, leaving unknown ones untouched.
@@ -29,6 +32,9 @@ const OPTION_KEYS: Record<string, string> = {
   Electric: 'options.electric',
   Hybrid: 'options.hybrid',
   'Natural Gas': 'options.naturalGas',
+  Convertible: 'options.convertible',
+  Van: 'options.van',
+  SUV: 'options.suv',
 }
 
 
@@ -83,7 +89,7 @@ const VEHICLE_TYPE_OPTIONS: LookupValue[] = [
   { value: 'compact', label: 'Compact' },
   { value: 'sport_car', label: 'Sport Car' },
   { value: 'luxury', label: 'Luxury' },
-  { value: 'convertible', label: 'convertable' },
+  { value: 'convertible', label: 'Convertible' },
   { value: 'pickup_truck', label: 'Pickup Truck' },
   { value: 'van', label: 'Van' },
   { value: 'truck', label: 'Truck' },
@@ -183,6 +189,8 @@ export default function VehicleUpsertPage() {
     transmission: 'automatic',
     fuel_type: 'petrol',
     daily_rate: 0,
+    weekly_rate: null,
+    monthly_rate: null,
     current_mileage: undefined,
     insurance_policy_number: '',
     insurance_expiry: undefined,
@@ -233,6 +241,8 @@ export default function VehicleUpsertPage() {
       transmission: vehicle.transmission || 'automatic',
       fuel_type: vehicle.fuel_type || 'petrol',
       daily_rate: vehicle.daily_rate || 0,
+      weekly_rate: vehicle.weekly_rate ?? null,
+      monthly_rate: vehicle.monthly_rate ?? null,
       current_mileage: vehicle.current_mileage ?? undefined,
       insurance_policy_number: vehicle.insurance_policy_number || '',
       insurance_expiry: vehicle.insurance_expiry || undefined,
@@ -309,8 +319,15 @@ export default function VehicleUpsertPage() {
   }, [defaultsToLookupOptions, ensureLookupValue, formData.model])
 
   const colorOptions = useMemo(() => {
+    // Merge rather than replace. A lookup table holding a single junk row
+    // (a stray "10") otherwise hid all fourteen built-in colours and left
+    // Color — a required field — with one nonsense choice.
     const fromDefaults = defaultsToStringOptions('color')
-    return ensureStringValue(fromDefaults.length ? fromDefaults : COLOR_OPTIONS, formData.color)
+    const merged = [...COLOR_OPTIONS]
+    for (const option of fromDefaults) {
+      if (!merged.some((c) => c.toLowerCase() === option.toLowerCase())) merged.push(option)
+    }
+    return ensureStringValue(merged, formData.color)
   }, [defaultsToStringOptions, ensureStringValue, formData.color])
 
   const vehicleTypeOptions = useMemo(() => {
@@ -714,6 +731,34 @@ export default function VehicleUpsertPage() {
                     min={0}
                     className="w-full rounded-lg border px-3 py-2"
                   />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">{t('vehicleUpsert.weeklyRate')}</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={formData.weekly_rate ?? ''}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, weekly_rate: parseOptionalNumber(e.target.value) }))
+                    }
+                    className="w-full rounded-lg border px-3 py-2"
+                  />
+                  <p className="mt-1 text-sm text-gray-500">{t('vehicleUpsert.tierHint')}</p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">{t('vehicleUpsert.monthlyRate')}</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={formData.monthly_rate ?? ''}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, monthly_rate: parseOptionalNumber(e.target.value) }))
+                    }
+                    className="w-full rounded-lg border px-3 py-2"
+                  />
+                  <p className="mt-1 text-sm text-gray-500">{t('vehicleUpsert.tierHint')}</p>
                 </div>
               </div>
 

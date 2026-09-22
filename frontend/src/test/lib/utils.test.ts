@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cn, toNumber } from '@/lib/utils'
+import { cn, toNumber, parseOptionalNumber } from '@/lib/utils'
 
 describe('cn', () => {
   it('returns empty string for no args', () => {
@@ -80,5 +80,30 @@ describe('toNumber', () => {
     const total = entries.reduce((sum, e) => sum + toNumber(e.amount), 0)
     expect(total).toBe(25000)
     expect(Number.isNaN(total)).toBe(false)
+  })
+})
+
+describe('parseOptionalNumber', () => {
+  it('returns null for a cleared field rather than NaN', () => {
+    // parseFloat('') is NaN, which would reach the backend as an invalid rate
+    // instead of "no tier set for this vehicle".
+    for (const empty of ['', '   ']) {
+      expect(parseOptionalNumber(empty)).toBeNull()
+    }
+  })
+
+  it('parses the tier rates the QA plan uses', () => {
+    expect(parseOptionalNumber('9000')).toBe(9000)
+    expect(parseOptionalNumber('32000')).toBe(32000)
+    expect(parseOptionalNumber('1500.50')).toBe(1500.5)
+  })
+
+  it('keeps zero, which is a real rate and not an empty field', () => {
+    expect(parseOptionalNumber('0')).toBe(0)
+  })
+
+  it('returns null for unparseable input instead of NaN', () => {
+    expect(parseOptionalNumber('abc')).toBeNull()
+    expect(Number.isNaN(parseOptionalNumber('abc') as number)).toBe(false)
   })
 })

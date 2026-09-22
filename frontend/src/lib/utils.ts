@@ -17,3 +17,16 @@ export function toNumber(value: number | string | null | undefined): number {
   const n = typeof value === 'number' ? value : Number.parseFloat(String(value ?? 0))
   return Number.isFinite(n) ? n : 0
 }
+
+/**
+ * Read an optional numeric form input.
+ *
+ * A cleared number input yields '', and Number.parseFloat('') is NaN, which
+ * serialises to null in JSON but fails a backend `ge=0` check on the way
+ * through. An empty field means "not set", so return null explicitly.
+ */
+export function parseOptionalNumber(raw: string): number | null {
+  if (raw.trim() === '') return null
+  const n = Number.parseFloat(raw)
+  return Number.isFinite(n) ? n : null
+}

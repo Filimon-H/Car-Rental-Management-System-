@@ -31,6 +31,8 @@ export interface Vehicle {
   transmission: string
   fuel_type: string
   daily_rate: number
+  weekly_rate: number | null
+  monthly_rate: number | null
   status: VehicleStatus
   insurance_policy_number: string | null
   insurance_expiry: string | null
@@ -82,6 +84,9 @@ export interface CreateVehicleData {
   transmission?: string
   fuel_type?: string
   daily_rate: number
+  /** Optional pricing tiers; the backend applies whichever is cheaper. */
+  weekly_rate?: number | null
+  monthly_rate?: number | null
   insurance_policy_number?: string
   insurance_expiry?: string
   current_mileage?: number
