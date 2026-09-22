@@ -28,7 +28,7 @@ const OPTION_KEYS: Record<string, string> = {
   LUXURY: 'options.luxuryCaps',
   OTHER: 'options.otherCaps',
   Benzin: 'options.benzin',
-  Disel: 'options.disel',
+  Diesel: 'options.diesel',
   Electric: 'options.electric',
   Hybrid: 'options.hybrid',
   'Natural Gas': 'options.naturalGas',
@@ -60,7 +60,7 @@ const SERVICE_TYPE_OPTIONS: LookupValue[] = [
 
 const FUEL_TYPE_OPTIONS: LookupValue[] = [
   { value: 'petrol', label: 'Benzin' },
-  { value: 'diesel', label: 'Disel' },
+  { value: 'diesel', label: 'Diesel' },
   { value: 'electric', label: 'Electric' },
   { value: 'hybrid', label: 'Hybrid' },
   { value: 'gas', label: 'Gas' },
@@ -196,6 +196,11 @@ export default function VehicleUpsertPage() {
     insurance_expiry: undefined,
     notes: '',
   })
+  // The daily rate keeps its own text state so an in-progress value such as
+  // "-" or "-1" is preserved and can be reported, instead of being discarded
+  // by the controlled round trip.
+  const [dailyRateText, setDailyRateText] = useState('0')
+  const dailyRateInvalid = dailyRateText.trim() !== '' && Number.parseFloat(dailyRateText) < 0
 
   const mapVendorSummaryToVendor = (v: { id: number; vendor_type: string; company_name?: string | null; contact_person?: string | null; phone_primary: string; email?: string | null }): Vendor => {
     return {
@@ -248,6 +253,7 @@ export default function VehicleUpsertPage() {
       insurance_expiry: vehicle.insurance_expiry || undefined,
       notes: vehicle.notes || '',
     })
+    setDailyRateText(String(vehicle.daily_rate ?? 0))
   }, [vehicle])
 
   const createMutation = useMutation({
@@ -351,9 +357,10 @@ export default function VehicleUpsertPage() {
   }, [defaultsToLookupOptions, ensureLookupValue, formData.car_condition])
 
   const canSave = useMemo(() => {
-    const hasErrors = Boolean(false)
+    // A negative rate must block the save rather than be silently coerced.
+    const hasErrors = dailyRateInvalid
     return !isLoading && !hasErrors && !!formData.vendor_id
-  }, [formData.vendor_id, isLoading])
+  }, [dailyRateInvalid, formData.vendor_id, isLoading])
 
   const handleVendorSelect = (vendor: Vendor) => {
     setSelectedVendor(vendor)
@@ -725,12 +732,31 @@ export default function VehicleUpsertPage() {
                   <input
                     type="number"
                     step="0.01"
-                    value={formData.daily_rate}
-                    onChange={(e) => setFormData((p) => ({ ...p, daily_rate: parseFloat(e.target.value) }))}
+                    value={dailyRateText}
+                    onChange={(e) => {
+                      // Keep the raw text in state. Parsing on every keystroke
+                      // meant typing "-" produced NaN, React re-rendered from
+                      // the last good value, and the minus sign vanished — so
+                      // -100 silently became 100 and saved without warning.
+                      setDailyRateText(e.target.value)
+                      const parsed = Number.parseFloat(e.target.value)
+                      setFormData((p) => ({
+                        ...p,
+                        daily_rate: Number.isFinite(parsed) ? parsed : 0,
+                      }))
+                    }}
                     required
                     min={0}
-                    className="w-full rounded-lg border px-3 py-2"
+                    aria-invalid={dailyRateInvalid || undefined}
+                    className={`w-full rounded-lg border px-3 py-2 ${
+                      dailyRateInvalid ? 'border-red-500' : ''
+                    }`}
                   />
+                  {dailyRateInvalid && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {t('vehicleUpsert.rateMustBeNonNegative')}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium">{t('vehicleUpsert.weeklyRate')}</label>
