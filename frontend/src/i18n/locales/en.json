@@ -458,7 +458,8 @@
       "details": "Details",
       "dailyRate": "Daily Rate",
       "status": "Status"
-    }
+    },
+    "statusChangeFailed": "Could not change the vehicle status."
   },
   "customers": {
     "title": "Customers",

@@ -11,6 +11,8 @@ import { Pagination } from '@/components/ui/Pagination'
 import { PageToolbar, FilterTabs } from '@/components/ui/PageToolbar'
 import { Button } from '@/components/ui/Button'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { toast } from '@/hooks/use-toast'
+import { getErrorMessage } from '@/services/apiClient'
 
 const PAGE_SIZE = 20
 
@@ -30,7 +32,8 @@ export default function VehiclesPage() {
     { value: 'rented', label: t('vehicles.status.rented', 'Rented') },
     { value: 'maintenance', label: t('vehicles.status.maintenance', 'Maintenance') },
     { value: 'reserved', label: t('vehicles.status.reserved', 'Reserved') },
-    { value: 'retired', label: t('vehicles.status.retired', 'Retired') },
+    // Stored as 'inactive' on the backend; shown as "Retired".
+    { value: 'inactive', label: t('vehicles.status.retired', 'Retired') },
   ]
 
   useEffect(() => {
@@ -61,6 +64,16 @@ export default function VehiclesPage() {
     mutationFn: ({ id, status }: { id: number; status: VehicleStatus }) =>
       vehiclesService.updateStatus(id, status),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['vehicles'] }),
+    onError: (error: unknown) => {
+      // Without this a rejected change was silent: the select showed the new
+      // value while the vehicle kept the old one. Refetching puts the control
+      // back in step with the server.
+      toast({
+        description: getErrorMessage(error, t('vehicles.statusChangeFailed')),
+        variant: 'destructive',
+      })
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+    },
   })
 
   const formatCurrency = (amount: number) =>
@@ -134,9 +147,10 @@ export default function VehiclesPage() {
                 className="cursor-pointer rounded-lg border border-slate-200 bg-white py-1 pl-2 pr-7 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-night-border dark:bg-night-raised dark:text-slate-200"
               >
                 <option value="available">{t('vehicles.status.available', 'Available')}</option>
+                <option value="rented">{t('vehicles.status.rented', 'Rented')}</option>
                 <option value="maintenance">{t('vehicles.status.maintenance', 'Maintenance')}</option>
                 <option value="reserved">{t('vehicles.status.reserved', 'Reserved')}</option>
-                <option value="retired">{t('vehicles.status.retired', 'Retired')}</option>
+                <option value="inactive">{t('vehicles.status.retired', 'Retired')}</option>
               </select>
             </>
           )}

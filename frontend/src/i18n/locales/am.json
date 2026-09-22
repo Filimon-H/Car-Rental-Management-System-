@@ -458,7 +458,8 @@
       "details": "ዝርዝር",
       "dailyRate": "የቀን ዋጋ",
       "status": "ሁኔታ"
-    }
+    },
+    "statusChangeFailed": "የተሽከርካሪውን ሁኔታ መቀየር አልተቻለም።"
   },
   "customers": {
     "title": "ደንበኞች",

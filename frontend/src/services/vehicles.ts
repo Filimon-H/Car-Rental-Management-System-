@@ -1,6 +1,6 @@
 import apiClient from './apiClient'
 
-export type VehicleStatus = 'available' | 'rented' | 'maintenance' | 'reserved' | 'retired'
+export type VehicleStatus = 'available' | 'rented' | 'maintenance' | 'reserved' | 'inactive'
 
 export interface VendorSummary {
   id: number

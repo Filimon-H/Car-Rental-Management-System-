@@ -44,7 +44,6 @@ const STATUS_TONES: Record<string, Tone> = {
   rented: 'info',
   maintenance: 'warning',
   reserved: 'purple',
-  retired: 'muted',
   out_of_service: 'danger',
   // Generic
   paid: 'success',
