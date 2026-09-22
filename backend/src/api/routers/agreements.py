@@ -210,6 +210,32 @@ async def get_agreement(
         for seg in agreement.vehicle_segments
     ]
     
+    # The driver and collateral person are stored on create but this response
+    # was assembled field by field and simply left them out, so the detail
+    # endpoint reported null for both and a with-driver agreement looked
+    # driverless everywhere it was read back.
+    driver_summary = None
+    if agreement.driver:
+        driver_summary = DriverSummary(
+            id=agreement.driver.id,
+            first_name=agreement.driver.first_name,
+            last_name=agreement.driver.last_name,
+            phone_primary=agreement.driver.phone_primary,
+            license_number=agreement.driver.license_number,
+        )
+
+    collateral_summary = None
+    if agreement.collateral_person:
+        collateral_summary = CollateralSummary(
+            id=agreement.collateral_person.id,
+            first_name=agreement.collateral_person.first_name,
+            last_name=agreement.collateral_person.last_name,
+            phone_primary=agreement.collateral_person.phone_primary,
+            id_type=agreement.collateral_person.id_type,
+            id_number=agreement.collateral_person.id_number,
+            relationship_to_customer=agreement.collateral_person.relationship_to_customer,
+        )
+
     return AgreementDetailResponse(
         id=agreement.id,
         agreement_number=agreement.agreement_number,
@@ -217,6 +243,10 @@ async def get_agreement(
         status=agreement.status,
         customer_id=agreement.customer_id,
         customer_name=agreement.customer.full_name,
+        driver_id=agreement.driver_id,
+        driver=driver_summary,
+        collateral_person_id=agreement.collateral_person_id,
+        collateral_person=collateral_summary,
         pickup_datetime=agreement.pickup_datetime,
         expected_return_datetime=agreement.expected_return_datetime,
         actual_return_datetime=agreement.actual_return_datetime,

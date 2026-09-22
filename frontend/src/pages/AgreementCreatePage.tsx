@@ -45,8 +45,8 @@ export default function AgreementCreatePage() {
   const [returnDate, setReturnDate] = useState('')
   const [returnTime, setReturnTime] = useState('09:00')
   const [dailyRate, setDailyRate] = useState('')
-  const [depositAmount, setDepositAmount] = useState('0')
-  const [advancePayment, setAdvancePayment] = useState('0')
+  const [depositAmount, setDepositAmount] = useState('')
+  const [advancePayment, setAdvancePayment] = useState('')
   const [pickupLocation, setPickupLocation] = useState('')
   const [returnLocation, setReturnLocation] = useState('')
   const [notes, setNotes] = useState('')
@@ -91,6 +91,18 @@ export default function AgreementCreatePage() {
     }
   }, [customerId, collateralPersonId, collateralsData])
 
+  // A single driver reads as already chosen, so select it rather than
+  // failing on submit with "Please select a driver".
+  useEffect(() => {
+    if (agreementType !== 'customer_vehicle_driver') return
+    if (driverId) return
+    const only = driversData?.items?.length === 1 ? driversData.items[0] : null
+    if (only) {
+      setDriverId(only.id)
+      setSelectedDriver(only)
+    }
+  }, [agreementType, driverId, driversData])
+
   const insuranceExpiryLabel = useMemo(() => {
     if (!selectedVehicle?.insurance_expiry) return '—'
     return selectedVehicle.insurance_expiry.split('T')[0]
@@ -118,6 +130,7 @@ export default function AgreementCreatePage() {
   }
 
   const rentalDays = calculateRentalDays()
+  const datesInverted = Boolean(pickupDate && returnDate && `${returnDate}T${returnTime}` <= `${pickupDate}T${pickupTime}`)
   const totalAmount = rentalDays * (parseFloat(dailyRate) || 0)
 
   const handleVehicleSelect = (vehicle: AvailableVehicle) => {
@@ -131,6 +144,11 @@ export default function AgreementCreatePage() {
 
     if (!customerId || !vehicleId || !pickupDate || !returnDate || !dailyRate) {
       toast({ description: t('agreementCreate.fillRequiredFields'), variant: 'destructive' })
+      return
+    }
+
+    if (datesInverted) {
+      toast({ description: t('agreementCreate.returnBeforePickup'), variant: 'destructive' })
       return
     }
 
@@ -378,8 +396,16 @@ export default function AgreementCreatePage() {
                   value={returnDate}
                   onChange={(e) => setReturnDate(e.target.value)}
                   required
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                  aria-invalid={datesInverted || undefined}
+                  className={`w-full rounded-lg border px-3 py-2 ${
+                    datesInverted ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
+                {datesInverted && (
+                  <p role="alert" className="mt-1 text-sm text-red-600">
+                    {t('agreementCreate.returnBeforePickup')}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -633,7 +659,7 @@ export default function AgreementCreatePage() {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={createMutation.isPending || !customerId || !vehicleId}
+            disabled={createMutation.isPending || !customerId || !vehicleId || datesInverted}
             className="w-full rounded-lg bg-primary py-3 font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
           >
             {createMutation.isPending ? t('agreementCreate.creating') : t('agreementCreate.createAgreement')}

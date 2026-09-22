@@ -147,6 +147,15 @@ def create_standard_agreement(
     if not vehicle or not vehicle.is_active:
         raise NotFoundError("Vehicle", vehicle_id)
     
+    # A "with driver" agreement without a driver is not a valid record. The
+    # UI can silently omit the field, so refuse it here rather than storing an
+    # agreement whose type and contents disagree.
+    if agreement_type == AgreementType.CUSTOMER_VEHICLE_DRIVER and not driver_id:
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT,
+            "A driver is required for a with-driver agreement",
+        )
+
     # Validate driver if provided
     if driver_id:
         driver = db.query(Driver).filter(Driver.id == driver_id).first()
