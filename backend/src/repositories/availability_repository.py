@@ -10,6 +10,12 @@ from src.models.agreement_vehicle_segment import AgreementVehicleSegment
 from src.models.vehicle import Vehicle, VehicleStatus
 
 
+# Statuses a vehicle can be booked from. MAINTENANCE and INACTIVE are
+# operational holds; RENTED means it is out now and its own segment will be
+# caught by the overlap check.
+_BOOKABLE_STATUSES = (VehicleStatus.AVAILABLE, VehicleStatus.RESERVED)
+
+
 def check_vehicle_available(
     db: Session,
     vehicle_id: int,
@@ -47,7 +53,7 @@ def check_vehicle_available(
 
     # Check vehicle status. Skipped only for extensions, where the vehicle is
     # legitimately RENTED by the very agreement being extended.
-    if not skip_status_check and vehicle.status not in (VehicleStatus.AVAILABLE, VehicleStatus.RESERVED):
+    if not skip_status_check and vehicle.status not in _BOOKABLE_STATUSES:
         return False
     
     # Check for overlapping segments
@@ -100,10 +106,19 @@ def get_available_vehicles(
         .distinct()
     )
 
-    # Query available vehicles
+    # Query available vehicles.
+    #
+    # The status gate must match check_vehicle_available, which accepts
+    # RESERVED as well as AVAILABLE. RESERVED only records that some future
+    # booking exists; it says nothing about the window being asked for, and
+    # the overlap subquery above already excludes vehicles actually booked
+    # across these dates. Filtering on AVAILABLE alone hid every car that had
+    # any upcoming rental, so a vehicle free in October vanished from the list
+    # because of a booking in September — while the single-vehicle check
+    # correctly reported it as available.
     query = db.query(Vehicle).filter(
         Vehicle.is_active == True,
-        Vehicle.status == VehicleStatus.AVAILABLE,
+        Vehicle.status.in_(_BOOKABLE_STATUSES),
         Vehicle.id.not_in(booked_vehicle_ids_sq),
     )
     
