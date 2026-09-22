@@ -107,12 +107,10 @@ export function DocumentDropzone({
     // Upload to server
     setIsUploading(true)
     try {
-      console.log('Uploading document:', { ownerType, ownerId, docType, fileName: file.name })
       const doc =
         ownerType === 'customer'
           ? await customerDocumentsService.upload(ownerId, docType, file)
           : await collateralDocumentsService.upload(ownerId, docType, file)
-      console.log('Upload successful:', doc)
       setUploadedDoc(doc)
       onUploadComplete?.(doc)
       onFileSelected?.(null)
@@ -164,11 +162,11 @@ export function DocumentDropzone({
     if (!uploadedDoc?.id) return ''
     if (ownerType === 'customer' && (uploadedDoc as CustomerDocument).customer_id) {
       const doc = uploadedDoc as CustomerDocument
-      return `/api/customers/${doc.customer_id}/documents/${doc.id}/file`
+      return `/customers/${doc.customer_id}/documents/${doc.id}/file`
     }
     if (ownerType === 'collateral' && (uploadedDoc as CollateralDocument).collateral_id) {
       const doc = uploadedDoc as CollateralDocument
-      return `/api/collaterals/${doc.collateral_id}/documents/${doc.id}/file`
+      return `/collaterals/${doc.collateral_id}/documents/${doc.id}/file`
     }
     return ''
   })()

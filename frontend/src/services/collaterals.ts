@@ -1,4 +1,5 @@
 import apiClient from './apiClient'
+import { stripBlanks } from '@/lib/utils'
 
 export interface CustomerSummary {
   id: number
@@ -80,11 +81,11 @@ export const collateralsService = {
   },
 
   async create(data: CreateCollateralData): Promise<CollateralPerson> {
-    return apiClient.post('/collaterals', data)
+    return apiClient.post('/collaterals', stripBlanks(data))
   },
 
   async update(id: number, data: Partial<CreateCollateralData>): Promise<CollateralPerson> {
-    return apiClient.put(`/collaterals/${id}`, data)
+    return apiClient.put(`/collaterals/${id}`, stripBlanks(data))
   },
 
   async delete(id: number): Promise<void> {

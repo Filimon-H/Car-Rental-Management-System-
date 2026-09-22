@@ -64,17 +64,19 @@ async def list_customers(
         )
         query = query.filter(online_predicate if is_online_registered else ~online_predicate)
 
-    # Search by name, phone, or ID number
+    # Match every word independently so full names work in either order while
+    # preserving partial name, phone, and ID searches.
     if search:
-        search_term = f"%{search}%"
-        query = query.filter(
-            or_(
-                Customer.first_name.ilike(search_term),
-                Customer.last_name.ilike(search_term),
-                Customer.phone_primary.ilike(search_term),
-                Customer.id_number.ilike(search_term),
+        for word in search.split():
+            search_term = f"%{word}%"
+            query = query.filter(
+                or_(
+                    Customer.first_name.ilike(search_term),
+                    Customer.last_name.ilike(search_term),
+                    Customer.phone_primary.ilike(search_term),
+                    Customer.id_number.ilike(search_term),
+                )
             )
-        )
 
     # Get total count
     total = query.count()
@@ -153,11 +155,13 @@ async def search_customers(
     current_user: StaffUser = Depends(require_permission(Permission.VIEW_CUSTOMERS)),
 ):
     """Quick search for customer lookup modal."""
-    search_term = f"%{q}%"
-    customers = (
-        db.query(Customer)
-        .filter(Customer.is_active == True)
-        .filter(
+    # Same per-word matching as the list endpoint. This is the picker used
+    # when creating an agreement, so searching a full name has to work here
+    # too — otherwise "Abebe Bekele" finds nobody at the point of booking.
+    query = db.query(Customer).filter(Customer.is_active == True)
+    for word in q.split():
+        search_term = f"%{word}%"
+        query = query.filter(
             or_(
                 Customer.first_name.ilike(search_term),
                 Customer.last_name.ilike(search_term),
@@ -165,7 +169,8 @@ async def search_customers(
                 Customer.id_number.ilike(search_term),
             )
         )
-        .order_by(Customer.first_name, Customer.last_name)
+    customers = (
+        query.order_by(Customer.first_name, Customer.last_name)
         .limit(limit)
         .all()
     )

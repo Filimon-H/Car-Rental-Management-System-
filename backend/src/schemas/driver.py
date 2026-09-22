@@ -3,9 +3,9 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, field_validator
 
-from src.schemas.fields import OptionalEmail
+from src.schemas.fields import OptionalEmail, normalize_ethiopian_phone
 
 
 class DriverBase(BaseModel):
@@ -27,6 +27,10 @@ class DriverBase(BaseModel):
     emergency_contact_name: Optional[str] = Field(None, max_length=150)
     emergency_contact_phone: Optional[str] = Field(None, max_length=20)
     notes: Optional[str] = None
+
+    _normalize_phones = field_validator(
+        "phone_primary", "phone_secondary", "emergency_contact_phone", mode="before"
+    )(normalize_ethiopian_phone)
 
 
 class DriverCreate(DriverBase):
@@ -54,6 +58,10 @@ class DriverUpdate(BaseModel):
     emergency_contact_phone: Optional[str] = Field(None, max_length=20)
     notes: Optional[str] = None
     is_active: Optional[bool] = None
+
+    _normalize_phones = field_validator(
+        "phone_primary", "phone_secondary", "emergency_contact_phone", mode="before"
+    )(normalize_ethiopian_phone)
 
 
 class DriverResponse(DriverBase):

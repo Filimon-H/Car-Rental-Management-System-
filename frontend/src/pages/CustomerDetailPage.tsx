@@ -3,10 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, User, Phone, Mail, MapPin, FileText, Edit, Users, Image, Loader2, Calendar, Shield, Send, Copy, Check } from 'lucide-react'
 import { customersService, BotLinkCodeResponse } from '@/services/customers'
-import { customerDocumentsService, CustomerDocument } from '@/services/customerDocuments'
+import { customerDocumentsService } from '@/services/customerDocuments'
 import { collateralsService, CollateralPerson } from '@/services/collaterals'
-import { ImageLightbox } from '@/components/ui/ImageLightbox'
-import { useProtectedFileUrl } from '@/hooks/use-protected-file-url'
+import { ProtectedDocumentCard } from '@/components/documents/ProtectedDocumentCard'
 import { useTranslation } from 'react-i18next'
 
 export default function CustomerDetailPage() {
@@ -81,6 +80,19 @@ export default function CustomerDetailPage() {
   }
 
   const isIndividual = customer.business_type === 'individual'
+  const businessTypeLabels: Record<string, string> = {
+    individual: t('customerCreate.individual'),
+    company: t('customerCreate.company'),
+    government: t('customerCreate.government'),
+    embassy: t('customerCreate.embassy'),
+    ngo: t('customerCreate.ngo'),
+    church: t('customerCreate.church'),
+  }
+  const idTypeLabels: Record<string, string> = {
+    passport: t('customerCreate.passport'),
+    national_id: t('customerCreate.nationalId'),
+    kebele_id: t('customerCreate.kebeleId'),
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -118,7 +130,7 @@ export default function CustomerDetailPage() {
               </div>
               <dl className="space-y-3">
                 <InfoRow label="Full Name" value={customer.full_name} />
-                <InfoRow label="Business Type" value={customer.business_type} />
+                <InfoRow label={t('customerCreate.businessType')} value={businessTypeLabels[customer.business_type] || customer.business_type} />
                 {!isIndividual && customer.company_name && (
                   <InfoRow label="Company Name" value={customer.company_name} />
                 )}
@@ -153,7 +165,7 @@ export default function CustomerDetailPage() {
                   <h2 className="text-lg font-semibold">{t('customerCreate.idAndLicense')}</h2>
                 </div>
                 <dl className="space-y-3">
-                  <InfoRow label="ID Type" value={customer.id_type || '-'} />
+                  <InfoRow label={t('customerCreate.idTypeRequired').replace(' *', '')} value={customer.id_type ? (idTypeLabels[customer.id_type] || customer.id_type) : '-'} />
                   <InfoRow label="ID Number" value={customer.id_number || '-'} />
                   {customer.id_expiry_date && (
                     <InfoRow label="ID Expiry" value={new Date(customer.id_expiry_date).toLocaleDateString()} icon={<Calendar className="h-4 w-4" />} />
@@ -195,7 +207,7 @@ export default function CustomerDetailPage() {
               ) : documentsData?.items && documentsData.items.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
                   {documentsData.items.map((doc) => (
-                    <DocumentCard key={doc.id} document={doc} />
+                    <ProtectedDocumentCard key={doc.id} document={doc} ownerType="customer" ownerId={doc.customer_id} />
                   ))}
                 </div>
               ) : (
@@ -356,60 +368,6 @@ function InfoRow({ label, value, icon }: { label: string; value: string; icon?: 
         {icon}
         {value}
       </dd>
-    </div>
-  )
-}
-
-function DocumentCard({ document }: { document: CustomerDocument }) {
-  const isImage = document.mime_type?.startsWith('image/')
-  const docTypeLabels: Record<string, string> = {
-    passport: 'Passport',
-    national_id: 'National ID',
-    kebele_id: 'Kebele ID',
-    driver_license: 'Driver License',
-  }
-
-  const [open, setOpen] = useState(false)
-  const imagePath = `/api/customers/${document.customer_id}/documents/${document.id}/file`
-  const { fileUrl: imageSrc, isLoading } = useProtectedFileUrl(imagePath, isImage)
-
-  return (
-    <div className="rounded-lg border bg-gray-50 p-3">
-      <div className="mb-2 aspect-square overflow-hidden rounded-lg bg-white">
-        {isImage ? (
-          imageSrc ? (
-            <img
-              src={imageSrc}
-              alt={document.file_name}
-              className="h-full w-full cursor-zoom-in object-cover"
-              onClick={() => setOpen(true)}
-            />
-          ) : isLoading ? (
-            <div className="flex h-full items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-            </div>
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <FileText className="h-12 w-12 text-gray-400" />
-            </div>
-          )
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <FileText className="h-12 w-12 text-gray-400" />
-          </div>
-        )}
-      </div>
-      <p className="text-xs font-medium text-gray-700">{docTypeLabels[document.doc_type] || document.doc_type}</p>
-      <p className="truncate text-xs text-gray-500">{document.file_name}</p>
-
-      {isImage && imageSrc && (
-        <ImageLightbox
-          open={open}
-          src={imageSrc}
-          alt={document.file_name}
-          onClose={() => setOpen(false)}
-        />
-      )}
     </div>
   )
 }

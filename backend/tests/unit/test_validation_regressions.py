@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from tests.unit.test_agreement_service import customer, vehicle  # noqa: F401
 from src.core.errors import BusinessError
 from src.schemas.customer import CustomerCreate
+from src.schemas.driver import DriverCreate, DriverUpdate
 from src.services import agreement_service, wedding_agreement_service
 from src.services.customer_validation_service import find_customer_by_phone
 
@@ -27,6 +28,28 @@ def test_duplicate_phone_matches_local_and_country_code(db, customer):
     customer.phone_primary = "0910029713"
     db.commit()
     assert find_customer_by_phone(db, "+251 910-029-713").id == customer.id
+
+
+def test_driver_phone_fields_are_normalized():
+    driver = DriverCreate(
+        first_name="Dawit",
+        last_name="Tesfaye",
+        phone_primary="0911556677",
+        phone_secondary="911556688",
+        emergency_contact_phone="+251 911-556-699",
+        license_number="DRV-100",
+    )
+
+    assert driver.phone_primary == "+251911556677"
+    assert driver.phone_secondary == "+251911556688"
+    assert driver.emergency_contact_phone == "+251911556699"
+
+
+def test_driver_update_turns_blank_optional_phones_into_none():
+    driver = DriverUpdate(phone_secondary="", emergency_contact_phone="  ")
+
+    assert driver.phone_secondary is None
+    assert driver.emergency_contact_phone is None
 
 
 def test_staff_agreement_rejects_past_pickup(db, customer, vehicle):

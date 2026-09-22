@@ -10,6 +10,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { PageToolbar } from '@/components/ui/PageToolbar'
 import { Button } from '@/components/ui/Button'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { normalizeEthiopianPhone } from '@/lib/utils'
 
 const PAGE_SIZE = 20
 
@@ -259,6 +260,9 @@ function DriverModal({ driver, onClose, onSuccess }: { driver: Driver | null; on
     e.preventDefault()
     const submitData = {
       ...formData,
+      phone_primary: normalizeEthiopianPhone(formData.phone_primary),
+      phone_secondary: normalizeEthiopianPhone(formData.phone_secondary || ''),
+      emergency_contact_phone: normalizeEthiopianPhone(formData.emergency_contact_phone || ''),
       license_expiry: formData.license_expiry ? formData.license_expiry + 'T00:00:00' : undefined,
     }
     if (driver) {
@@ -288,11 +292,12 @@ function DriverModal({ driver, onClose, onSuccess }: { driver: Driver | null; on
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-sm font-medium">Primary Phone *</label>
-              <input type="tel" value={formData.phone_primary} onChange={e => setFormData({...formData, phone_primary: e.target.value})} required className="w-full rounded-lg border px-3 py-2" />
+              <input type="tel" value={formData.phone_primary} onChange={e => setFormData({...formData, phone_primary: e.target.value})} onBlur={() => setFormData(data => ({ ...data, phone_primary: normalizeEthiopianPhone(data.phone_primary) }))} required className="w-full rounded-lg border px-3 py-2" />
+              <p className="mt-1 text-xs text-gray-500">{t('customerCreate.phoneFormatHint')}</p>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">{t('customerCreate.secondaryPhone')}</label>
-              <input type="tel" value={formData.phone_secondary} onChange={e => setFormData({...formData, phone_secondary: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
+              <input type="tel" value={formData.phone_secondary} onChange={e => setFormData({...formData, phone_secondary: e.target.value})} onBlur={() => setFormData(data => ({ ...data, phone_secondary: normalizeEthiopianPhone(data.phone_secondary || '') }))} className="w-full rounded-lg border px-3 py-2" />
             </div>
           </div>
           <div>
@@ -359,7 +364,7 @@ function DriverModal({ driver, onClose, onSuccess }: { driver: Driver | null; on
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">{t('sections.emergencyContactPhone')}</label>
-              <input type="tel" value={formData.emergency_contact_phone} onChange={e => setFormData({...formData, emergency_contact_phone: e.target.value})} className="w-full rounded-lg border px-3 py-2" />
+              <input type="tel" value={formData.emergency_contact_phone} onChange={e => setFormData({...formData, emergency_contact_phone: e.target.value})} onBlur={() => setFormData(data => ({ ...data, emergency_contact_phone: normalizeEthiopianPhone(data.emergency_contact_phone || '') }))} className="w-full rounded-lg border px-3 py-2" />
             </div>
           </div>
           <div>

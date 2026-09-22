@@ -1,11 +1,9 @@
-import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, User, Phone, Mail, MapPin, FileText, Edit, Image, Loader2 } from 'lucide-react'
 import { collateralsService } from '@/services/collaterals'
-import { collateralDocumentsService, CollateralDocument } from '@/services/collateralDocuments'
-import { ImageLightbox } from '@/components/ui/ImageLightbox'
-import { useProtectedFileUrl } from '@/hooks/use-protected-file-url'
+import { collateralDocumentsService } from '@/services/collateralDocuments'
+import { ProtectedDocumentCard } from '@/components/documents/ProtectedDocumentCard'
 import { useTranslation } from 'react-i18next'
 
 export default function CollateralDetailPage() {
@@ -49,6 +47,10 @@ export default function CollateralDetailPage() {
     )
   }
 
+  const relationshipLabel = collateral.relationship_to_customer
+    ? t(`options.${collateral.relationship_to_customer}`, collateral.relationship_to_customer)
+    : '-'
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="border-b bg-white px-6 py-4">
@@ -91,7 +93,7 @@ export default function CollateralDetailPage() {
               </div>
               <dl className="space-y-3">
                 <InfoRow label="Full Name" value={`${collateral.first_name} ${collateral.last_name}`} />
-                <InfoRow label="Relationship" value={collateral.relationship_to_customer || '-'} />
+                <InfoRow label={t('collaterals.columns.relationship')} value={relationshipLabel} />
               </dl>
             </div>
 
@@ -144,7 +146,7 @@ export default function CollateralDetailPage() {
             ) : documentsData?.items && documentsData.items.length > 0 ? (
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
                 {documentsData.items.map((doc) => (
-                  <DocumentCard key={doc.id} document={doc} />
+                  <ProtectedDocumentCard key={doc.id} document={doc} ownerType="collateral" ownerId={doc.collateral_id} />
                 ))}
               </div>
             ) : (
@@ -165,60 +167,6 @@ function InfoRow({ label, value, icon }: { label: string; value: string; icon?: 
         {icon}
         {value}
       </dd>
-    </div>
-  )
-}
-
-function DocumentCard({ document }: { document: CollateralDocument }) {
-  const isImage = document.mime_type?.startsWith('image/')
-  const docTypeLabels: Record<string, string> = {
-    passport: 'Passport',
-    national_id: 'National ID',
-    kebele_id: 'Kebele ID',
-    driver_license: 'Driver License',
-  }
-
-  const [open, setOpen] = useState(false)
-  const imagePath = `/api/collaterals/${document.collateral_id}/documents/${document.id}/file`
-  const { fileUrl: imageSrc, isLoading } = useProtectedFileUrl(imagePath, isImage)
-
-  return (
-    <div className="rounded-lg border bg-gray-50 p-3">
-      <div className="mb-2 aspect-square overflow-hidden rounded-lg bg-white">
-        {isImage ? (
-          imageSrc ? (
-            <img
-              src={imageSrc}
-              alt={document.file_name}
-              className="h-full w-full cursor-zoom-in object-cover"
-              onClick={() => setOpen(true)}
-            />
-          ) : isLoading ? (
-            <div className="flex h-full items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-            </div>
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <FileText className="h-12 w-12 text-gray-400" />
-            </div>
-          )
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <FileText className="h-12 w-12 text-gray-400" />
-          </div>
-        )}
-      </div>
-      <p className="text-xs font-medium text-gray-700">{docTypeLabels[document.doc_type] || document.doc_type}</p>
-      <p className="truncate text-xs text-gray-500">{document.file_name}</p>
-
-      {isImage && imageSrc && (
-        <ImageLightbox
-          open={open}
-          src={imageSrc}
-          alt={document.file_name}
-          onClose={() => setOpen(false)}
-        />
-      )}
     </div>
   )
 }

@@ -31,6 +31,16 @@ export function parseOptionalNumber(raw: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+/** Normalize Ethiopian mobile numbers for display and API payloads. */
+export function normalizeEthiopianPhone(phone: string): string {
+  if (!phone) return phone
+  const cleaned = phone.replace(/[\s()-]/g, '')
+  if (/^09\d{8}$/.test(cleaned)) return `+251${cleaned.slice(1)}`
+  if (/^9\d{8}$/.test(cleaned)) return `+251${cleaned}`
+  if (/^2519\d{8}$/.test(cleaned)) return `+${cleaned}`
+  return cleaned
+}
+
 /**
  * Drop blank optional fields from a request payload.
  *

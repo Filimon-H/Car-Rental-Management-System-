@@ -177,11 +177,8 @@ async def get_collateral_document_file(
     return FileResponse(
         path=document.file_path,
         filename=document.file_name,
-        media_type="application/octet-stream",
-        # No manual Content-Disposition: FileResponse builds it from `filename`
-        # with RFC 6266 escaping. Interpolating the stored name ourselves let a
-        # crafted upload name inject extra header directives, and because
-        # Starlette uses setdefault the manual header silently won.
+        media_type=document.mime_type,
+        content_disposition_type="inline",
     )
 
 

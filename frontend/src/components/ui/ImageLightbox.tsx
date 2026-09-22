@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Minus, Plus, RotateCcw, X } from 'lucide-react'
 
 interface ImageLightboxProps {
@@ -18,19 +19,29 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
 
   useEffect(() => {
     if (!open) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousOverflow
+    }
   }, [open, onClose])
 
   const clampedScale = useMemo(() => Math.min(5, Math.max(0.2, scale)), [scale])
 
   if (!open) return null
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt || 'Image preview'}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+    >
       <button
         type="button"
         onClick={onClose}
@@ -94,6 +105,7 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
           />
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

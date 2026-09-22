@@ -215,15 +215,13 @@ async def get_document_file(
             detail="File not found"
         )
 
-    # Force download — prevent browser from rendering uploaded files inline (XSS risk)
+    # Upload validation only permits JPEG, PNG, WebP, and PDF files. Preserve the
+    # validated type so authenticated browser clients can preview them.
     return FileResponse(
         path=document.file_path,
         filename=document.file_name,
-        media_type="application/octet-stream",
-        # No manual Content-Disposition: FileResponse builds it from `filename`
-        # with RFC 6266 escaping. Interpolating the stored name ourselves let a
-        # crafted upload name inject extra header directives, and because
-        # Starlette uses setdefault the manual header silently won.
+        media_type=document.mime_type,
+        content_disposition_type="inline",
     )
 
 
