@@ -9,6 +9,7 @@ import { DocumentType } from '@/services/customerDocuments'
 import { collateralDocumentsService, CollateralDocument } from '@/services/collateralDocuments'
 import { getErrorMessage } from '@/services/apiClient'
 import { useTranslation } from 'react-i18next'
+import { toast } from '@/hooks/use-toast'
 
 // Phone normalization: 09XXXXXXXX -> +2519XXXXXXXX
 function normalizeEthiopianPhone(phone: string): string {
@@ -139,7 +140,7 @@ export default function CollateralEditPage() {
     },
     onError: (error: unknown) => {
       console.error('Update collateral error:', error)
-      alert(getErrorMessage(error, 'Failed to update collateral person'))
+      toast({ description: getErrorMessage(error, 'Failed to update collateral person'), variant: 'destructive' })
     },
   })
 

@@ -5,6 +5,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, EmailStr
 
+from src.schemas.fields import OptionalEmail
+
 
 class DriverBase(BaseModel):
     """Base driver schema."""
@@ -12,7 +14,7 @@ class DriverBase(BaseModel):
     last_name: str = Field(..., min_length=1, max_length=100)
     phone_primary: str = Field(..., min_length=9, max_length=20)
     phone_secondary: Optional[str] = Field(None, max_length=20)
-    email: Optional[EmailStr] = None
+    email: OptionalEmail = None
     id_type: Optional[str] = Field(None, max_length=50)
     id_number: Optional[str] = Field(None, max_length=50)
     license_number: str = Field(..., min_length=3, max_length=50)
@@ -38,7 +40,7 @@ class DriverUpdate(BaseModel):
     last_name: Optional[str] = Field(None, min_length=1, max_length=100)
     phone_primary: Optional[str] = Field(None, min_length=9, max_length=20)
     phone_secondary: Optional[str] = Field(None, max_length=20)
-    email: Optional[EmailStr] = None
+    email: OptionalEmail = None
     id_type: Optional[str] = Field(None, max_length=50)
     id_number: Optional[str] = Field(None, max_length=50)
     license_number: Optional[str] = Field(None, min_length=3, max_length=50)

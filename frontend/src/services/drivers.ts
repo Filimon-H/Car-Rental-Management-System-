@@ -1,4 +1,5 @@
 import apiClient from './apiClient'
+import { stripBlanks } from '@/lib/utils'
 
 export interface Driver {
   id: number
@@ -70,11 +71,11 @@ export const driversService = {
   },
 
   async create(data: CreateDriverData): Promise<Driver> {
-    return apiClient.post('/drivers', data)
+    return apiClient.post('/drivers', stripBlanks(data))
   },
 
   async update(id: number, data: Partial<CreateDriverData>): Promise<Driver> {
-    return apiClient.put(`/drivers/${id}`, data)
+    return apiClient.put(`/drivers/${id}`, stripBlanks(data))
   },
 
   async delete(id: number): Promise<void> {

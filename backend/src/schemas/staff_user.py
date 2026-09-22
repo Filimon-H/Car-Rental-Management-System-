@@ -5,6 +5,8 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field
 
+from src.schemas.fields import OptionalEmail
+
 from src.core.rbac import Role
 
 
@@ -18,7 +20,7 @@ class StaffUserCreate(BaseModel):
 
 class StaffUserUpdate(BaseModel):
     full_name: Optional[str] = Field(None, min_length=1, max_length=100)
-    email: Optional[EmailStr] = None
+    email: OptionalEmail = None
     role: Optional[Role] = None
     is_active: Optional[bool] = None
 

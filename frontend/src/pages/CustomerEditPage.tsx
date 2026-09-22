@@ -5,8 +5,9 @@ import { ArrowLeft, User, Phone, Mail, MapPin, FileText, Building2, CheckCircle,
 import { customersService, CreateCustomerData, DuplicateCheckResult } from '@/services/customers'
 import { customerDocumentsService, CustomerDocument, DocumentType } from '@/services/customerDocuments'
 import { DocumentDropzone } from '@/components/documents/DocumentDropzone'
-import { getErrorMessage } from '@/services/apiClient'
+import { getErrorMessage, getFieldErrors } from '@/services/apiClient'
 import { useTranslation } from 'react-i18next'
+import { toast } from '@/hooks/use-toast'
 
 // Phone normalization: 09XXXXXXXX -> +2519XXXXXXXX
 function normalizeEthiopianPhone(phone: string): string {
@@ -108,7 +109,8 @@ export default function CustomerEditPage() {
   const [duplicateWarning, setDuplicateWarning] = useState<DuplicateCheckResult | null>(null)
   const [checkingDuplicate, setCheckingDuplicate] = useState(false)
 
-  const [fieldErrors, setFieldErrors] = useState<{ email?: string; phone_primary?: string; phone_secondary?: string }>({})
+  // Keyed by field name so a 422 naming any field can be shown against it.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({})
   const [emailTouched, setEmailTouched] = useState(false)
 
   const validateEmail = (value: string): string | undefined => {
@@ -168,7 +170,15 @@ export default function CustomerEditPage() {
     },
     onError: (error: unknown) => {
       console.error('Update customer error:', error)
-      alert(getErrorMessage(error, 'Failed to update customer'))
+      const apiFieldErrors = getFieldErrors(error)
+      if (Object.keys(apiFieldErrors).length > 0) {
+        setFieldErrors((prev) => ({ ...prev, ...apiFieldErrors }))
+      }
+      toast({
+        title: t('customerEdit.errorUpdatingTitle'),
+        description: getErrorMessage(error, 'Failed to update customer'),
+        variant: 'destructive',
+      })
     },
   })
 

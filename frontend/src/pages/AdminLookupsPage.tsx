@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2, Power } from 'lucide-react'
 import { lookupsService, LookupValue } from '@/services/lookups'
 import { getErrorMessage } from '@/services/apiClient'
 import { useTranslation } from 'react-i18next'
+import { toast } from '@/hooks/use-toast'
 
 type FormMode = 'create' | 'edit'
 
@@ -75,7 +76,7 @@ export default function AdminLookupsPage() {
       setFormOpen(false)
     },
     onError: (error: unknown) => {
-      alert(getErrorMessage(error, 'Failed to create lookup value'))
+      toast({ description: getErrorMessage(error, 'Failed to create lookup value'), variant: 'destructive' })
     },
   })
 
@@ -86,7 +87,7 @@ export default function AdminLookupsPage() {
       setFormOpen(false)
     },
     onError: (error: unknown) => {
-      alert(getErrorMessage(error, 'Failed to update lookup value'))
+      toast({ description: getErrorMessage(error, 'Failed to update lookup value'), variant: 'destructive' })
     },
   })
 
@@ -96,7 +97,7 @@ export default function AdminLookupsPage() {
       queryClient.invalidateQueries({ queryKey: ['lookups-category', effectiveCategory] })
     },
     onError: (error: unknown) => {
-      alert(getErrorMessage(error, 'Failed to delete lookup value'))
+      toast({ description: getErrorMessage(error, 'Failed to delete lookup value'), variant: 'destructive' })
     },
   })
 
@@ -123,7 +124,7 @@ export default function AdminLookupsPage() {
     e.preventDefault()
 
     if (!form.category.trim() || !form.value.trim()) {
-      alert(t('validation.categoryValueRequired'))
+      toast({ description: t('validation.categoryValueRequired'), variant: 'destructive' })
       return
     }
 

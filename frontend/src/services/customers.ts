@@ -1,4 +1,5 @@
 import apiClient from './apiClient'
+import { stripBlanks } from '@/lib/utils'
 
 export interface Customer {
   id: number
@@ -113,11 +114,11 @@ export const customersService = {
   },
 
   async create(data: CreateCustomerData): Promise<Customer> {
-    return apiClient.post('/customers', data)
+    return apiClient.post('/customers', stripBlanks(data))
   },
 
   async update(id: number, data: Partial<CreateCustomerData>): Promise<Customer> {
-    return apiClient.put(`/customers/${id}`, data)
+    return apiClient.put(`/customers/${id}`, stripBlanks(data))
   },
 
   async delete(id: number): Promise<void> {

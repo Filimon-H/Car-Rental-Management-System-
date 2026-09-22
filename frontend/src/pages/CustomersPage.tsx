@@ -24,6 +24,7 @@ import { PageToolbar, FilterTabs } from '@/components/ui/PageToolbar'
 import { Button } from '@/components/ui/Button'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { getErrorMessage } from '@/services/apiClient'
+import { toast } from '@/hooks/use-toast'
 
 const PAGE_SIZE = 20
 
@@ -363,14 +364,14 @@ function CustomerModal({
     mutationFn: customersService.create,
     onSuccess,
     onError: (error: unknown) => {
-      alert(getErrorMessage(error, 'Failed to create customer'))
+      toast({ description: getErrorMessage(error, 'Failed to create customer'), variant: 'destructive' })
     },
   })
   const updateMutation = useMutation({
     mutationFn: (data: CreateCustomerData) => customersService.update(customer!.id, data),
     onSuccess,
     onError: (error: unknown) => {
-      alert(getErrorMessage(error, 'Failed to update customer'))
+      toast({ description: getErrorMessage(error, 'Failed to update customer'), variant: 'destructive' })
     },
   })
 

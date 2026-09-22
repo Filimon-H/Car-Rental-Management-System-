@@ -6,6 +6,7 @@ import { ArrowLeft, Search, Car, User, Heart, Plus, Trash2 } from 'lucide-react'
 import { availabilityService, AvailableVehicle } from '@/services/agreements'
 import apiClient, { getErrorMessage } from '@/services/apiClient'
 import { CustomerLookupModal } from '@/components/lookup/LookupModal'
+import { toast } from '@/hooks/use-toast'
 
 interface SelectedVehicle {
   vehicle: AvailableVehicle
@@ -86,7 +87,7 @@ export default function WeddingAgreementCreatePage() {
     onError: (error: unknown) => {
       console.error('Wedding agreement creation error:', error)
       const err = error as Error
-      alert(err?.message || t('weddingAgreementCreate.errorCreating'))
+      toast({ description: err?.message || t('weddingAgreementCreate.errorCreating'), variant: 'destructive' })
     },
   })
 
@@ -145,17 +146,17 @@ export default function WeddingAgreementCreatePage() {
     e.preventDefault()
 
     if (!customerId) {
-      alert(t('weddingAgreementCreate.selectCustomerError'))
+      toast({ description: t('weddingAgreementCreate.selectCustomerError'), variant: 'destructive' })
       return
     }
 
     if (selectedVehicles.length === 0) {
-      alert(t('weddingAgreementCreate.selectVehicleError'))
+      toast({ description: t('weddingAgreementCreate.selectVehicleError'), variant: 'destructive' })
       return
     }
 
     if (!eventDate || !eventEndDate) {
-      alert(t('weddingAgreementCreate.selectDatesError'))
+      toast({ description: t('weddingAgreementCreate.selectDatesError'), variant: 'destructive' })
       return
     }
 

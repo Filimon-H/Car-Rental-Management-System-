@@ -1,4 +1,5 @@
 import apiClient from './apiClient'
+import { stripBlanks } from '@/lib/utils'
 
 export interface Vendor {
   id: number
@@ -88,19 +89,6 @@ export interface CreateVendorData {
   notes?: string
 }
 
-/**
- * Drop blank optional fields before sending.
- *
- * The form holds every optional input as '' rather than undefined, and the API
- * validates them by type — an empty string is not a valid EmailStr, so posting
- * a vendor with the Email box left blank came back 422. Omitting the key lets
- * the server apply its own default (or leave the column null).
- */
-function stripBlanks<T extends object>(data: T): Partial<T> {
-  return Object.fromEntries(
-    Object.entries(data).filter(([, value]) => value !== '' && value !== null && value !== undefined)
-  ) as Partial<T>
-}
 
 export const vendorsService = {
   async list(params?: {

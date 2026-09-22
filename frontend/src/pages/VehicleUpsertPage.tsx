@@ -8,6 +8,7 @@ import { vendorsService, Vendor } from '@/services/vendors'
 import { lookupsService } from '@/services/lookups'
 import { getErrorMessage } from '@/services/apiClient'
 import { parseOptionalNumber } from '@/lib/utils'
+import { toast } from '@/hooks/use-toast'
 
 
 
@@ -272,7 +273,7 @@ export default function VehicleUpsertPage() {
       return created
     },
     onError: (error: unknown) => {
-      alert(getErrorMessage(error, t('vehicleUpsert.errorCreating')))
+      toast({ description: getErrorMessage(error, t('vehicleUpsert.errorCreating')), variant: 'destructive' })
     },
   })
 
@@ -283,7 +284,7 @@ export default function VehicleUpsertPage() {
       queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleIdNum] })
     },
     onError: (error: unknown) => {
-      alert(getErrorMessage(error, t('vehicleUpsert.errorUpdating')))
+      toast({ description: getErrorMessage(error, t('vehicleUpsert.errorUpdating')), variant: 'destructive' })
     },
   })
 

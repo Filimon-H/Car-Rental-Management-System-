@@ -9,6 +9,7 @@ import { driversService, Driver } from '@/services/drivers'
 import { collateralsService, CollateralPerson } from '@/services/collaterals'
 import { customersService } from '@/services/customers'
 import { getErrorMessage } from '@/services/apiClient'
+import { toast } from '@/hooks/use-toast'
 
 type AgreementType = 'customer_vehicle' | 'customer_vehicle_driver' | 'vendor_vehicle'
 
@@ -102,7 +103,7 @@ export default function AgreementCreatePage() {
     },
     onError: (error: unknown) => {
       console.error('Agreement creation error:', error)
-      alert(getErrorMessage(error, t('agreementCreate.errorCreating')))
+      toast({ description: getErrorMessage(error, t('agreementCreate.errorCreating')), variant: 'destructive' })
     },
   })
 
@@ -129,19 +130,19 @@ export default function AgreementCreatePage() {
     e.preventDefault()
 
     if (!customerId || !vehicleId || !pickupDate || !returnDate || !dailyRate) {
-      alert(t('agreementCreate.fillRequiredFields'))
+      toast({ description: t('agreementCreate.fillRequiredFields'), variant: 'destructive' })
       return
     }
 
     // Validate driver for driver agreements
     if (agreementType === 'customer_vehicle_driver' && !driverId) {
-      alert(t('agreementCreate.selectDriverError'))
+      toast({ description: t('agreementCreate.selectDriverError'), variant: 'destructive' })
       return
     }
 
     // Validate collateral for customer agreements
     if (!collateralPersonId) {
-      alert(t('agreementCreate.selectCollateralError'))
+      toast({ description: t('agreementCreate.selectCollateralError'), variant: 'destructive' })
       return
     }
 

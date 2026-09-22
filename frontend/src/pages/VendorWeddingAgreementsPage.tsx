@@ -13,6 +13,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { PageToolbar } from '@/components/ui/PageToolbar'
 import { Button } from '@/components/ui/Button'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { toast } from '@/hooks/use-toast'
 
 const PAGE_SIZE = 20
 
@@ -227,7 +228,7 @@ function CreateVendorSupplyModal({ onClose }: { onClose: () => void }) {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
     // For now, just close and navigate - full implementation would create the agreement
-    alert('Vendor supply agreement creation would be submitted here')
+    toast({ description: 'Vendor supply agreement creation would be submitted here', variant: 'destructive' })
     onClose()
   }
 

@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Trash2, CheckCircle, XCircle, MinusCircle } from 'luci
 import apiClient from '@/services/apiClient'
 import { VehicleLookupModal } from '@/components/lookup/LookupModal'
 import { VehicleSearchResult } from '@/services/vehicles'
+import { toast } from '@/hooks/use-toast'
 
 interface ChecklistItem {
   id: string
@@ -124,7 +125,7 @@ export default function InspectionCreatePage() {
     e.preventDefault()
 
     if (!vehicleId) {
-      alert(t('validation.selectVehicle'))
+      toast({ description: t('validation.selectVehicle'), variant: 'destructive' })
       return
     }
 

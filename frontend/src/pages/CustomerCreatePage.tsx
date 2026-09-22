@@ -6,7 +6,8 @@ import { ArrowLeft, User, Phone, Mail, MapPin, FileText, Building2, CheckCircle,
 import { customersService, CreateCustomerData, DuplicateCheckResult } from '@/services/customers'
 import { DocumentDropzone } from '@/components/documents/DocumentDropzone'
 import { customerDocumentsService, DocumentType } from '@/services/customerDocuments'
-import { getErrorMessage } from '@/services/apiClient'
+import { getErrorMessage, getFieldErrors } from '@/services/apiClient'
+import { toast } from '@/hooks/use-toast'
 
 // Phone normalization: 09XXXXXXXX -> +2519XXXXXXXX
 function normalizeEthiopianPhone(phone: string): string {
@@ -138,7 +139,9 @@ export default function CustomerCreatePage() {
   // Staged documents (Create page has no customerId yet)
   const [stagedDocuments, setStagedDocuments] = useState<Partial<Record<DocumentType, File>>>({})
 
-  const [fieldErrors, setFieldErrors] = useState<{ email?: string; phone_primary?: string; phone_secondary?: string }>({})
+  // Keyed by field name so a 422 naming any field can be shown against it,
+  // not just the three the client validates itself.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({})
   const [emailTouched, setEmailTouched] = useState(false)
 
   const validateEmail = (value: string): string | undefined => {
@@ -201,7 +204,18 @@ export default function CustomerCreatePage() {
     mutationFn: customersService.create,
     onError: (error: unknown) => {
       console.error('Create customer error:', error)
-      alert(getErrorMessage(error, t('customerCreate.errorCreating')))
+      // A native toast({ description: , variant: 'destructive' }) blocks the whole page until dismissed and shows the
+      // backend's raw text. Map any 422 onto the fields it names, and report
+      // the rest in a toast so the form stays usable.
+      const apiFieldErrors = getFieldErrors(error)
+      if (Object.keys(apiFieldErrors).length > 0) {
+        setFieldErrors((prev) => ({ ...prev, ...apiFieldErrors }))
+      }
+      toast({
+        title: t('customerCreate.errorCreatingTitle'),
+        description: getErrorMessage(error, t('customerCreate.errorCreating')),
+        variant: 'destructive',
+      })
     },
   })
 
