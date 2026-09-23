@@ -9,6 +9,7 @@ from src.models.agreement import AgreementStatus
 from src.models.inspection import Inspection
 from src.models.vehicle import VehicleStatus
 from src.services import agreement_service, inspection_service, wedding_agreement_service
+from src.core.errors import AppException
 
 
 def wedding(db, customer, vehicle, offset=1):
@@ -176,7 +177,7 @@ def test_wedding_create_rejects_vehicle_on_operational_hold(db, customer, vehicl
     """A car in the workshop cannot be booked at all, so it never loses its hold."""
     vehicle.status = status
     db.commit()
-    with pytest.raises(ValueError, match='not available'):
+    with pytest.raises(AppException, match='not available'):
         wedding(db, customer, vehicle)
     db.refresh(vehicle)
     assert vehicle.status == status
@@ -188,7 +189,7 @@ def test_wedding_add_vehicle_rejects_operational_hold(db, customer, vehicle, sec
     vehicle.status = status
     db.commit()
     start = datetime.now(timezone.utc) + timedelta(days=3)
-    with pytest.raises(ValueError, match='not available'):
+    with pytest.raises(AppException, match='not available'):
         wedding_agreement_service.add_vehicle_to_wedding(
             db, agreement.id, vehicle.id, Decimal('100'), start, start + timedelta(days=1),
         )

@@ -6,6 +6,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from src.core.errors import BusinessError, ErrorCode, NotFoundError
 from src.models.agreement import Agreement, AgreementStatus, AgreementType
 from src.models.agreement_vehicle_segment import AgreementVehicleSegment
 from src.models.customer import Customer
@@ -53,13 +54,13 @@ def create_wedding_agreement(
     # Validate customer exists
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
     if not customer:
-        raise ValueError("Customer not found")
+        raise NotFoundError("Customer", customer_id)
     
     if not customer.is_active:
-        raise ValueError("Customer is not active")
+        raise BusinessError(ErrorCode.INVALID_INPUT, "Customer is not active")
     
     if not vehicle_configs:
-        raise ValueError("At least one vehicle is required")
+        raise BusinessError(ErrorCode.INVALID_INPUT, "At least one vehicle is required")
     
     # Validate all vehicles are available
     for config in vehicle_configs:
@@ -68,17 +69,26 @@ def create_wedding_agreement(
         end_dt = _ensure_utc(config["end"])
 
         if start_dt <= datetime.now(timezone.utc):
-            raise ValueError(f"Vehicle {vehicle_id} start date must be in the future")
+            raise BusinessError(
+                ErrorCode.INVALID_INPUT,
+                f"Vehicle {vehicle_id} start date must be in the future",
+            )
         
         if end_dt <= start_dt:
-            raise ValueError(f"End date must be after start date for vehicle {vehicle_id}")
+            raise BusinessError(
+                ErrorCode.INVALID_INPUT,
+                f"End date must be after start date for vehicle {vehicle_id}",
+            )
         
         if not availability_repository.check_vehicle_available(
             db, vehicle_id, start_dt, end_dt
         ):
             vehicle = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
             plate = vehicle.plate_number if vehicle else "Unknown"
-            raise ValueError(f"Vehicle {plate} is not available for the specified dates")
+            raise BusinessError(
+                ErrorCode.VEHICLE_NOT_AVAILABLE,
+                f"Vehicle {plate} is not available for the selected dates",
+            )
     
     # Determine overall agreement period
     earliest_start = min(c["start"] for c in vehicle_configs)
@@ -172,23 +182,32 @@ def add_vehicle_to_wedding(
 
     agreement = db.query(Agreement).filter(Agreement.id == agreement_id).first()
     if not agreement:
-        raise ValueError("Agreement not found")
+        raise NotFoundError("Agreement", agreement_id)
     
     if agreement.agreement_type != AgreementType.WEDDING:
-        raise ValueError("Can only add vehicles to wedding agreements")
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT, "Can only add vehicles to wedding agreements"
+        )
     
     if agreement.status not in [AgreementStatus.DRAFT, AgreementStatus.PENDING_PAYMENT, AgreementStatus.ACTIVE]:
-        raise ValueError("Cannot modify a closed or cancelled agreement")
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT, "Cannot modify a closed or cancelled agreement"
+        )
     
     if end_datetime <= start_datetime:
-        raise ValueError("End date must be after start date")
+        raise BusinessError(ErrorCode.INVALID_INPUT, "End date must be after start date")
     
     # Check availability. The agreement does not already hold this vehicle, so the
     # status gate must apply — only its own overlapping segments are excluded.
     if not availability_repository.check_vehicle_available(
         db, vehicle_id, start_datetime, end_datetime, exclude_agreement_id=agreement_id
     ):
-        raise ValueError("Vehicle is not available for the specified dates")
+        vehicle = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
+        plate = vehicle.plate_number if vehicle else vehicle_id
+        raise BusinessError(
+            ErrorCode.VEHICLE_NOT_AVAILABLE,
+            f"Vehicle {plate} is not available for the selected dates",
+        )
     
     # Create segment
     segment = AgreementVehicleSegment(
@@ -246,7 +265,7 @@ def get_wedding_totals(db: Session, agreement_id: int) -> dict:
     """Get wedding agreement totals breakdown."""
     agreement = db.query(Agreement).filter(Agreement.id == agreement_id).first()
     if not agreement:
-        raise ValueError("Agreement not found")
+        raise NotFoundError("Agreement", agreement_id)
     
     segments = (
         db.query(AgreementVehicleSegment)

@@ -13,6 +13,7 @@ from src.schemas.customer import CustomerCreate
 from src.schemas.driver import DriverCreate, DriverUpdate
 from src.services import agreement_service, wedding_agreement_service
 from src.services.customer_validation_service import find_customer_by_phone
+from src.core.errors import AppException
 
 
 def test_extension_timezone_is_normalized_to_addis_wall_clock():
@@ -76,7 +77,7 @@ def test_staff_agreement_rejects_past_pickup(db, customer, vehicle):
 
 def test_wedding_agreement_rejects_past_start(db, customer, vehicle):
     pickup = datetime.now(timezone.utc) - timedelta(days=2)
-    with pytest.raises(ValueError, match="start date must be in the future"):
+    with pytest.raises(AppException, match="start date must be in the future"):
         wedding_agreement_service.create_wedding_agreement(
             db,
             customer.id,

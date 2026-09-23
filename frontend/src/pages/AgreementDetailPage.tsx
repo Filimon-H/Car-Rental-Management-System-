@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Ban, Car, CreditCard, FileText, User, UserCheck, Shield, Printer } from 'lucide-react'
-import { agreementsService, PostChargeData, PostDepositData, PostPaymentData, AgreementDetail, ledgerService } from '@/services/agreements'
+import { agreementsService, PostChargeData, PostDepositData, PostPaymentData, AgreementDetail, ledgerService, availabilityService } from '@/services/agreements'
 import { customersService } from '@/services/customers'
 import { collateralsService } from '@/services/collaterals'
 import { vehiclesService } from '@/services/vehicles'
@@ -36,6 +36,7 @@ export default function AgreementDetailPage() {
   const [showChargeModal, setShowChargeModal] = useState<null | 'damage' | 'late'>(null)
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false)
   const [confirmAction, setConfirmAction] = useState<null | 'activate' | 'approve'>(null)
+  const [showAddVehicle, setShowAddVehicle] = useState(false)
   const [reverseTarget, setReverseTarget] = useState<{
     id: number
     description: string
@@ -129,6 +130,26 @@ export default function AgreementDetailPage() {
     },
     onError: (error: unknown) => {
       setPageError(getErrorMessage(error, t('ledger.reverseFailed')))
+    },
+  })
+
+  const addVehicleMutation = useMutation({
+    mutationFn: (data: {
+      vehicle_id: number
+      daily_rate: number
+      start_datetime: string
+      end_datetime: string
+    }) => {
+      if (!agreementId) throw new Error('Invalid agreement id')
+      return agreementsService.addVehicleToWedding(agreementId, data)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
+      queryClient.invalidateQueries({ queryKey: ['ledger', agreementId] })
+      setShowAddVehicle(false)
+    },
+    onError: (error: unknown) => {
+      setPageError(getErrorMessage(error, t('agreements.addVehicleFailed')))
     },
   })
 
@@ -837,6 +858,18 @@ export default function AgreementDetailPage() {
 
         {activeTab === 'vehicles' && (
           <div className="space-y-4">
+            {agreement.agreement_type === 'wedding' &&
+              ['draft', 'pending_payment', 'active'].includes(agreement.status) && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddVehicle(true)}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+                  >
+                    + {t('agreements.addVehicle')}
+                  </button>
+                </div>
+              )}
             {agreement.vehicle_segments.map((segment) => (
               <div key={segment.id} className="rounded-lg border p-4">
                 <div className="flex items-center gap-4">
@@ -946,6 +979,16 @@ export default function AgreementDetailPage() {
           onConfirm={(reason) =>
             reverseMutation.mutate({ entryId: reverseTarget.id, reason })
           }
+        />
+      )}
+
+      {showAddVehicle && (
+        <AddWeddingVehicleModal
+          defaultStart={agreement.pickup_datetime}
+          defaultEnd={agreement.expected_return_datetime}
+          isLoading={addVehicleMutation.isPending}
+          onClose={() => setShowAddVehicle(false)}
+          onSubmit={(data) => addVehicleMutation.mutate(data)}
         />
       )}
 
@@ -1582,6 +1625,158 @@ function SettlementModal({
  * whose value was collected and then discarded. This shows the original
  * read-only and asks only for the reason, which is what is actually sent.
  */
+/**
+ * Adds a vehicle to an existing wedding agreement.
+ *
+ * Only vehicles free for the chosen window are offered, so the common
+ * rejection never reaches the server; the backend still enforces it.
+ */
+function AddWeddingVehicleModal({
+  defaultStart,
+  defaultEnd,
+  onClose,
+  onSubmit,
+  isLoading,
+}: {
+  defaultStart: string
+  defaultEnd: string
+  onClose: () => void
+  onSubmit: (data: {
+    vehicle_id: number
+    daily_rate: number
+    start_datetime: string
+    end_datetime: string
+  }) => void
+  isLoading: boolean
+}) {
+  const { t } = useTranslation()
+  const toLocal = (iso: string) => iso.slice(0, 16)
+  const [start, setStart] = useState(toLocal(defaultStart))
+  const [end, setEnd] = useState(toLocal(defaultEnd))
+  const [vehicleId, setVehicleId] = useState<number | null>(null)
+  const [rate, setRate] = useState('')
+
+  const datesValid = Boolean(start && end && end > start)
+
+  const { data: vehicles, isLoading: loadingVehicles } = useQuery({
+    queryKey: ['available-vehicles', start, end],
+    queryFn: () => availabilityService.getAvailableVehicles(`${start}:00`, `${end}:00`),
+    enabled: datesValid,
+  })
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (!vehicleId) return
+          onSubmit({
+            vehicle_id: vehicleId,
+            daily_rate: Number.parseFloat(rate),
+            start_datetime: `${start}:00`,
+            end_datetime: `${end}:00`,
+          })
+        }}
+        className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl"
+      >
+        <h2 className="mb-4 text-lg font-bold text-gray-900">{t('agreements.addVehicle')}</h2>
+
+        <div className="mb-4 grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="awv-start" className="mb-1 block text-sm font-medium text-gray-700">
+              {t('agreementActions.pickup')}
+            </label>
+            <input
+              id="awv-start"
+              type="datetime-local"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+              required
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="awv-end" className="mb-1 block text-sm font-medium text-gray-700">
+              {t('agreementActions.return')}
+            </label>
+            <input
+              id="awv-end"
+              type="datetime-local"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+              required
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="awv-vehicle" className="mb-1 block text-sm font-medium text-gray-700">
+            {t('nav.vehicles')}
+          </label>
+          <select
+            id="awv-vehicle"
+            value={vehicleId ?? ''}
+            onChange={(e) => {
+              const id = Number.parseInt(e.target.value, 10)
+              setVehicleId(Number.isFinite(id) ? id : null)
+              const picked = vehicles?.find((v) => v.id === id)
+              if (picked) setRate(String(picked.daily_rate))
+            }}
+            required
+            disabled={!datesValid || loadingVehicles}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="">{t('ledger.selectVehicle', '—')}</option>
+            {vehicles?.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.plate_number} — {v.make} {v.model}
+              </option>
+            ))}
+          </select>
+          {datesValid && !loadingVehicles && vehicles?.length === 0 && (
+            <p className="mt-1 text-sm text-gray-500">{t('agreements.noVehiclesAvailable')}</p>
+          )}
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="awv-rate" className="mb-1 block text-sm font-medium text-gray-700">
+            {t('weddingAgreementCreate.dailyRate')}
+          </label>
+          <input
+            id="awv-rate"
+            type="number"
+            step="0.01"
+            min={0}
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+            required
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading || !vehicleId || !datesValid}
+            className="rounded-lg bg-primary px-4 py-2 text-sm text-white hover:bg-primary-700 disabled:opacity-50"
+          >
+            {isLoading ? t('common.loading') : t('agreements.addVehicle')}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+
 function ReverseEntryModal({
   entry,
   onClose,

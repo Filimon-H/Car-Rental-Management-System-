@@ -243,6 +243,19 @@ export const agreementsService = {
     return apiClient.post(`/agreements/${id}/adjustments`, data)
   },
 
+  /** Add a vehicle to an existing wedding agreement. */
+  async addVehicleToWedding(
+    id: number,
+    data: {
+      vehicle_id: number
+      daily_rate: number
+      start_datetime: string
+      end_datetime: string
+    }
+  ): Promise<unknown> {
+    return apiClient.post(`/agreements/${id}/vehicles`, data)
+  },
+
   async activate(id: number): Promise<Agreement> {
     return apiClient.post(`/agreements/${id}/activate`)
   },

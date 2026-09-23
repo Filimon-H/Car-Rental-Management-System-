@@ -140,6 +140,8 @@
     "returnsDueTodayDesc_other": "ዛሬ {{count}} መኪኖች ይመለሳሉ ተብሎ ይጠበቃል።"
   },
   "agreements": {
+    "addVehicle": "ተሽከርካሪ ጨምር",
+    "addVehicleFailed": "ተሽከርካሪውን መጨመር አልተቻለም።",
     "columns": {
       "number": "የስምምነት ቁጥር",
       "customer": "ደንበኛ",
@@ -155,6 +157,7 @@
     "emptyTitle": "ምንም ስምምነት አልተገኘም",
     "filterByStatus": "በሁኔታ አጣራ",
     "loadError": "ስምምነቶችን በመጫን ላይ ስህተት",
+    "noVehiclesAvailable": "ለእነዚህ ቀናት ምንም ተሽከርካሪ የለም።",
     "pagination": "የስምምነቶች ገጽ ቁጥር",
     "searchLabel": "ስምምነቶችን ፈልግ",
     "searchPlaceholder": "ስምምነት ወይም ደንበኛ ፈልግ...",

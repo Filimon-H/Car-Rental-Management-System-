@@ -140,6 +140,8 @@
     "returnsDueTodayDesc_other": "{{count}} vehicles expected back today."
   },
   "agreements": {
+    "addVehicle": "Add Vehicle",
+    "addVehicleFailed": "Could not add the vehicle.",
     "columns": {
       "number": "Agreement #",
       "customer": "Customer",
@@ -155,6 +157,7 @@
     "emptyTitle": "No agreements found",
     "filterByStatus": "Filter by status",
     "loadError": "Error loading agreements",
+    "noVehiclesAvailable": "No vehicles are available for these dates.",
     "pagination": "Agreements pagination",
     "searchLabel": "Search agreements",
     "searchPlaceholder": "Search agreement or customer...",
