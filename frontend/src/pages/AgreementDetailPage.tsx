@@ -10,6 +10,7 @@ import { vehiclesService } from '@/services/vehicles'
 import LedgerTable from '@/components/ledger/LedgerTable'
 import { getErrorMessage } from '@/services/apiClient'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
+import { toNumber } from '@/lib/utils'
 
 const statusColors: Record<string, string> = {
   booking_requested: 'bg-orange-100 text-orange-800',
@@ -33,7 +34,11 @@ export default function AgreementDetailPage() {
   const [showChargeModal, setShowChargeModal] = useState<null | 'damage' | 'late'>(null)
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false)
   const [confirmAction, setConfirmAction] = useState<null | 'activate' | 'approve'>(null)
-  const [reverseTarget, setReverseTarget] = useState<{ id: number; description: string } | null>(null)
+  const [reverseTarget, setReverseTarget] = useState<{
+    id: number
+    description: string
+    amount: number | string
+  } | null>(null)
   const [showReturnModal, setShowReturnModal] = useState(false)
   const [showSettlementModal, setShowSettlementModal] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
@@ -898,18 +903,13 @@ export default function AgreementDetailPage() {
       )}
 
       {reverseTarget && (
-        <AmountModal
-          title={`${t('ledger.reverseEntry')} — ${reverseTarget.description}`}
-          requirePaymentMethod={false}
-          onClose={() => setReverseTarget(null)}
-          onSubmit={(payload) => {
-            reverseMutation.mutate({
-              entryId: reverseTarget.id,
-              reason: (payload.description as string) ?? '',
-            })
-          }}
+        <ReverseEntryModal
+          entry={reverseTarget}
           isLoading={reverseMutation.isPending}
-          showDescription
+          onClose={() => setReverseTarget(null)}
+          onConfirm={(reason) =>
+            reverseMutation.mutate({ entryId: reverseTarget.id, reason })
+          }
         />
       )}
 
@@ -1336,6 +1336,10 @@ function SettlementModal({
             <span className="font-semibold">{formatCurrency(agreement.total_charges)}</span>
           </div>
           <div className="flex justify-between">
+            <span className="text-gray-500">{t('ledger.netAdjustments')}</span>
+            <span className="font-semibold">{formatCurrency(agreement.net_adjustments ?? 0)}</span>
+          </div>
+          <div className="flex justify-between">
             <span className="text-gray-600">Total Payments:</span>
             <span className="font-semibold text-green-600">{formatCurrency(agreement.total_payments)}</span>
           </div>
@@ -1409,6 +1413,83 @@ function SettlementModal({
     </div>
   )
 }
+
+/**
+ * Reversal dialog.
+ *
+ * The endpoint always reverses the full original amount — partial reversals
+ * are not supported — so reusing AmountModal showed an editable Amount field
+ * whose value was collected and then discarded. This shows the original
+ * read-only and asks only for the reason, which is what is actually sent.
+ */
+function ReverseEntryModal({
+  entry,
+  onClose,
+  onConfirm,
+  isLoading,
+}: {
+  entry: { id: number; description: string; amount: number | string }
+  onClose: () => void
+  onConfirm: (reason: string) => void
+  isLoading: boolean
+}) {
+  const { t } = useTranslation()
+  const [reason, setReason] = useState('')
+
+  const amount = new Intl.NumberFormat('en-ET', {
+    style: 'currency',
+    currency: 'ETB',
+  }).format(Math.abs(toNumber(entry.amount)))
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          onConfirm(reason.trim())
+        }}
+        className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+      >
+        <h2 className="mb-1 text-lg font-bold text-gray-900">{t('ledger.reverseEntry')}</h2>
+        <p className="mb-4 text-sm text-gray-500">
+          {entry.description} — <span className="font-semibold">{amount}</span>
+        </p>
+
+        <div className="mb-4">
+          <label htmlFor="reverse-reason" className="mb-1 block text-sm font-medium text-gray-700">
+            {t('ledger.reverseReasonLabel')}
+          </label>
+          <input
+            id="reverse-reason"
+            type="text"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            required
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading || !reason.trim()}
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {isLoading ? t('common.loading') : t('ledger.reverse')}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 
 function CancelConfirmModal({
   agreementNumber,

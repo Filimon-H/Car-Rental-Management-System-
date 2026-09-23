@@ -77,7 +77,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 interface LedgerTableProps {
   agreementId: number
   /** Omit to render the table read-only, as the customer ledger does. */
-  onReverse?: (entry: { id: number; description: string }) => void
+  onReverse?: (entry: { id: number; description: string; amount: number | string }) => void
 }
 
 export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps) {
@@ -351,7 +351,11 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
                         <button
                           type="button"
                           onClick={() =>
-                            onReverse({ id: entry.id, description: entry.description })
+                            onReverse({
+                              id: entry.id,
+                              description: entry.description,
+                              amount: entry.amount,
+                            })
                           }
                           className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
                         >

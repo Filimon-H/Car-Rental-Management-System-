@@ -596,6 +596,7 @@
     "grandTotal": "Grand Total",
     "ledgerEntries": "Ledger Entries",
     "method": "Method",
+    "netAdjustments": "Net Adjustments",
     "netRevenue": "Net Revenue",
     "newPayment": "New Payment",
     "noLedgerEntriesForCustomer": "No ledger entries for this customer",

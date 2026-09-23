@@ -122,7 +122,8 @@ class ReverseEntryRequest(BaseModel):
 class BalanceResponse(BaseModel):
     agreement_id: int
     balance: Decimal
-    total_charges: Decimal
+    total_charges: Decimal  # gross debits; excludes adjustments
+    net_adjustments: Decimal = Decimal("0")  # + extra charge, - discount
     total_payments: Decimal
     deposit_received: Decimal
     deposit_held: Decimal
@@ -169,14 +170,15 @@ async def get_balance(
     breakdown = agreement_service.get_balance_breakdown(db, agreement_id)
     balance = ledger_service.get_agreement_balance(db, agreement_id)
 
-    # Positive adjustments are extra charges, negative ones discounts, so the
-    # reported charge total has to carry them too.
-    total_charges = breakdown["total_charges"] + breakdown["net_adjustments"]
-
+    # Report gross debits and adjustments separately rather than folding one
+    # into the other. Netting made total_charges disagree with the ledger
+    # table, which shows a discount as a credit — the balance was right but
+    # the label was not.
     return BalanceResponse(
         agreement_id=agreement_id,
         balance=balance,
-        total_charges=total_charges,
+        total_charges=breakdown["total_charges"],
+        net_adjustments=breakdown["net_adjustments"],
         total_payments=breakdown["total_payments"],
         deposit_received=breakdown["deposit_received"],
         deposit_held=breakdown["deposit_held"],

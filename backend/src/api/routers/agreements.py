@@ -259,9 +259,10 @@ async def get_agreement(
         closed_at=agreement.closed_at,
         vehicle_segments=vehicle_segments,
         balance=summary["balance"],
-        # Adjustments are charges too: a +200 correction raises what is owed,
-        # so reporting the rental charges alone contradicted balance_due.
-        total_charges=summary["total_charges"] + summary.get("net_adjustments", 0),
+        # Gross debits; adjustments are reported separately so this figure
+        # matches the ledger table's charge column.
+        total_charges=summary["total_charges"],
+        net_adjustments=summary.get("net_adjustments", 0),
         total_payments=summary["total_payments"],
         deposit_received=summary.get("deposit_received"),
         deposit_applied=summary.get("deposit_applied"),

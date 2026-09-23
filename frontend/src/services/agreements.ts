@@ -59,6 +59,7 @@ export interface AgreementDetail extends Agreement {
   vehicle_segments: VehicleSegment[]
   balance: number
   total_charges: number
+  net_adjustments?: number
   total_payments: number
 
   deposit_received?: number

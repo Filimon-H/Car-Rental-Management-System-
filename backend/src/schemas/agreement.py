@@ -122,7 +122,8 @@ class AgreementDetailResponse(AgreementResponse):
 
     vehicle_segments: list[VehicleSegmentResponse]
     balance: Decimal
-    total_charges: Decimal
+    total_charges: Decimal  # gross debits; excludes adjustments
+    net_adjustments: Decimal = Decimal("0")  # + extra charge, - discount
     total_payments: Decimal
 
     deposit_received: Decimal = Decimal("0")

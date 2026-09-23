@@ -596,6 +596,7 @@
     "grandTotal": "ጠቅላላ ድምር",
     "ledgerEntries": "የመዝገብ ግቤቶች",
     "method": "ዘዴ",
+    "netAdjustments": "የተጣራ ማስተካከያ",
     "netRevenue": "የተጣራ ገቢ",
     "newPayment": "አዲስ ክፍያ",
     "noLedgerEntriesForCustomer": "ለዚህ ደንበኛ ምንም የመዝገብ ግቤት የለም",
