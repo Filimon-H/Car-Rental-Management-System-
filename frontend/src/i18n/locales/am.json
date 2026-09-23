@@ -169,14 +169,17 @@
       "pagination": "የአቅራቢ አቅርቦት ገጽ ቁጥር"
     },
     "status": {
-      "draft": "ረቂቅ",
       "active": "ንቁ",
-      "closed": "ተዘግቷል",
-      "overdue": "የጊዜ ገደብ ያለፈ",
-      "cancelled": "ተሰርዟል",
       "all": "ሁሉም",
       "bookingRequested": "የቦታ ማስያዣ ጥያቄዎች",
-      "pendingPayment": "ክፍያ በመጠባበቅ ላይ"
+      "booking_requested": "ቦታ ማስያዝ ተጠይቋል",
+      "cancelled": "ተሰርዟል",
+      "closed": "ተዘግቷል",
+      "draft": "ረቂቅ",
+      "overdue": "የጊዜ ገደብ ያለፈ",
+      "pendingPayment": "ክፍያ በመጠባበቅ ላይ",
+      "pending_payment": "ክፍያ በመጠባበቅ ላይ",
+      "returned": "ተመልሷል"
     },
     "searchLabel": "ስምምነቶችን ፈልግ",
     "searchPlaceholder": "ስምምነት ወይም ደንበኛ ፈልግ...",

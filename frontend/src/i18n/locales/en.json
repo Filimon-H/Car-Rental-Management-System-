@@ -169,14 +169,17 @@
       "pagination": "Vendor supply pagination"
     },
     "status": {
-      "draft": "Draft",
       "active": "Active",
-      "closed": "Closed",
-      "overdue": "Overdue",
-      "cancelled": "Cancelled",
       "all": "All",
       "bookingRequested": "Booking Requests",
-      "pendingPayment": "Pending Payment"
+      "booking_requested": "Booking Requested",
+      "cancelled": "Cancelled",
+      "closed": "Closed",
+      "draft": "Draft",
+      "overdue": "Overdue",
+      "pendingPayment": "Pending Payment",
+      "pending_payment": "Pending Payment",
+      "returned": "Returned"
     },
     "searchLabel": "Search agreements",
     "searchPlaceholder": "Search agreement or customer...",

@@ -230,6 +230,19 @@ export default function AgreementDetailPage() {
   const depositApplied = agreement.deposit_applied ?? 0
   const depositReturned = agreement.deposit_returned ?? 0
 
+  // Each settlement action is gated by the statuses it actually makes sense
+  // in, not by one blanket `active` check. Gating the whole block on `active`
+  // deadlocked the flow: activation needs the deposit, but the deposit could
+  // only be taken once active.
+  const depositOutstanding = (agreement.deposit_amount ?? 0) - depositReceived
+  const canReceiveDeposit =
+    ['pending_payment', 'active', 'overdue'].includes(agreement.status) && depositOutstanding > 0
+  const canPostPayment = ['pending_payment', 'active', 'overdue'].includes(agreement.status)
+  const canPostCharge = ['active', 'overdue'].includes(agreement.status)
+  const canSettleDeposit = ['active', 'overdue', 'returned', 'closed'].includes(agreement.status)
+  const showSettlementActions =
+    canReceiveDeposit || canPostCharge || canSettleDeposit
+
   const handleActivate = () => {
     if (confirm('Are you sure you want to activate this agreement? This confirms vehicle handover.')) {
       activateMutation.mutate()
@@ -401,45 +414,55 @@ export default function AgreementDetailPage() {
             <div className="rounded-lg border bg-gray-50 p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <div className="text-sm font-semibold text-gray-800">{t('sections.depositDeductions')}</div>
-                {agreement.status === 'active' && (
+                {showSettlementActions && (
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowDepositModal('receive')}
-                      className="rounded-md bg-gray-900 px-3 py-2 text-xs font-medium text-white hover:bg-gray-800"
-                    >
-                      {t('ledger.receiveDeposit')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowChargeModal('damage')}
-                      className="rounded-md border bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      {t('agreementActions.addDamageCharge')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowChargeModal('late')}
-                      className="rounded-md border bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      {t('agreementActions.addLateFee')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowDepositModal('apply')}
-                      disabled={depositHeld <= 0 || shownBalance <= 0}
-                      className="rounded-md bg-primary px-3 py-2 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50"
-                    >
-                      {t('ledger.applyDeposit')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowDepositModal('refund')}
-                      disabled={depositHeld <= 0}
-                      className="rounded-md bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                    >
-                      {t('ledger.refundDeposit')}
-                    </button>
+                    {canReceiveDeposit && (
+                      <button
+                        type="button"
+                        onClick={() => setShowDepositModal('receive')}
+                        className="rounded-md bg-gray-900 px-3 py-2 text-xs font-medium text-white hover:bg-gray-800"
+                      >
+                        {t('ledger.receiveDeposit')}
+                      </button>
+                    )}
+                    {canPostCharge && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setShowChargeModal('damage')}
+                          className="rounded-md border bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          {t('agreementActions.addDamageCharge')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowChargeModal('late')}
+                          className="rounded-md border bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          {t('agreementActions.addLateFee')}
+                        </button>
+                      </>
+                    )}
+                    {canSettleDeposit && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setShowDepositModal('apply')}
+                          disabled={depositHeld <= 0 || shownBalance <= 0}
+                          className="rounded-md bg-primary px-3 py-2 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+                        >
+                          {t('ledger.applyDeposit')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowDepositModal('refund')}
+                          disabled={depositHeld <= 0}
+                          className="rounded-md bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                        >
+                          {t('ledger.refundDeposit')}
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -700,7 +723,7 @@ export default function AgreementDetailPage() {
                 <h3 className="text-base font-semibold text-gray-800">{t('ledger.financialLedger')}</h3>
                 <p className="text-xs text-gray-500">Append-only audit trail — every charge, payment, and adjustment</p>
               </div>
-              {agreement.status === 'active' && (
+              {canPostPayment && (
                 <button
                   onClick={() => setShowPaymentModal(true)}
                   className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
