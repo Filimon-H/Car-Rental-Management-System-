@@ -697,6 +697,8 @@
   "adminLookups": {
     "addValue": "ዋጋ ጨምር",
     "adminSetting": "የአስተዳዳሪ ቅንብር",
+    "confirmDeleteBody": "\"{{label}}\" ከ{{category}} ይወገዳል። ይህ መቀልበስ አይቻልም።",
+    "confirmDeleteTitle": "ይህን ዋጋ መሰረዝ?",
     "sortOrder": "የመደርደር ቅደም ተከተል"
   },
   "agreementPrint": {
@@ -725,8 +727,13 @@
     "addDamage": "ጉዳት ጨምር",
     "addDamageCharge": "የጉዳት ክፍያ ጨምር",
     "addLateFee": "የዘገየ ክፍያ ጨምር",
+    "approveBooking": "ማስያዣ አጽድቅ",
     "cancelAgreement": "ውል ሰርዝ",
     "closeAgreement": "ውል ዝጋ",
+    "confirmActivateBody": "ይህ ተሽከርካሪው ለደንበኛው መሰጠቱን ያረጋግጣል።",
+    "confirmActivateTitle": "ይህን ውል ማግበር?",
+    "confirmApproveBody": "ይህ ተሽከርካሪውን ይይዛል እና የኪራይ ክፍያውን ይመዘግባል።",
+    "confirmApproveTitle": "ይህን የቦታ ማስያዣ ጥያቄ ማጽደቅ?",
     "decline": "አትቀበል",
     "expectedReturn": "የሚጠበቅ መመለሻ",
     "invalidAgreementId": "ልክ ያልሆነ የውል መለያ",

@@ -697,6 +697,8 @@
   "adminLookups": {
     "addValue": "Add Value",
     "adminSetting": "Admin Setting",
+    "confirmDeleteBody": "\"{{label}}\" will be removed from {{category}}. This cannot be undone.",
+    "confirmDeleteTitle": "Delete this value?",
     "sortOrder": "Sort Order"
   },
   "agreementPrint": {
@@ -725,8 +727,13 @@
     "addDamage": "Add Damage",
     "addDamageCharge": "Add Damage Charge",
     "addLateFee": "Add Late Fee",
+    "approveBooking": "Approve Booking",
     "cancelAgreement": "Cancel Agreement",
     "closeAgreement": "Close Agreement",
+    "confirmActivateBody": "This confirms the vehicle has been handed over to the customer.",
+    "confirmActivateTitle": "Activate this agreement?",
+    "confirmApproveBody": "This locks the vehicle and posts the rental charge.",
+    "confirmApproveTitle": "Approve this booking request?",
     "decline": "Decline",
     "expectedReturn": "Expected Return",
     "invalidAgreementId": "Invalid agreement id",

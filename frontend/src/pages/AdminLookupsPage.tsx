@@ -5,10 +5,12 @@ import { lookupsService, LookupValue } from '@/services/lookups'
 import { getErrorMessage } from '@/services/apiClient'
 import { useTranslation } from 'react-i18next'
 import { toast } from '@/hooks/use-toast'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
 type FormMode = 'create' | 'edit'
 
 export default function AdminLookupsPage() {
+  const [pendingDelete, setPendingDelete] = useState<LookupValue | null>(null)
   const { t } = useTranslation()
   const queryClient = useQueryClient()
 
@@ -151,10 +153,7 @@ export default function AdminLookupsPage() {
     await updateMutation.mutateAsync({ id: row.id, data: { is_active: !row.is_active } })
   }
 
-  const handleDelete = async (row: LookupValue) => {
-    if (!confirm(`Delete '${row.label || row.value}' from '${row.category}'?`)) return
-    await deleteMutation.mutateAsync(row.id)
-  }
+  const handleDelete = (row: LookupValue) => setPendingDelete(row)
 
   return (
     <div className="p-6">
@@ -332,6 +331,23 @@ export default function AdminLookupsPage() {
           </div>
         </div>
       )}
+    {pendingDelete && (
+      <ConfirmModal
+        title={t('adminLookups.confirmDeleteTitle')}
+        message={t('adminLookups.confirmDeleteBody', {
+          label: pendingDelete.label || pendingDelete.value,
+          category: pendingDelete.category,
+        })}
+        confirmLabel={t('common.delete')}
+        destructive
+        isLoading={deleteMutation.isPending}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={() => {
+          deleteMutation.mutate(pendingDelete.id)
+          setPendingDelete(null)
+        }}
+      />
+    )}
     </div>
   )
 }

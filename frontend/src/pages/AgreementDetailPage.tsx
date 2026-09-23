@@ -9,6 +9,7 @@ import { collateralsService } from '@/services/collaterals'
 import { vehiclesService } from '@/services/vehicles'
 import LedgerTable from '@/components/ledger/LedgerTable'
 import { getErrorMessage } from '@/services/apiClient'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
 const statusColors: Record<string, string> = {
   booking_requested: 'bg-orange-100 text-orange-800',
@@ -31,6 +32,7 @@ export default function AgreementDetailPage() {
   const [showDepositModal, setShowDepositModal] = useState<null | 'receive' | 'apply' | 'refund'>(null)
   const [showChargeModal, setShowChargeModal] = useState<null | 'damage' | 'late'>(null)
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<null | 'activate' | 'approve'>(null)
   const [reverseTarget, setReverseTarget] = useState<{ id: number; description: string } | null>(null)
   const [showReturnModal, setShowReturnModal] = useState(false)
   const [showSettlementModal, setShowSettlementModal] = useState(false)
@@ -273,11 +275,7 @@ export default function AgreementDetailPage() {
   const showSettlementActions =
     canReceiveDeposit || canPostCharge || canSettleDeposit
 
-  const handleActivate = () => {
-    if (confirm('Are you sure you want to activate this agreement? This confirms vehicle handover.')) {
-      activateMutation.mutate()
-    }
-  }
+  const handleActivate = () => setConfirmAction('activate')
 
   return (
     <div className="p-6">
@@ -321,11 +319,7 @@ export default function AgreementDetailPage() {
             {agreement.status === 'booking_requested' && (
               <>
                 <button
-                  onClick={() => {
-                    if (confirm('Approve this booking request? This will lock the vehicle and post the rental charge.')) {
-                      approveRequestMutation.mutate()
-                    }
-                  }}
+                  onClick={() => setConfirmAction('approve')}
                   disabled={approveRequestMutation.isPending}
                   className="rounded-lg bg-yellow-600 px-4 py-2 text-white hover:bg-yellow-700 disabled:opacity-60"
                 >
@@ -890,6 +884,37 @@ export default function AgreementDetailPage() {
           }}
           isLoading={reverseMutation.isPending}
           showDescription
+        />
+      )}
+
+      {confirmAction && (
+        <ConfirmModal
+          title={
+            confirmAction === 'activate'
+              ? t('agreementActions.confirmActivateTitle')
+              : t('agreementActions.confirmApproveTitle')
+          }
+          message={
+            confirmAction === 'activate'
+              ? t('agreementActions.confirmActivateBody')
+              : t('agreementActions.confirmApproveBody')
+          }
+          confirmLabel={
+            confirmAction === 'activate'
+              ? t('agreementActions.activateHandover')
+              : t('agreementActions.approveBooking')
+          }
+          isLoading={
+            confirmAction === 'activate'
+              ? activateMutation.isPending
+              : approveRequestMutation.isPending
+          }
+          onClose={() => setConfirmAction(null)}
+          onConfirm={() => {
+            if (confirmAction === 'activate') activateMutation.mutate()
+            else approveRequestMutation.mutate()
+            setConfirmAction(null)
+          }}
         />
       )}
 
