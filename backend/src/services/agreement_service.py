@@ -3,11 +3,13 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
 from src.core.errors import BusinessError, ErrorCode, NotFoundError
 from src.core.logging import get_logger
+from src.core.config import settings
 from src.models.agreement import Agreement, AgreementStatus, AgreementType
 from src.models.agreement_vehicle_segment import AgreementVehicleSegment
 from src.models.customer import Customer
@@ -26,6 +28,17 @@ def _ensure_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
+def _business_now_as_stored() -> datetime:
+    """Current Addis wall time tagged like the app's stored business datetimes."""
+    local_now = datetime.now(ZoneInfo(settings.scheduler_timezone)).replace(tzinfo=None)
+    return local_now.replace(tzinfo=timezone.utc)
+
+
+def _now_matching_input(value: datetime) -> datetime:
+    """Return a comparable now for either UTC-aware or stored wall-clock input."""
+    return datetime.now(timezone.utc) if value.tzinfo is not None else _business_now_as_stored()
+
+
 def _calculate_balance_breakdown(db: Session, agreement_id: int) -> dict:
     """Single source of truth for agreement balance.
 
@@ -40,10 +53,9 @@ def _calculate_balance_breakdown(db: Session, agreement_id: int) -> dict:
     deposit_applied = ledger_service.get_deposit_applied(db, agreement_id)
     deposit_returned = ledger_service.get_deposit_returned(db, agreement_id)
     deposit_held = max(Decimal("0"), deposit_received - deposit_applied - deposit_returned)
-    balance_due = max(
-        Decimal("0"),
-        total_charges + net_adjustments - total_payments - deposit_applied,
-    )
+    # total_charges is already net of adjustments. Keeping the invariant here
+    # prevents API consumers from having to know which ledger rows to add back.
+    balance_due = max(Decimal("0"), total_charges - total_payments - deposit_applied)
     return {
         "total_charges": total_charges,
         "total_payments": total_payments,
@@ -132,6 +144,11 @@ def create_standard_agreement(
     agreement_type: AgreementType = AgreementType.CUSTOMER_VEHICLE,
     driver_id: int | None = None,
     collateral_person_id: int | None = None,
+    pickup_mileage: int | None = None,
+    mileage_limit_per_day: int | None = None,
+    excess_mileage_rate: Decimal | None = None,
+    fuel_level_out: int | None = None,
+    fuel_charge_rate: Decimal | None = None,
 ) -> Agreement:
     """Create a new standard rental agreement.
     
@@ -184,9 +201,10 @@ def create_standard_agreement(
             )
     
     # Validate dates
+    now = _now_matching_input(pickup_datetime)
     pickup_datetime = _ensure_utc(pickup_datetime)
     expected_return_datetime = _ensure_utc(expected_return_datetime)
-    if pickup_datetime <= datetime.now(timezone.utc):
+    if pickup_datetime <= now:
         raise BusinessError(
             ErrorCode.INVALID_INPUT,
             "Pickup date must be in the future",
@@ -222,6 +240,11 @@ def create_standard_agreement(
         agreed_daily_rate=daily_rate,
         deposit_amount=deposit_amount,
         advance_payment=advance_payment,
+        pickup_mileage=pickup_mileage,
+        mileage_limit_per_day=mileage_limit_per_day,
+        excess_mileage_rate=excess_mileage_rate,
+        fuel_level_out=fuel_level_out,
+        fuel_charge_rate=fuel_charge_rate,
         pickup_location=pickup_location,
         return_location=return_location,
         notes=notes,
@@ -305,18 +328,23 @@ def close_agreement(
             f"Agreement is already {agreement.status.value}"
         )
 
+    now = _now_matching_input(actual_return_datetime)
     actual_return_datetime = _ensure_utc(actual_return_datetime)
     if actual_return_datetime < _ensure_utc(agreement.pickup_datetime):
         raise BusinessError(
             ErrorCode.INVALID_INPUT,
             "Actual return date cannot be before pickup date",
         )
-    if actual_return_datetime > datetime.now(timezone.utc):
+    if actual_return_datetime > now:
         raise BusinessError(ErrorCode.INVALID_INPUT, "Actual return date cannot be in the future")
     expected_return_datetime = _ensure_utc(agreement.expected_return_datetime)
     
     # Calculate late fee if applicable
     if actual_return_datetime > expected_return_datetime:
+        late_days = billing_service.calculate_rental_days(
+            expected_return_datetime, actual_return_datetime
+        )
+        late_daily_rate = agreement.agreed_daily_rate * Decimal("1.5")
         late_fee = billing_service.calculate_late_fee(
             expected_return_datetime,
             actual_return_datetime,
@@ -327,7 +355,10 @@ def close_agreement(
                 db=db,
                 agreement_id=agreement_id,
                 amount=late_fee,
-                description="Late return fee",
+                description=(
+                    f"Late return fee: {late_days} days × ETB "
+                    f"{late_daily_rate:,.2f} (1.5× daily rate)"
+                ),
                 entry_type=LedgerEntryType.LATE_FEE,
                 created_by_id=closed_by_id,
                 auto_commit=False,  # Let close_agreement handle the commit
@@ -469,13 +500,14 @@ def mark_agreement_returned(
             f"Cannot mark returned from status {agreement.status.value}",
         )
 
+    now = _now_matching_input(actual_return_datetime)
     actual_return_datetime = _ensure_utc(actual_return_datetime)
     if actual_return_datetime < _ensure_utc(agreement.pickup_datetime):
         raise BusinessError(
             ErrorCode.INVALID_INPUT,
             "Actual return date cannot be before pickup date",
         )
-    if actual_return_datetime > datetime.now(timezone.utc):
+    if actual_return_datetime > now:
         raise BusinessError(ErrorCode.INVALID_INPUT, "Actual return date cannot be in the future")
     agreement.status = AgreementStatus.RETURNED
     agreement.actual_return_datetime = actual_return_datetime
@@ -552,16 +584,15 @@ def extend_agreement(
     if not agreement:
         raise NotFoundError("Agreement", agreement_id)
     
-    if agreement.status != AgreementStatus.ACTIVE:
+    if agreement.status not in (AgreementStatus.ACTIVE, AgreementStatus.OVERDUE):
         raise BusinessError(
             ErrorCode.AGREEMENT_CANNOT_EXTEND,
             f"Cannot extend agreement with status {agreement.status.value}"
         )
 
+    now = _now_matching_input(new_return_datetime)
     new_return_datetime = _ensure_utc(new_return_datetime)
     current_return_datetime = _ensure_utc(agreement.expected_return_datetime)
-    now = datetime.now(timezone.utc)
-
     if new_return_datetime <= current_return_datetime:
         raise BusinessError(
             ErrorCode.INVALID_INPUT,
@@ -606,6 +637,9 @@ def extend_agreement(
     # Update agreement
     old_return = current_return_datetime
     agreement.expected_return_datetime = new_return_datetime
+    # Once the return date is moved back into the future, the agreement is no
+    # longer overdue. The vehicle remains rented throughout the extension.
+    agreement.status = AgreementStatus.ACTIVE
     
     # Update vehicle segments
     for segment in agreement.vehicle_segments:

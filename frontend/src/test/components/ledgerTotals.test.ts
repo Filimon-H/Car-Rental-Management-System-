@@ -28,7 +28,10 @@ function compute(rows: Row[]) {
   return {
     balances,
     totalCharged: rows
-      .filter((e) => stillStands(e, rows) && toNumber(e.amount) > 0)
+      .filter((e) =>
+        stillStands(e, rows) &&
+        ['charge', 'late_fee', 'damage_charge', 'adjustment'].includes(e.entry_type)
+      )
       .reduce((s, e) => s + toNumber(e.amount), 0),
     totalPaid: rows
       .filter((e) => e.entry_type === 'payment' && stillStands(e, rows))
@@ -98,8 +101,8 @@ describe('reversed entries', () => {
   })
 
   it('does not count the reversal row as a charge', () => {
-    // 13500 + 200 + 800 + 250 = 14750 gross debits that still stand.
-    expect(compute(agreement20).totalCharged).toBe(14750)
+    // Charges include the net effect of all adjustments: -500 + 200 - 300.
+    expect(compute(agreement20).totalCharged).toBe(13950)
   })
 
   it('keeps the running balance at the settled figure', () => {

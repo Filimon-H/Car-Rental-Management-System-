@@ -10,7 +10,8 @@ import { vehiclesService } from '@/services/vehicles'
 import LedgerTable from '@/components/ledger/LedgerTable'
 import { getErrorMessage } from '@/services/apiClient'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { toNumber } from '@/lib/utils'
+import { datetimeLocalToWallClockIso, localNowWallClockIso, toDatetimeLocalValue, toNumber } from '@/lib/utils'
+import { useToast } from '@/hooks/use-toast'
 
 const statusColors: Record<string, string> = {
   booking_requested: 'bg-orange-100 text-orange-800',
@@ -28,6 +29,7 @@ export default function AgreementDetailPage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<'details' | 'ledger' | 'vehicles'>('details')
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showDepositModal, setShowDepositModal] = useState<null | 'receive' | 'apply' | 'refund'>(null)
@@ -40,6 +42,8 @@ export default function AgreementDetailPage() {
     amount: number | string
   } | null>(null)
   const [showReturnModal, setShowReturnModal] = useState(false)
+  const [showExtendModal, setShowExtendModal] = useState(false)
+  const [extendError, setExtendError] = useState<string | null>(null)
   const [showSettlementModal, setShowSettlementModal] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [pageError, setPageError] = useState<string | null>(null)
@@ -183,7 +187,7 @@ export default function AgreementDetailPage() {
   })
 
   const returnMutation = useMutation({
-    mutationFn: (data: { actual_return_datetime: string; return_mileage?: number; notes?: string }) =>
+    mutationFn: (data: { actual_return_datetime: string; return_mileage?: number; fuel_level_in?: number; notes?: string }) =>
       agreementsService.markReturned(agreementId as number, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
@@ -196,6 +200,21 @@ export default function AgreementDetailPage() {
       console.error('Return agreement error:', err)
       const error = err as { response?: { data?: { detail?: string } }, message?: string }
       setPageError(getErrorMessage(error, 'Failed to mark agreement returned'))
+    },
+  })
+
+  const extendMutation = useMutation({
+    mutationFn: (newReturnDatetime: string) =>
+      agreementsService.extend(agreementId as number, newReturnDatetime),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
+      queryClient.invalidateQueries({ queryKey: ['ledger', agreementId] })
+      setShowExtendModal(false)
+      setExtendError(null)
+      toast({ description: t('agreementActions.extendSuccess') })
+    },
+    onError: (error: unknown) => {
+      setExtendError(getErrorMessage(error, t('agreementActions.extendFailed')))
     },
   })
 
@@ -381,12 +400,23 @@ export default function AgreementDetailPage() {
               </>
             )}
             {(agreement.status === 'active' || agreement.status === 'overdue') && (
-              <button
-                onClick={() => setShowReturnModal(true)}
-                className="rounded-lg bg-purple-600 px-4 py-2 text-white hover:bg-purple-700"
-              >
-                {t('agreementActions.markReturned')}
-              </button>
+              <>
+                <button
+                  onClick={() => {
+                    setExtendError(null)
+                    setShowExtendModal(true)
+                  }}
+                  className="rounded-lg border border-blue-600 px-4 py-2 text-blue-600 hover:bg-blue-50"
+                >
+                  {t('agreementActions.extend')}
+                </button>
+                <button
+                  onClick={() => setShowReturnModal(true)}
+                  className="rounded-lg bg-purple-600 px-4 py-2 text-white hover:bg-purple-700"
+                >
+                  {t('agreementActions.returnAndClose')}
+                </button>
+              </>
             )}
             {agreement.status === 'returned' && (
               <button
@@ -429,7 +459,13 @@ export default function AgreementDetailPage() {
           <div className="text-2xl font-bold text-gray-800">{formatCurrency(depositHeld)}</div>
         </div>
         <div className="rounded-lg bg-white p-4 shadow">
-          <div className="text-sm text-gray-500">{t('weddingAgreementCreate.dailyRate')}</div>
+          {/* Wedding agreements store the summed vehicle total in this field,
+              so calling it a daily rate misreports it. */}
+          <div className="text-sm text-gray-500">
+            {agreement.agreement_type === 'wedding'
+              ? t('agreements.totalVehicleAmount')
+              : t('weddingAgreementCreate.dailyRate')}
+          </div>
           <div className="text-2xl font-bold text-gray-800">
             {formatCurrency(agreement.agreed_daily_rate)}
           </div>
@@ -952,6 +988,23 @@ export default function AgreementDetailPage() {
         />
       )}
 
+      {showExtendModal && (
+        <ExtendAgreementModal
+          currentReturn={agreement.expected_return_datetime}
+          dailyRate={agreement.agreed_daily_rate}
+          error={extendError}
+          isLoading={extendMutation.isPending}
+          onClose={() => {
+            setShowExtendModal(false)
+            setExtendError(null)
+          }}
+          onSubmit={(newReturnDatetime) => {
+            setExtendError(null)
+            extendMutation.mutate(newReturnDatetime)
+          }}
+        />
+      )}
+
       {showCancelConfirm && (
         <CancelConfirmModal
           agreementNumber={agreement.agreement_number}
@@ -971,7 +1024,7 @@ export default function AgreementDetailPage() {
           onRefundDeposit={(amount) => depositMutation.mutate({ action: 'refund', data: { amount } })}
           onRecordPayment={() => setShowPaymentModal(true)}
           onClose_final={() => {
-            closeMutation.mutate({ actual_return_datetime: agreement.actual_return_datetime || new Date().toISOString() })
+            closeMutation.mutate({ actual_return_datetime: agreement.actual_return_datetime || localNowWallClockIso() })
           }}
           isLoading={closeMutation.isPending || depositMutation.isPending}
         />
@@ -1220,25 +1273,120 @@ function PaymentModal({
   )
 }
 
+function ExtendAgreementModal({
+  currentReturn,
+  dailyRate,
+  error,
+  isLoading,
+  onClose,
+  onSubmit,
+}: {
+  currentReturn: string
+  dailyRate: number
+  error: string | null
+  isLoading: boolean
+  onClose: () => void
+  onSubmit: (newReturnDatetime: string) => void
+}) {
+  const { t } = useTranslation()
+  const current = new Date(currentReturn)
+  const earliestByPolicy = new Date(current.getTime() + 24 * 60 * 60 * 1000)
+  const earliest = new Date(Math.max(earliestByPolicy.getTime(), Date.now() + 60_000))
+  const minimumValue = toDatetimeLocalValue(earliest)
+  const [newReturn, setNewReturn] = useState(minimumValue)
+  const selected = new Date(newReturn)
+  const additionalDays = Number.isNaN(selected.getTime())
+    ? 0
+    : Math.max(0, Math.ceil((selected.getTime() - current.getTime()) / (24 * 60 * 60 * 1000)))
+  const estimatedCharge = additionalDays * toNumber(dailyRate)
+  const localError = selected <= current ? t('agreementActions.returnMustBeLater') : null
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB' }).format(amount)
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault()
+    if (localError || Number.isNaN(selected.getTime())) return
+    onSubmit(datetimeLocalToWallClockIso(newReturn))
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-bold">{t('agreementActions.extendAgreement')}</h2>
+          <button type="button" onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700">
+            {t('common.close')}
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t('agreementActions.newReturnDateTime')}
+            </label>
+            <input
+              type="datetime-local"
+              value={newReturn}
+              min={minimumValue}
+              onChange={(event) => setNewReturn(event.target.value)}
+              required
+              className="w-full rounded-lg border border-gray-300 px-3 py-2"
+            />
+          </div>
+
+          <div className="rounded-lg bg-blue-50 p-4">
+            <div className="flex justify-between text-sm text-blue-900">
+              <span>{t('agreementActions.estimatedExtensionCharge')}</span>
+              <span className="font-semibold">{formatCurrency(estimatedCharge)}</span>
+            </div>
+            <p className="mt-1 text-xs text-blue-700">
+              {additionalDays} day{additionalDays === 1 ? '' : 's'} × {formatCurrency(toNumber(dailyRate))}
+            </p>
+          </div>
+
+          {(localError || error) && (
+            <p role="alert" className="text-sm text-red-600">{localError || error}</p>
+          )}
+
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
+              {t('common.cancel')}
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading || !!localError || Number.isNaN(selected.getTime())}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isLoading ? t('common.loading') : t('agreementActions.extend')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function ReturnModal({
   onClose,
   onSubmit,
   isLoading,
 }: {
   onClose: () => void
-  onSubmit: (data: { actual_return_datetime: string; return_mileage?: number; notes?: string }) => void
+  onSubmit: (data: { actual_return_datetime: string; return_mileage?: number; fuel_level_in?: number; notes?: string }) => void
   isLoading: boolean
 }) {
   const { t } = useTranslation()
-  const [returnDate, setReturnDate] = useState(new Date().toISOString().slice(0, 16))
+  const [returnDate, setReturnDate] = useState(toDatetimeLocalValue(new Date()))
   const [mileage, setMileage] = useState('')
+  const [fuelLevel, setFuelLevel] = useState('')
   const [notes, setNotes] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     onSubmit({
-      actual_return_datetime: new Date(returnDate).toISOString(),
+      actual_return_datetime: datetimeLocalToWallClockIso(returnDate),
       return_mileage: mileage ? Number.parseInt(mileage, 10) : undefined,
+      fuel_level_in: fuelLevel ? Number.parseInt(fuelLevel, 10) : undefined,
       notes: notes.trim() || undefined,
     })
   }
@@ -1265,6 +1413,18 @@ function ReturnModal({
               value={mileage}
               onChange={(e) => setMileage(e.target.value)}
               placeholder="e.g. 45000"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementActions.fuelLevelIn')}</label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              value={fuelLevel}
+              onChange={(e) => setFuelLevel(e.target.value)}
+              placeholder="0–100"
               className="w-full rounded-lg border border-gray-300 px-3 py-2"
             />
           </div>

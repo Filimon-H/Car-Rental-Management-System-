@@ -84,6 +84,13 @@ def _to_agreement_response(agreement: Agreement) -> AgreementResponse:
         agreed_daily_rate=agreement.agreed_daily_rate,
         deposit_amount=agreement.deposit_amount,
         advance_payment=agreement.advance_payment,
+        pickup_mileage=agreement.pickup_mileage,
+        return_mileage=agreement.return_mileage,
+        mileage_limit_per_day=agreement.mileage_limit_per_day,
+        excess_mileage_rate=agreement.excess_mileage_rate,
+        fuel_level_out=agreement.fuel_level_out,
+        fuel_level_in=agreement.fuel_level_in,
+        fuel_charge_rate=agreement.fuel_charge_rate,
         pickup_location=agreement.pickup_location,
         return_location=agreement.return_location,
         notes=agreement.notes,
@@ -178,6 +185,11 @@ async def create_agreement(
         daily_rate=data.daily_rate,
         deposit_amount=data.deposit_amount,
         advance_payment=data.advance_payment,
+        pickup_mileage=data.pickup_mileage,
+        mileage_limit_per_day=data.mileage_limit_per_day,
+        excess_mileage_rate=data.excess_mileage_rate,
+        fuel_level_out=data.fuel_level_out,
+        fuel_charge_rate=data.fuel_charge_rate,
         pickup_location=data.pickup_location,
         return_location=data.return_location,
         notes=data.notes,
@@ -252,6 +264,14 @@ async def get_agreement(
         actual_return_datetime=agreement.actual_return_datetime,
         agreed_daily_rate=agreement.agreed_daily_rate,
         deposit_amount=agreement.deposit_amount,
+        advance_payment=agreement.advance_payment,
+        pickup_mileage=agreement.pickup_mileage,
+        return_mileage=agreement.return_mileage,
+        mileage_limit_per_day=agreement.mileage_limit_per_day,
+        excess_mileage_rate=agreement.excess_mileage_rate,
+        fuel_level_out=agreement.fuel_level_out,
+        fuel_level_in=agreement.fuel_level_in,
+        fuel_charge_rate=agreement.fuel_charge_rate,
         pickup_location=agreement.pickup_location,
         return_location=agreement.return_location,
         notes=agreement.notes,
@@ -554,14 +574,26 @@ async def return_agreement(
     current_user: Annotated[CurrentUser, Depends(require_permission(Permission.CLOSE_AGREEMENTS))],
     db: Annotated[Session, Depends(get_db)],
 ) -> AgreementResponse:
-    """Mark agreement as returned (car is back, settlement may still be pending)."""
-    agreement = agreement_service.mark_agreement_returned(
+    """Return the vehicle and complete the agreement settlement."""
+    agreement = agreement_service.close_agreement(
         db=db,
         agreement_id=agreement_id,
         actual_return_datetime=data.actual_return_datetime,
         return_mileage=data.return_mileage,
-        returned_by_id=current_user.id,
+        closed_by_id=current_user.id,
         notes=data.notes,
+        fuel_level_in=data.fuel_level_in,
+    )
+    audit_service.log_agreement_event(
+        db=db,
+        action=AuditAction.AGREEMENT_CLOSED,
+        agreement_id=agreement_id,
+        actor_id=current_user.id,
+        details={
+            "actual_return_datetime": data.actual_return_datetime.isoformat(),
+            "return_mileage": data.return_mileage,
+            "source": "return_action",
+        },
     )
     return _to_agreement_response(agreement)
 

@@ -8,10 +8,23 @@ from pydantic import ValidationError
 
 from tests.unit.test_agreement_service import customer, vehicle  # noqa: F401
 from src.core.errors import BusinessError
+from src.schemas.agreement import AgreementClose, AgreementExtend
 from src.schemas.customer import CustomerCreate
 from src.schemas.driver import DriverCreate, DriverUpdate
 from src.services import agreement_service, wedding_agreement_service
 from src.services.customer_validation_service import find_customer_by_phone
+
+
+def test_extension_timezone_is_normalized_to_addis_wall_clock():
+    extension = AgreementExtend(new_return_datetime="2026-10-15T06:00:00Z")
+
+    assert extension.new_return_datetime == datetime(2026, 10, 15, 9, 0)
+
+
+def test_return_timezone_is_normalized_to_addis_wall_clock():
+    returned = AgreementClose(actual_return_datetime="2026-09-23T16:46:00Z")
+
+    assert returned.actual_return_datetime == datetime(2026, 9, 23, 19, 46)
 
 
 def test_individual_customer_requires_identity_fields():

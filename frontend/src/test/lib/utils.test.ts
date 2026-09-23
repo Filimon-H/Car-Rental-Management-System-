@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cn, toNumber, parseOptionalNumber } from '@/lib/utils'
+import { cn, datetimeLocalToWallClockIso, toNumber, parseOptionalNumber } from '@/lib/utils'
 
 describe('cn', () => {
   it('returns empty string for no args', () => {
@@ -105,5 +105,15 @@ describe('parseOptionalNumber', () => {
   it('returns null for unparseable input instead of NaN', () => {
     expect(parseOptionalNumber('abc')).toBeNull()
     expect(Number.isNaN(parseOptionalNumber('abc') as number)).toBe(false)
+  })
+})
+
+describe('datetimeLocalToWallClockIso', () => {
+  it('preserves the time selected in a datetime-local input', () => {
+    expect(datetimeLocalToWallClockIso('2026-10-15T09:00')).toBe('2026-10-15T09:00:00')
+  })
+
+  it('does not append duplicate seconds', () => {
+    expect(datetimeLocalToWallClockIso('2026-10-15T09:00:30')).toBe('2026-10-15T09:00:30')
   })
 })

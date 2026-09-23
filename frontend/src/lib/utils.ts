@@ -41,6 +41,23 @@ export function normalizeEthiopianPhone(phone: string): string {
   return cleaned
 }
 
+/** Format a Date for a datetime-local input without changing its wall-clock time. */
+export function toDatetimeLocalValue(date: Date): string {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 16)
+}
+
+/** Convert a datetime-local value to the API's naive wall-clock representation. */
+export function datetimeLocalToWallClockIso(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(value)) return value
+  return value.length === 16 ? `${value}:00` : value
+}
+
+/** Represent the current local clock time for APIs that store local business time. */
+export function localNowWallClockIso(): string {
+  return datetimeLocalToWallClockIso(toDatetimeLocalValue(new Date()))
+}
+
 /**
  * Drop blank optional fields from a request payload.
  *

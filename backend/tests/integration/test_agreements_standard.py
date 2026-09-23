@@ -266,6 +266,45 @@ class TestCloseAgreement:
         # Late fee should have been added (2 days @ 1.5x rate = 4500)
         assert balance_after > balance_before
 
+    def test_return_endpoint_runs_full_close_and_settlement(
+        self,
+        client: TestClient,
+        db: Session,
+        test_customer: Customer,
+        test_vehicle: Vehicle,
+        auth_headers: dict,
+    ):
+        lead = datetime.now(timezone.utc) + timedelta(days=1)
+        agreement = agreement_service.create_standard_agreement(
+            db=db,
+            customer_id=test_customer.id,
+            vehicle_id=test_vehicle.id,
+            pickup_datetime=lead,
+            expected_return_datetime=lead + timedelta(days=3),
+            daily_rate=Decimal("1500.00"),
+        )
+        pickup = datetime.now(timezone.utc) - timedelta(days=5)
+        expected_return = datetime.now(timezone.utc) - timedelta(days=2)
+        backdate_agreement(db, agreement, pickup, expected_return)
+        agreement_service.activate_agreement(db, agreement.id)
+        ledger_service.post_deposit(
+            db, agreement.id, Decimal("5000.00"), PaymentMethod.CASH
+        )
+
+        local_now = datetime.now().replace(microsecond=0)
+        response = client.post(
+            f"/api/agreements/{agreement.id}/return",
+            json={"actual_return_datetime": local_now.isoformat(), "return_mileage": 52000},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "closed"
+        summary = agreement_service.get_agreement_summary(db, agreement.id)
+        assert summary["deposit_applied"] == Decimal("5000.00")
+        assert summary["deposit_held"] == Decimal("0.00")
+        assert any(e.entry_type.value == "late_fee" for e in summary["ledger_entries"])
+
 
 class TestPaymentFlow:
     """Test payment posting flow."""

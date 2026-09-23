@@ -307,12 +307,13 @@ def get_ledger_entries(
 
 
 def get_total_charges(db: Session, agreement_id: int) -> Decimal:
-    """Get total charges (CHARGE, LATE_FEE, DAMAGE_CHARGE entry types) for an agreement."""
+    """Get net charges, including credits and debits posted as adjustments."""
     from sqlalchemy import func
     charge_types = [
         LedgerEntryType.CHARGE,
         LedgerEntryType.LATE_FEE,
         LedgerEntryType.DAMAGE_CHARGE,
+        LedgerEntryType.ADJUSTMENT,
     ]
     result = (
         _not_reversed(

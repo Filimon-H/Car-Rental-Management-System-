@@ -7,6 +7,7 @@ import apiClient from '@/services/apiClient'
 import { VehicleLookupModal } from '@/components/lookup/LookupModal'
 import { VehicleSearchResult } from '@/services/vehicles'
 import { toast } from '@/hooks/use-toast'
+import { localNowWallClockIso } from '@/lib/utils'
 
 interface ChecklistItem {
   id: string
@@ -134,7 +135,7 @@ export default function InspectionCreatePage() {
       agreement_id: agreementId ? parseInt(agreementId) : null,
       vehicle_id: vehicleId,
       inspection_type: inspectionType,
-      inspection_datetime: new Date().toISOString(),
+      inspection_datetime: localNowWallClockIso(),
       mileage: mileage ? parseInt(mileage) : null,
       fuel_level: parseFloat(fuelLevel),
       checklist_results: checklistResults,

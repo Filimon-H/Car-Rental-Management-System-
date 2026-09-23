@@ -10,6 +10,7 @@ import { collateralsService, CollateralPerson } from '@/services/collaterals'
 import { customersService } from '@/services/customers'
 import { getErrorMessage } from '@/services/apiClient'
 import { toast } from '@/hooks/use-toast'
+import { datetimeLocalToWallClockIso, parseOptionalNumber } from '@/lib/utils'
 
 type AgreementType = 'customer_vehicle' | 'customer_vehicle_driver' | 'vendor_vehicle'
 
@@ -47,6 +48,11 @@ export default function AgreementCreatePage() {
   const [dailyRate, setDailyRate] = useState('')
   const [depositAmount, setDepositAmount] = useState('')
   const [advancePayment, setAdvancePayment] = useState('')
+  const [pickupMileage, setPickupMileage] = useState('')
+  const [mileageLimitPerDay, setMileageLimitPerDay] = useState('')
+  const [excessMileageRate, setExcessMileageRate] = useState('')
+  const [fuelLevelOut, setFuelLevelOut] = useState('')
+  const [fuelChargeRate, setFuelChargeRate] = useState('')
   const [pickupLocation, setPickupLocation] = useState('')
   const [returnLocation, setReturnLocation] = useState('')
   const [notes, setNotes] = useState('')
@@ -170,11 +176,16 @@ export default function AgreementCreatePage() {
       vehicle_id: vehicleId,
       driver_id: driverId || undefined,
       collateral_person_id: collateralPersonId,
-      pickup_datetime: `${pickupDate}T${pickupTime}:00Z`,
-      expected_return_datetime: `${returnDate}T${returnTime}:00Z`,
+      pickup_datetime: datetimeLocalToWallClockIso(`${pickupDate}T${pickupTime}`),
+      expected_return_datetime: datetimeLocalToWallClockIso(`${returnDate}T${returnTime}`),
       daily_rate: parseFloat(dailyRate),
       deposit_amount: parseFloat(depositAmount) || 0,
       advance_payment: parseFloat(advancePayment) || undefined,
+      pickup_mileage: parseOptionalNumber(pickupMileage) ?? undefined,
+      mileage_limit_per_day: parseOptionalNumber(mileageLimitPerDay) ?? undefined,
+      excess_mileage_rate: parseOptionalNumber(excessMileageRate) ?? undefined,
+      fuel_level_out: parseOptionalNumber(fuelLevelOut) ?? undefined,
+      fuel_charge_rate: parseOptionalNumber(fuelChargeRate) ?? undefined,
       pickup_location: pickupLocation || undefined,
       return_location: returnLocation || undefined,
       notes: notes || undefined,
@@ -461,6 +472,26 @@ export default function AgreementCreatePage() {
                   className="w-full rounded-lg border border-gray-300 px-3 py-2"
                   placeholder={t('agreementCreate.optionalAdvance')}
                 />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementCreate.pickupMileage')}</label>
+                <input type="number" min="0" value={pickupMileage} onChange={(e) => setPickupMileage(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementCreate.mileageLimitPerDay')}</label>
+                <input type="number" min="1" value={mileageLimitPerDay} onChange={(e) => setMileageLimitPerDay(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementCreate.excessMileageRate')}</label>
+                <input type="number" min="0" step="0.01" value={excessMileageRate} onChange={(e) => setExcessMileageRate(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementCreate.fuelLevelOut')}</label>
+                <input type="number" min="0" max="100" value={fuelLevelOut} onChange={(e) => setFuelLevelOut(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementCreate.fuelChargeRate')}</label>
+                <input type="number" min="0" step="0.01" value={fuelChargeRate} onChange={(e) => setFuelChargeRate(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2" />
               </div>
             </div>
           </div>

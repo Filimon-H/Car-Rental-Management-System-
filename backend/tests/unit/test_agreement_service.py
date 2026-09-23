@@ -11,6 +11,7 @@ from src.models.agreement import Agreement, AgreementStatus, AgreementType
 from src.models.agreement_vehicle_segment import AgreementVehicleSegment
 from src.models.collateral_person import CollateralPerson
 from src.models.customer import Customer
+from src.models.ledger_entry import LedgerEntryType
 from src.models.driver import Driver
 from src.models.vendor import Vendor
 from src.models.vehicle import Vehicle, VehicleStatus, VehicleType
@@ -313,6 +314,27 @@ class TestCreateStandardAgreement:
             deposit_amount=Decimal("5000.00"),
         )
         assert agreement.deposit_amount == Decimal("5000.00")
+
+    def test_mileage_and_fuel_policy_are_stored(self, db, customer, vehicle):
+        agreement = agreement_service.create_standard_agreement(
+            db=db,
+            customer_id=customer.id,
+            vehicle_id=vehicle.id,
+            pickup_datetime=future(1),
+            expected_return_datetime=future(3),
+            daily_rate=Decimal("1500.00"),
+            pickup_mileage=40000,
+            mileage_limit_per_day=100,
+            excess_mileage_rate=Decimal("15.00"),
+            fuel_level_out=80,
+            fuel_charge_rate=Decimal("25.00"),
+        )
+
+        assert agreement.pickup_mileage == 40000
+        assert agreement.mileage_limit_per_day == 100
+        assert agreement.excess_mileage_rate == Decimal("15.00")
+        assert agreement.fuel_level_out == 80
+        assert agreement.fuel_charge_rate == Decimal("25.00")
 
     def test_inactive_customer_raises(self, db, inactive_customer, vehicle):
         with pytest.raises(NotFoundError):
@@ -771,6 +793,11 @@ class TestCloseAgreement:
         balance_after = ledger_service.get_agreement_balance(db, ag.id)
         # Late fee: 2 days × 1500 × 1.5 = 4500
         assert balance_after == balance_before + Decimal("4500.00")
+        late_fee = next(
+            entry for entry in ledger_service.get_ledger_entries(db, ag.id)
+            if entry.entry_type == LedgerEntryType.LATE_FEE
+        )
+        assert late_fee.description == "Late return fee: 2 days × ETB 2,250.00 (1.5× daily rate)"
 
     def test_close_already_closed_raises(self, db, customer, vehicle):
         ag = self._active_agreement(db, customer, vehicle)
@@ -918,6 +945,19 @@ class TestExtendAgreement:
         )
         balance_after = ledger_service.get_agreement_balance(db, ag.id)
         assert balance_after > balance_before
+
+    def test_extend_overdue_agreement_moves_it_back_to_active(self, db, customer, vehicle):
+        ag = self._active_agreement(db, customer, vehicle)
+        ag.status = AgreementStatus.OVERDUE
+        db.commit()
+
+        extended = agreement_service.extend_agreement(
+            db=db,
+            agreement_id=ag.id,
+            new_return_datetime=future(5),
+        )
+
+        assert extended.status == AgreementStatus.ACTIVE
 
     def test_extend_closed_agreement_raises(self, db, customer, vehicle):
         ag = self._active_agreement(db, customer, vehicle)

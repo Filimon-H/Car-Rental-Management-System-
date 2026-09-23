@@ -48,6 +48,13 @@ export interface Agreement {
   agreed_daily_rate: number
   deposit_amount: number
   advance_payment?: number
+  pickup_mileage?: number
+  return_mileage?: number
+  mileage_limit_per_day?: number
+  excess_mileage_rate?: number
+  fuel_level_out?: number
+  fuel_level_in?: number
+  fuel_charge_rate?: number
   pickup_location: string | null
   return_location: string | null
   notes: string | null
@@ -118,6 +125,19 @@ export interface LedgerEntry {
   reversed_by_entry_id?: number | null
 }
 
+export interface AgreementBalance {
+  agreement_id: number
+  balance: number
+  total_charges: number
+  net_adjustments: number
+  total_payments: number
+  deposit_received: number
+  deposit_held: number
+  deposit_applied: number
+  deposit_returned: number
+  balance_due: number
+}
+
 export interface CreateAgreementData {
   agreement_type?: AgreementType
   customer_id: number
@@ -129,6 +149,11 @@ export interface CreateAgreementData {
   daily_rate: number
   deposit_amount?: number
   advance_payment?: number
+  pickup_mileage?: number
+  mileage_limit_per_day?: number
+  excess_mileage_rate?: number
+  fuel_level_out?: number
+  fuel_charge_rate?: number
   pickup_location?: string
   return_location?: string
   notes?: string
@@ -183,6 +208,10 @@ export const agreementsService = {
     return apiClient.get(`/agreements/${id}/ledger`)
   },
 
+  async getBalance(id: number): Promise<AgreementBalance> {
+    return apiClient.get(`/ledger/${id}/balance`)
+  },
+
   async postPayment(id: number, data: PostPaymentData): Promise<LedgerEntry> {
     return apiClient.post(`/agreements/${id}/payments`, data)
   },
@@ -220,7 +249,7 @@ export const agreementsService = {
 
   async markReturned(
     id: number,
-    data: { actual_return_datetime: string; return_mileage?: number; notes?: string }
+    data: { actual_return_datetime: string; return_mileage?: number; fuel_level_in?: number; notes?: string }
   ): Promise<Agreement> {
     return apiClient.post(`/agreements/${id}/return`, data)
   },

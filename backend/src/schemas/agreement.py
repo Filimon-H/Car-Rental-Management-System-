@@ -2,11 +2,19 @@
 
 from datetime import datetime
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
+from src.core.config import settings
 from src.models.agreement import AgreementStatus, AgreementType
 from src.models.ledger_entry import LedgerEntryType, PaymentMethod
+
+
+def _normalize_to_business_wall_time(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(ZoneInfo(settings.scheduler_timezone)).replace(tzinfo=None)
 
 
 class AgreementCreate(BaseModel):
@@ -22,6 +30,11 @@ class AgreementCreate(BaseModel):
     daily_rate: Decimal = Field(..., gt=0)
     deposit_amount: Decimal = Field(default=Decimal("0"), ge=0)
     advance_payment: Decimal | None = Field(default=None, ge=0)  # Optional advance payment
+    pickup_mileage: int | None = Field(default=None, ge=0)
+    mileage_limit_per_day: int | None = Field(default=None, gt=0)
+    excess_mileage_rate: Decimal | None = Field(default=None, ge=0)
+    fuel_level_out: int | None = Field(default=None, ge=0, le=100)
+    fuel_charge_rate: Decimal | None = Field(default=None, ge=0)
     pickup_location: str | None = None
     return_location: str | None = None
     notes: str | None = None
@@ -31,6 +44,12 @@ class AgreementExtend(BaseModel):
     """Schema for extending an agreement."""
 
     new_return_datetime: datetime
+
+    @field_validator("new_return_datetime")
+    @classmethod
+    def normalize_to_business_wall_time(cls, value: datetime) -> datetime:
+        """Normalize offset-aware clients to the local business clock."""
+        return _normalize_to_business_wall_time(value)
 
 
 class AgreementClose(BaseModel):
@@ -42,6 +61,11 @@ class AgreementClose(BaseModel):
     # fuel_charge_rate to charge any shortfall.
     fuel_level_in: int | None = Field(None, ge=0, le=100)
     notes: str | None = None
+
+    @field_validator("actual_return_datetime")
+    @classmethod
+    def normalize_to_business_wall_time(cls, value: datetime) -> datetime:
+        return _normalize_to_business_wall_time(value)
 
 
 class AgreementCancel(BaseModel):
@@ -108,6 +132,13 @@ class AgreementResponse(BaseModel):
     agreed_daily_rate: Decimal
     deposit_amount: Decimal
     advance_payment: Decimal | None = None
+    pickup_mileage: int | None = None
+    return_mileage: int | None = None
+    mileage_limit_per_day: int | None = None
+    excess_mileage_rate: Decimal | None = None
+    fuel_level_out: int | None = None
+    fuel_level_in: int | None = None
+    fuel_charge_rate: Decimal | None = None
     pickup_location: str | None
     return_location: str | None
     notes: str | None
@@ -122,7 +153,7 @@ class AgreementDetailResponse(AgreementResponse):
 
     vehicle_segments: list[VehicleSegmentResponse]
     balance: Decimal
-    total_charges: Decimal  # gross debits; excludes adjustments
+    total_charges: Decimal  # net charges, including adjustments
     net_adjustments: Decimal = Decimal("0")  # + extra charge, - discount
     total_payments: Decimal
 

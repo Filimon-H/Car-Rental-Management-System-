@@ -47,26 +47,24 @@ def agreement_20(db: Session, test_customer, test_vehicle):
     return ag
 
 
-def test_adjustments_are_reported_separately_from_charges(
+def test_adjustments_are_included_in_total_charges(
     client, db: Session, agreement_20, auth_headers
 ):
-    """Charges stay gross; the discount shows as an adjustment, not a smaller charge.
-
-    Netting them made total_charges disagree with the ledger table, which
-    renders a discount as a credit line.
-    """
-    rental = ledger_service.get_total_charges(db, agreement_20.id)
-
     balance = client.get(f"/api/ledger/{agreement_20.id}/balance", headers=auth_headers).json()
 
-    assert Decimal(str(balance["total_charges"])) == rental
     # -500 + 200 = -300 net
+    assert Decimal(str(balance["total_charges"])) == Decimal("13200.00")
     assert Decimal(str(balance["net_adjustments"])) == Decimal("-300.00")
+    assert (
+        Decimal(str(balance["total_charges"]))
+        - Decimal(str(balance["total_payments"]))
+        - Decimal(str(balance["deposit_applied"]))
+        == Decimal(str(balance["balance_due"]))
+    )
 
 
 def test_balance_due_accounts_for_adjustments(client, db: Session, agreement_20, auth_headers):
-    rental = ledger_service.get_total_charges(db, agreement_20.id)
-    expected = rental - Decimal("300.00") - Decimal("3000.00")
+    expected = Decimal("13200.00") - Decimal("3000.00")
 
     balance = client.get(f"/api/ledger/{agreement_20.id}/balance", headers=auth_headers).json()
     assert Decimal(str(balance["balance_due"])) == expected

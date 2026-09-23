@@ -86,6 +86,14 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
     queryKey: ['ledger', agreementId],
     queryFn: () => agreementsService.getLedger(agreementId),
   })
+  const {
+    data: balanceSummary,
+    isLoading: isBalanceLoading,
+    error: balanceError,
+  } = useQuery({
+    queryKey: ['ledger', agreementId, 'balance'],
+    queryFn: () => agreementsService.getBalance(agreementId),
+  })
 
   const fmt = (n: number) =>
     new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB' }).format(
@@ -105,7 +113,7 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
       minute: '2-digit',
     })
 
-  if (isLoading) {
+  if (isLoading || isBalanceLoading) {
     return (
       <div className="flex h-32 items-center justify-center">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -113,7 +121,7 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
     )
   }
 
-  if (error) {
+  if (error || balanceError) {
     return (
       <div className="rounded-lg bg-red-50 p-4 text-sm text-red-600">
         Failed to load ledger entries.
@@ -139,15 +147,6 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
   // step with the header tiles, which already treated it that way.
   const affectsBalance = (entryType: string) => !DEPOSIT_TYPES.includes(entryType)
 
-  // An entry that has been reversed no longer stands, and the REVERSAL row
-  // that undid it is not itself a charge. Counting both inflated the totals
-  // and reported a reversed payment as money collected.
-  const wasReversed = (e: (typeof entries)[number]) =>
-    e.is_reversed ??
-    (e.id !== undefined && entries.some((other) => other.reversed_entry_id === e.id))
-  const isReversalRow = (e: (typeof entries)[number]) => e.entry_type === 'reversal'
-  const stillStands = (e: (typeof entries)[number]) => !wasReversed(e) && !isReversalRow(e)
-
   let running = 0
   const rows = entries.map((entry, i) => {
     // The running balance sums signed amounts, so a reversal row genuinely
@@ -159,18 +158,13 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
   })
 
   // Summary totals
-  const totalDebits = entries
-    .filter((e) => stillStands(e) && toNumber(e.amount) > 0)
-    .reduce((s, e) => s + toNumber(e.amount), 0)
-  // Payments only, and only those that still stand — summing every credit
-  // counted the deposit as money paid, and a reversed payment as revenue.
-  const totalCredits = entries
-    .filter((e) => e.entry_type === 'payment' && stillStands(e))
-    .reduce((s, e) => s + Math.abs(toNumber(e.amount)), 0)
-  const depositHeld = entries
-    .filter((e) => DEPOSIT_TYPES.includes(e.entry_type))
-    .reduce((s, e) => s + Math.abs(toNumber(e.amount)) * (e.entry_type === 'deposit' ? 1 : -1), 0)
-  const balance = running
+  // The balance endpoint is the reporting source of truth. The rows below
+  // remain an audit trail; deriving summary figures from them caused each UI
+  // surface to apply different rules for adjustments and reversals.
+  const totalDebits = toNumber(balanceSummary?.total_charges)
+  const totalCredits = toNumber(balanceSummary?.total_payments)
+  const depositHeld = toNumber(balanceSummary?.deposit_held)
+  const balance = toNumber(balanceSummary?.balance_due)
 
   const isReversed = (id: number) =>
     entries.some((e) => e.reversed_entry_id === id || (e.id === id && e.is_reversed))
