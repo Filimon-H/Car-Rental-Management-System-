@@ -39,14 +39,19 @@ def customer(db: Session) -> Customer:
 
 @pytest.fixture
 def agreement(db: Session, customer: Customer) -> Agreement:
-    from datetime import datetime, timezone
+    from datetime import datetime, timedelta, timezone
+
+    # Both dates came from separate datetime.now() calls, so whenever they
+    # landed in the same microsecond the ck_agreements_return_after_pickup
+    # constraint failed and this fixture errored at random.
+    pickup = datetime.now(timezone.utc)
     ag = Agreement(
         agreement_number="AGR-DEP-001",
         agreement_type=AgreementType.STANDARD,
         status=AgreementStatus.ACTIVE,
         customer_id=customer.id,
-        pickup_datetime=datetime.now(timezone.utc),
-        expected_return_datetime=datetime.now(timezone.utc),
+        pickup_datetime=pickup,
+        expected_return_datetime=pickup + timedelta(days=1),
         agreed_daily_rate=Decimal("1500.00"),
     )
     db.add(ag)

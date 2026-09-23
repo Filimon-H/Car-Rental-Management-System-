@@ -31,15 +31,18 @@ def test_customer(db: Session) -> Customer:
 @pytest.fixture
 def test_agreement(db: Session, test_customer: Customer) -> Agreement:
     """Create a test agreement."""
-    from datetime import datetime, timezone
-    
+    from datetime import datetime, timedelta, timezone
+
+    # Separate now() calls can land in the same microsecond and trip
+    # ck_agreements_return_after_pickup, which made this fixture flaky.
+    pickup = datetime.now(timezone.utc)
     agreement = Agreement(
         agreement_number="AGR-TEST-001",
         agreement_type=AgreementType.STANDARD,
         status=AgreementStatus.ACTIVE,
         customer_id=test_customer.id,
-        pickup_datetime=datetime.now(timezone.utc),
-        expected_return_datetime=datetime.now(timezone.utc),
+        pickup_datetime=pickup,
+        expected_return_datetime=pickup + timedelta(days=1),
         agreed_daily_rate=Decimal("1500.00"),
     )
     db.add(agreement)

@@ -10,6 +10,7 @@ import {
   Banknote,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { toNumber } from '@/lib/utils'
 
 interface TypeMeta {
   label: string
@@ -87,7 +88,9 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
   })
 
   const fmt = (n: number) =>
-    new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB' }).format(Math.abs(n))
+    new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB' }).format(
+      Math.abs(toNumber(n))
+    )
 
   const fmtDate = (s: string) =>
     new Date(s).toLocaleDateString('en-US', {
@@ -127,16 +130,34 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
     )
   }
 
-  // Build running balance
+  // Amounts arrive as Decimal strings, so every one of these has to be
+  // coerced — `running += entry.amount` concatenated and rendered "ETB NaN".
+  const DEPOSIT_TYPES = ['deposit', 'deposit_return']
+
+  // A received deposit is held, not revenue: it does not reduce what the
+  // customer owes until it is applied. Excluding it here keeps this tab in
+  // step with the header tiles, which already treated it that way.
+  const affectsBalance = (entryType: string) => !DEPOSIT_TYPES.includes(entryType)
+
   let running = 0
   const rows = entries.map((entry, i) => {
-    running += entry.amount
+    if (affectsBalance(entry.entry_type)) {
+      running += toNumber(entry.amount)
+    }
     return { ...entry, seq: i + 1, runningBalance: running }
   })
 
   // Summary totals
-  const totalDebits = entries.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0)
-  const totalCredits = entries.filter(e => e.amount < 0).reduce((s, e) => s + Math.abs(e.amount), 0)
+  const totalDebits = entries
+    .filter((e) => toNumber(e.amount) > 0)
+    .reduce((s, e) => s + toNumber(e.amount), 0)
+  // Payments only — summing every credit counted the deposit as money paid.
+  const totalCredits = entries
+    .filter((e) => e.entry_type === 'payment')
+    .reduce((s, e) => s + Math.abs(toNumber(e.amount)), 0)
+  const depositHeld = entries
+    .filter((e) => DEPOSIT_TYPES.includes(e.entry_type))
+    .reduce((s, e) => s + Math.abs(toNumber(e.amount)) * (e.entry_type === 'deposit' ? 1 : -1), 0)
   const balance = running
 
   const isReversed = (id: number) =>
@@ -145,14 +166,20 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
   return (
     <div className="space-y-4">
       {/* Summary bar */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-red-500">Total Charged</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-red-500">{t('ledger.totalCharged')}</p>
           <p className="mt-0.5 text-lg font-bold text-red-700">{fmt(totalDebits)}</p>
         </div>
         <div className="rounded-lg border border-green-100 bg-green-50 px-4 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-green-500">Total Paid</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-green-500">{t('ledger.totalPaid')}</p>
           <p className="mt-0.5 text-lg font-bold text-green-700">{fmt(totalCredits)}</p>
+        </div>
+        <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-blue-500">
+            {t('ledger.depositHeld')}
+          </p>
+          <p className="mt-0.5 text-lg font-bold text-blue-700">{fmt(depositHeld)}</p>
         </div>
         <div className={`rounded-lg border px-4 py-3 ${
           balance > 0
@@ -164,7 +191,7 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
           <p className={`text-xs font-medium uppercase tracking-wide ${
             balance > 0 ? 'text-orange-500' : balance < 0 ? 'text-teal-500' : 'text-gray-500'
           }`}>
-            {balance > 0 ? 'Balance Due' : balance < 0 ? 'Overpaid' : 'Settled'}
+            {balance > 0 ? t('ledger.balanceDue') : balance < 0 ? t('ledger.overpaid') : t('ledger.settled')}
           </p>
           <p className={`mt-0.5 text-lg font-bold ${
             balance > 0 ? 'text-orange-700' : balance < 0 ? 'text-teal-700' : 'text-gray-600'
