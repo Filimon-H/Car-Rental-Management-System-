@@ -192,6 +192,12 @@ class LedgerEntryResponse(BaseModel):
     notes: str | None
     created_at: datetime
     created_by_name: str | None = None
+    # Reversal state. Without these the client cannot tell that an entry was
+    # undone, so it summed reversed rows and counted a reversed payment as
+    # money collected.
+    reverses_entry_id: int | None = None
+    is_reversed: bool = False
+    reversed_by_entry_id: int | None = None
 
     model_config = {"from_attributes": True}
 

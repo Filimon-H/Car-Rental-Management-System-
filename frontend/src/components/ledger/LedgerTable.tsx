@@ -139,8 +139,19 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
   // step with the header tiles, which already treated it that way.
   const affectsBalance = (entryType: string) => !DEPOSIT_TYPES.includes(entryType)
 
+  // An entry that has been reversed no longer stands, and the REVERSAL row
+  // that undid it is not itself a charge. Counting both inflated the totals
+  // and reported a reversed payment as money collected.
+  const wasReversed = (e: (typeof entries)[number]) =>
+    e.is_reversed ??
+    (e.id !== undefined && entries.some((other) => other.reversed_entry_id === e.id))
+  const isReversalRow = (e: (typeof entries)[number]) => e.entry_type === 'reversal'
+  const stillStands = (e: (typeof entries)[number]) => !wasReversed(e) && !isReversalRow(e)
+
   let running = 0
   const rows = entries.map((entry, i) => {
+    // The running balance sums signed amounts, so a reversal row genuinely
+    // does cancel its original here — both stay in, unlike the totals below.
     if (affectsBalance(entry.entry_type)) {
       running += toNumber(entry.amount)
     }
@@ -149,11 +160,12 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
 
   // Summary totals
   const totalDebits = entries
-    .filter((e) => toNumber(e.amount) > 0)
+    .filter((e) => stillStands(e) && toNumber(e.amount) > 0)
     .reduce((s, e) => s + toNumber(e.amount), 0)
-  // Payments only — summing every credit counted the deposit as money paid.
+  // Payments only, and only those that still stand — summing every credit
+  // counted the deposit as money paid, and a reversed payment as revenue.
   const totalCredits = entries
-    .filter((e) => e.entry_type === 'payment')
+    .filter((e) => e.entry_type === 'payment' && stillStands(e))
     .reduce((s, e) => s + Math.abs(toNumber(e.amount)), 0)
   const depositHeld = entries
     .filter((e) => DEPOSIT_TYPES.includes(e.entry_type))
@@ -161,7 +173,7 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
   const balance = running
 
   const isReversed = (id: number) =>
-    entries.some(e => e.reversed_entry_id === id)
+    entries.some((e) => e.reversed_entry_id === id || (e.id === id && e.is_reversed))
 
   return (
     <div className="space-y-4">

@@ -105,3 +105,38 @@ def test_deposit_is_not_counted_as_payment(client, agreement_20, auth_headers):
     balance = client.get(f"/api/ledger/{agreement_20.id}/balance", headers=auth_headers).json()
     assert Decimal(str(balance["total_payments"])) == Decimal("3000.00")
     assert Decimal(str(balance["deposit_held"])) == Decimal("5000.00")
+
+
+def test_ledger_entries_expose_reversal_state(client, db: Session, agreement_20, auth_headers):
+    """The client cannot exclude a reversed entry it has no way to identify."""
+    payment = ledger_service.post_payment(
+        db, agreement_20.id, amount=Decimal("3000.00"), payment_method=PaymentMethod.CASH
+    )
+    reversal = ledger_service.reverse_entry(
+        db, entry_id=payment.id, reason="QA reversal test"
+    )
+
+    entries = client.get(
+        f"/api/agreements/{agreement_20.id}/ledger", headers=auth_headers
+    ).json()
+    by_id = {e["id"]: e for e in entries}
+
+    assert by_id[payment.id]["is_reversed"] is True
+    assert by_id[payment.id]["reversed_by_entry_id"] == reversal.id
+    assert by_id[reversal.id]["reverses_entry_id"] == payment.id
+    assert by_id[reversal.id]["is_reversed"] is False
+
+
+def test_a_reversed_payment_stops_counting_as_collected(
+    client, db: Session, agreement_20, auth_headers
+):
+    payment = ledger_service.post_payment(
+        db, agreement_20.id, amount=Decimal("1000.00"), payment_method=PaymentMethod.CASH
+    )
+    before = client.get(f"/api/ledger/{agreement_20.id}/balance", headers=auth_headers).json()
+    assert Decimal(str(before["total_payments"])) == Decimal("4000.00")
+
+    ledger_service.reverse_entry(db, entry_id=payment.id, reason="Posted in error")
+
+    after = client.get(f"/api/ledger/{agreement_20.id}/balance", headers=auth_headers).json()
+    assert Decimal(str(after["total_payments"])) == Decimal("3000.00")

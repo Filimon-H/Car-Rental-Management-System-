@@ -111,6 +111,11 @@ export interface LedgerEntry {
   created_at: string
   created_by_name: string | null
   reversed_entry_id: number | null
+  /** Set when this entry reverses another. */
+  reverses_entry_id?: number | null
+  /** True when this entry has been undone by a later reversal. */
+  is_reversed?: boolean
+  reversed_by_entry_id?: number | null
 }
 
 export interface CreateAgreementData {

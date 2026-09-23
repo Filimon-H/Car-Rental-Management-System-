@@ -574,6 +574,14 @@ async def get_agreement_ledger(
 ) -> list[LedgerEntryResponse]:
     """Get all ledger entries for an agreement."""
     entries = ledger_service.get_ledger_entries(db, agreement_id)
+
+    # Which originals have been reversed, and by which entry. The ledger is
+    # append-only, so this relationship is the only way to know an entry no
+    # longer stands.
+    reversed_by = {
+        e.reversed_entry_id: e.id for e in entries if e.reversed_entry_id is not None
+    }
+
     return [
         LedgerEntryResponse(
             id=e.id,
@@ -584,6 +592,9 @@ async def get_agreement_ledger(
             payment_reference=e.payment_reference,
             notes=e.notes,
             created_at=e.created_at,
+            reverses_entry_id=e.reversed_entry_id,
+            is_reversed=e.id in reversed_by,
+            reversed_by_entry_id=reversed_by.get(e.id),
         )
         for e in entries
     ]
