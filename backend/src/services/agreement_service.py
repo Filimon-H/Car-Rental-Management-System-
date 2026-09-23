@@ -56,6 +56,15 @@ def _calculate_balance_breakdown(db: Session, agreement_id: int) -> dict:
     }
 
 
+def get_balance_breakdown(db: Session, agreement_id: int) -> dict:
+    """Public accessor for the shared balance breakdown.
+
+    Exposed so routers compute these figures one way. The ledger balance
+    endpoint previously had its own copy that omitted adjustments.
+    """
+    return _calculate_balance_breakdown(db, agreement_id)
+
+
 def _get_balance_due_before_deposit(db: Session, agreement_id: int) -> Decimal:
     """Outstanding balance before applying held deposit."""
     breakdown = _calculate_balance_breakdown(db, agreement_id)

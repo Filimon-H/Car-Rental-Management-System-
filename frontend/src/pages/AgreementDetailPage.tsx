@@ -63,6 +63,9 @@ export default function AgreementDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
+      // LedgerTable keys on the numeric id, so the table and its totals
+      // stayed stale after a payment until the page was reloaded.
+      queryClient.invalidateQueries({ queryKey: ['ledger', agreementId] })
       setShowDepositModal(null)
     },
     onError: (err: unknown) => {
@@ -80,6 +83,9 @@ export default function AgreementDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
+      // LedgerTable keys on the numeric id, so the table and its totals
+      // stayed stale after a payment until the page was reloaded.
+      queryClient.invalidateQueries({ queryKey: ['ledger', agreementId] })
       setShowChargeModal(null)
     },
     onError: (err: unknown) => {
@@ -144,6 +150,9 @@ export default function AgreementDetailPage() {
       agreementsService.close(agreementId as number, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
+      // LedgerTable keys on the numeric id, so the table and its totals
+      // stayed stale after a payment until the page was reloaded.
+      queryClient.invalidateQueries({ queryKey: ['ledger', agreementId] })
       setShowSettlementModal(false)
     },
     onError: (err: unknown) => {
@@ -157,6 +166,9 @@ export default function AgreementDetailPage() {
     mutationFn: () => agreementsService.activate(agreementId as number),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
+      // LedgerTable keys on the numeric id, so the table and its totals
+      // stayed stale after a payment until the page was reloaded.
+      queryClient.invalidateQueries({ queryKey: ['ledger', agreementId] })
     },
     onError: (err: unknown) => {
       console.error('Activate agreement error:', err)
@@ -170,6 +182,9 @@ export default function AgreementDetailPage() {
       agreementsService.markReturned(agreementId as number, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
+      // LedgerTable keys on the numeric id, so the table and its totals
+      // stayed stale after a payment until the page was reloaded.
+      queryClient.invalidateQueries({ queryKey: ['ledger', agreementId] })
       setShowReturnModal(false)
     },
     onError: (err: unknown) => {
@@ -183,6 +198,9 @@ export default function AgreementDetailPage() {
     mutationFn: (reason: string) => agreementsService.cancel(agreementId as number, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
+      // LedgerTable keys on the numeric id, so the table and its totals
+      // stayed stale after a payment until the page was reloaded.
+      queryClient.invalidateQueries({ queryKey: ['ledger', agreementId] })
       setShowCancelConfirm(false)
     },
     onError: (err: unknown) => {
@@ -195,6 +213,9 @@ export default function AgreementDetailPage() {
     mutationFn: () => agreementsService.approveRequest(agreementId as number),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
+      // LedgerTable keys on the numeric id, so the table and its totals
+      // stayed stale after a payment until the page was reloaded.
+      queryClient.invalidateQueries({ queryKey: ['ledger', agreementId] })
     },
     onError: (err: unknown) => {
       const error = err as { response?: { data?: { detail?: string } }, message?: string }
@@ -206,6 +227,9 @@ export default function AgreementDetailPage() {
     mutationFn: (data: PostPaymentData) => agreementsService.postPayment(agreementId as number, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
+      // LedgerTable keys on the numeric id, so the table and its totals
+      // stayed stale after a payment until the page was reloaded.
+      queryClient.invalidateQueries({ queryKey: ['ledger', agreementId] })
       setShowPaymentModal(false)
     },
     onError: (err: unknown) => {
@@ -858,6 +882,8 @@ export default function AgreementDetailPage() {
         <AmountModal
           title={t('ledger.addAdjustment')}
           requirePaymentMethod={false}
+          allowNegative
+          hint={t('ledger.adjustmentHint')}
           onClose={() => setShowAdjustmentModal(false)}
           onSubmit={(payload) => {
             adjustmentMutation.mutate({
@@ -963,6 +989,8 @@ function AmountModal({
   maxAmount,
   defaultAmount,
   showDescription,
+  allowNegative = false,
+  hint,
 }: {
   title: string
   onClose: () => void
@@ -972,6 +1000,9 @@ function AmountModal({
   maxAmount?: number
   defaultAmount?: string
   showDescription?: boolean
+  /** Adjustments may be negative (a discount); everything else must be > 0. */
+  allowNegative?: boolean
+  hint?: string
 }) {
   const { t } = useTranslation()
   const [amount, setAmount] = useState(defaultAmount ?? '')
@@ -983,8 +1014,12 @@ function AmountModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const parsed = Number.parseFloat(amount)
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      setError(t('validation.validAmountRequired'))
+    if (!Number.isFinite(parsed) || (allowNegative ? parsed === 0 : parsed <= 0)) {
+      setError(
+        allowNegative
+          ? t('validation.nonZeroAmountRequired')
+          : t('validation.validAmountRequired')
+      )
       return
     }
     if (typeof maxAmount === 'number' && parsed > maxAmount) {
@@ -1019,6 +1054,7 @@ function AmountModal({
               required
               className="w-full rounded-lg border border-gray-300 px-3 py-2"
             />
+            {hint && <p className="mt-1 text-sm text-gray-500">{hint}</p>}
           </div>
 
           {requirePaymentMethod && (

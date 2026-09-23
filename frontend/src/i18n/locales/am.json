@@ -562,6 +562,7 @@
   },
   "ledger": {
     "addAdjustment": "ማስተካከያ ጨምር",
+    "adjustmentHint": "አሉታዊ = ቅናሽ፣ አዎንታዊ = ተጨማሪ ክፍያ።",
     "advancePayment": "ቅድሚያ ክፍያ",
     "alreadyReversed": "አስቀድሞ ተመልሷል",
     "amountEtb": "መጠን (ብር)",
@@ -843,6 +844,7 @@
   },
   "validation": {
     "categoryValueRequired": "ምድብና ዋጋ ያስፈልጋሉ",
+    "nonZeroAmountRequired": "እባክዎ ከ0 የተለየ መጠን ያስገቡ።",
     "selectVehicle": "እባክዎ ተሽከርካሪ ይምረጡ",
     "validAmountRequired": "እባክዎ ከ0 በላይ ትክክለኛ መጠን ያስገቡ።",
     "validPaymentRequired": "እባክዎ ከ0 በላይ ትክክለኛ የክፍያ መጠን ያስገቡ።"

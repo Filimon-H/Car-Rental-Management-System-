@@ -562,6 +562,7 @@
   },
   "ledger": {
     "addAdjustment": "Add Adjustment",
+    "adjustmentHint": "Negative = discount, positive = extra charge.",
     "advancePayment": "Advance Payment",
     "alreadyReversed": "Already reversed",
     "amountEtb": "Amount (ETB)",
@@ -843,6 +844,7 @@
   },
   "validation": {
     "categoryValueRequired": "Category and Value are required",
+    "nonZeroAmountRequired": "Please enter an amount other than 0.",
     "selectVehicle": "Please select a vehicle",
     "validAmountRequired": "Please enter a valid amount greater than 0.",
     "validPaymentRequired": "Please enter a valid payment amount greater than 0."

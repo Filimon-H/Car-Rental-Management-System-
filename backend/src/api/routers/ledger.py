@@ -20,7 +20,7 @@ from src.core.rbac import Permission
 from src.models.audit_event import AuditAction
 from src.models.ledger_entry import LedgerEntry, LedgerEntryType, PaymentMethod
 from src.models.vendor_payment import VendorPayment
-from src.services import audit_service, ledger_service
+from src.services import agreement_service, audit_service, ledger_service
 
 router = APIRouter()
 
@@ -162,25 +162,27 @@ async def get_balance(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Get current balance for an agreement."""
+    # Use the shared breakdown rather than recomputing here. This endpoint
+    # had its own balance_due that left out adjustments, so a discount moved
+    # the figure on /agreements/{id} but not on /ledger/{id}/balance, and the
+    # reports in section 6 would have disagreed with the screen.
+    breakdown = agreement_service.get_balance_breakdown(db, agreement_id)
     balance = ledger_service.get_agreement_balance(db, agreement_id)
-    total_charges = ledger_service.get_total_charges(db, agreement_id)
-    total_payments = ledger_service.get_total_payments(db, agreement_id)
-    deposit_received = ledger_service.get_deposit_received(db, agreement_id)
-    deposit_held = ledger_service.get_deposit_held(db, agreement_id)
-    deposit_applied = ledger_service.get_deposit_applied(db, agreement_id)
-    deposit_returned = ledger_service.get_deposit_returned(db, agreement_id)
-    balance_due = max(Decimal("0"), total_charges - total_payments - deposit_applied)
+
+    # Positive adjustments are extra charges, negative ones discounts, so the
+    # reported charge total has to carry them too.
+    total_charges = breakdown["total_charges"] + breakdown["net_adjustments"]
 
     return BalanceResponse(
         agreement_id=agreement_id,
         balance=balance,
         total_charges=total_charges,
-        total_payments=total_payments,
-        deposit_received=deposit_received,
-        deposit_held=deposit_held,
-        deposit_applied=deposit_applied,
-        deposit_returned=deposit_returned,
-        balance_due=balance_due,
+        total_payments=breakdown["total_payments"],
+        deposit_received=breakdown["deposit_received"],
+        deposit_held=breakdown["deposit_held"],
+        deposit_applied=breakdown["deposit_applied"],
+        deposit_returned=breakdown["deposit_returned"],
+        balance_due=breakdown["balance_due"],
     )
 
 
