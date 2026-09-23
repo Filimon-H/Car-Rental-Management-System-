@@ -60,3 +60,30 @@ def test_activation_without_the_deposit_is_refused(db: Session, pending):
 
     with pytest.raises(BusinessError, match="deposit"):
         agreement_service.activate_agreement(db, pending.id)
+
+
+def test_adjustment_and_reversal_round_trip(db: Session, pending):
+    """The two actions the detail page previously had no controls for.
+
+    An adjustment is tracked separately from rental charges and moves the
+    balance; reversing it is an offsetting entry, not a delete, because the
+    ledger is append-only.
+    """
+    from src.models.ledger_entry import LedgerEntryType
+
+    before = agreement_service.get_agreement_summary(db, pending.id)["balance"]
+
+    adjustment = ledger_service.post_adjustment(
+        db, pending.id, amount=Decimal("250.00"), description="Goodwill correction"
+    )
+    after = agreement_service.get_agreement_summary(db, pending.id)["balance"]
+    assert after == before + Decimal("250.00")
+
+    reversal = ledger_service.reverse_entry(
+        db, entry_id=adjustment.id, reason="Posted in error"
+    )
+    assert reversal.entry_type == LedgerEntryType.REVERSAL
+    assert reversal.reversed_entry_id == adjustment.id
+
+    restored = agreement_service.get_agreement_summary(db, pending.id)["balance"]
+    assert restored == before

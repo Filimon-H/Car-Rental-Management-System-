@@ -561,7 +561,9 @@
     }
   },
   "ledger": {
+    "addAdjustment": "ማስተካከያ ጨምር",
     "advancePayment": "ቅድሚያ ክፍያ",
+    "alreadyReversed": "አስቀድሞ ተመልሷል",
     "amountEtb": "መጠን (ብር)",
     "amountPaidOut": "የተከፈለ መጠን",
     "applyDeposit": "ተቀማጭ አዋል",
@@ -614,7 +616,10 @@
     "reservedActive": "የተያዘ (ንቁ)",
     "revenueAggregated": "ገቢና ክፍያ በጊዜ ተጠቃሏል",
     "reverse": "መልስ",
+    "reverseEntry": "ግቤት መልስ",
+    "reverseFailed": "ግቤቱን መመለስ አልተቻለም።",
     "reverseLedgerEntry": "የመዝገብ ግቤት መልስ",
+    "reverseReasonLabel": "የመመለሻ ምክንያት",
     "searchCustomerLedger": "መዝገባቸውን ለማየት ደንበኛ ይፈልጉ",
     "selectAgreement": "ውል ይምረጡ",
     "selectAgreementToView": "መዝገብ ለማየት ውል ይምረጡ",

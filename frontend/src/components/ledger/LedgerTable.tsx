@@ -75,9 +75,11 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 
 interface LedgerTableProps {
   agreementId: number
+  /** Omit to render the table read-only, as the customer ledger does. */
+  onReverse?: (entry: { id: number; description: string }) => void
 }
 
-export default function LedgerTable({ agreementId }: LedgerTableProps) {
+export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps) {
   const { t } = useTranslation()
   const { data: entries, isLoading, error } = useQuery({
     queryKey: ['ledger', agreementId],
@@ -198,6 +200,11 @@ export default function LedgerTable({ agreementId }: LedgerTableProps) {
               <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">
                 Balance
               </th>
+              {onReverse && (
+                <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  {t('common.actions')}
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
@@ -307,6 +314,25 @@ export default function LedgerTable({ agreementId }: LedgerTableProps) {
                       <p className="text-xs font-normal text-gray-500">settled</p>
                     )}
                   </td>
+                  {onReverse && (
+                    <td className="px-4 py-3 text-right">
+                      {reversed || entry.entry_type === 'reversal' ? (
+                        <span className="text-xs text-gray-400">
+                          {reversed ? t('ledger.alreadyReversed') : '—'}
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onReverse({ id: entry.id, description: entry.description })
+                          }
+                          className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          {t('ledger.reverse')}
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               )
             })}
@@ -329,6 +355,7 @@ export default function LedgerTable({ agreementId }: LedgerTableProps) {
               }`}>
                 {fmt(balance)}
               </td>
+              {onReverse && <td className="px-4 py-3" />}
             </tr>
           </tfoot>
         </table>

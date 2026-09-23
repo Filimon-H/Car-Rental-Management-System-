@@ -561,7 +561,9 @@
     }
   },
   "ledger": {
+    "addAdjustment": "Add Adjustment",
     "advancePayment": "Advance Payment",
+    "alreadyReversed": "Already reversed",
     "amountEtb": "Amount (ETB)",
     "amountPaidOut": "Amount Paid Out",
     "applyDeposit": "Apply Deposit",
@@ -614,7 +616,10 @@
     "reservedActive": "Reserved (active)",
     "revenueAggregated": "Revenue and payouts aggregated by period",
     "reverse": "Reverse",
+    "reverseEntry": "Reverse entry",
+    "reverseFailed": "Could not reverse the entry.",
     "reverseLedgerEntry": "Reverse Ledger Entry",
+    "reverseReasonLabel": "Reason for reversal",
     "searchCustomerLedger": "Search for a customer to view their ledger",
     "selectAgreement": "Select Agreement",
     "selectAgreementToView": "Select an agreement to view ledger",

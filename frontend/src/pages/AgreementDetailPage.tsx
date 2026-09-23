@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Ban, Car, CreditCard, FileText, User, UserCheck, Shield, Printer } from 'lucide-react'
-import { agreementsService, PostChargeData, PostDepositData, PostPaymentData, AgreementDetail } from '@/services/agreements'
+import { agreementsService, PostChargeData, PostDepositData, PostPaymentData, AgreementDetail, ledgerService } from '@/services/agreements'
 import { customersService } from '@/services/customers'
 import { collateralsService } from '@/services/collaterals'
 import { vehiclesService } from '@/services/vehicles'
@@ -30,6 +30,8 @@ export default function AgreementDetailPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showDepositModal, setShowDepositModal] = useState<null | 'receive' | 'apply' | 'refund'>(null)
   const [showChargeModal, setShowChargeModal] = useState<null | 'damage' | 'late'>(null)
+  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false)
+  const [reverseTarget, setReverseTarget] = useState<{ id: number; description: string } | null>(null)
   const [showReturnModal, setShowReturnModal] = useState(false)
   const [showSettlementModal, setShowSettlementModal] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
@@ -82,6 +84,34 @@ export default function AgreementDetailPage() {
       console.error('Charge action error:', err)
       const error = err as { response?: { data?: { detail?: string } }, message?: string }
       setPageError(getErrorMessage(error, 'Failed to post charge'))
+    },
+  })
+
+  const adjustmentMutation = useMutation({
+    mutationFn: (data: { amount: number; description: string; notes?: string }) => {
+      if (!agreementId) throw new Error('Invalid agreement id')
+      return agreementsService.postAdjustment(agreementId, data)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agreement', agreementId] })
+      queryClient.invalidateQueries({ queryKey: ['ledger', agreementId] })
+      setShowAdjustmentModal(false)
+    },
+    onError: (error: unknown) => {
+      setPageError(getErrorMessage(error, 'Failed to post adjustment'))
+    },
+  })
+
+  const reverseMutation = useMutation({
+    mutationFn: ({ entryId, reason }: { entryId: number; reason: string }) =>
+      ledgerService.reverseEntry(entryId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agreement', agreementId] })
+      queryClient.invalidateQueries({ queryKey: ['ledger', agreementId] })
+      setReverseTarget(null)
+    },
+    onError: (error: unknown) => {
+      setPageError(getErrorMessage(error, t('ledger.reverseFailed')))
     },
   })
 
@@ -441,6 +471,13 @@ export default function AgreementDetailPage() {
                         >
                           {t('agreementActions.addLateFee')}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowAdjustmentModal(true)}
+                          className="rounded-md border bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          {t('ledger.addAdjustment')}
+                        </button>
                       </>
                     )}
                     {canSettleDeposit && (
@@ -732,7 +769,10 @@ export default function AgreementDetailPage() {
                 </button>
               )}
             </div>
-            <LedgerTable agreementId={Number(id)} />
+            <LedgerTable
+              agreementId={Number(id)}
+              onReverse={canPostCharge ? setReverseTarget : undefined}
+            />
           </div>
         )}
 
@@ -816,6 +856,39 @@ export default function AgreementDetailPage() {
             chargeMutation.mutate({ action: showChargeModal, data })
           }}
           isLoading={chargeMutation.isPending}
+          showDescription
+        />
+      )}
+
+      {showAdjustmentModal && (
+        <AmountModal
+          title={t('ledger.addAdjustment')}
+          requirePaymentMethod={false}
+          onClose={() => setShowAdjustmentModal(false)}
+          onSubmit={(payload) => {
+            adjustmentMutation.mutate({
+              amount: payload.amount as number,
+              description: (payload.description as string) ?? '',
+              notes: payload.notes as string | undefined,
+            })
+          }}
+          isLoading={adjustmentMutation.isPending}
+          showDescription
+        />
+      )}
+
+      {reverseTarget && (
+        <AmountModal
+          title={`${t('ledger.reverseEntry')} — ${reverseTarget.description}`}
+          requirePaymentMethod={false}
+          onClose={() => setReverseTarget(null)}
+          onSubmit={(payload) => {
+            reverseMutation.mutate({
+              entryId: reverseTarget.id,
+              reason: (payload.description as string) ?? '',
+            })
+          }}
+          isLoading={reverseMutation.isPending}
           showDescription
         />
       )}
