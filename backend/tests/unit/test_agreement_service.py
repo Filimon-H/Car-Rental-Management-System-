@@ -13,6 +13,7 @@ from src.models.collateral_person import CollateralPerson
 from src.models.customer import Customer
 from src.models.ledger_entry import LedgerEntryType
 from src.models.driver import Driver
+from src.models.ledger_entry import LedgerEntryType
 from src.models.vendor import Vendor
 from src.models.vehicle import Vehicle, VehicleStatus, VehicleType
 from src.services import agreement_service, ledger_service

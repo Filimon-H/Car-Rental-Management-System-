@@ -29,6 +29,44 @@ export function isTokenExpired(token: string | null): boolean {
   return payload.exp * 1000 < Date.now()
 }
 
+/** One entry of FastAPI's 422 `detail` array. */
+interface ValidationErrorItem {
+  loc: (string | number)[]
+  msg: string
+  type: string
+}
+
+function isValidationDetail(detail: unknown): detail is ValidationErrorItem[] {
+  return (
+    Array.isArray(detail) &&
+    detail.every((item) => !!item && typeof item === 'object' && 'msg' in item)
+  )
+}
+
+/**
+ * Turn an error body into something readable.
+ *
+ * FastAPI sends a string `detail` for handled errors but an array of
+ * per-field objects for a 422. Rendering that directly produced
+ * "[object Object]", so every validation message on signup and booking was
+ * unreadable.
+ */
+export function describeApiError(body: unknown, status: number): string {
+  const detail = (body as { detail?: unknown } | null)?.detail
+
+  if (typeof detail === 'string' && detail) return detail
+
+  if (isValidationDetail(detail)) {
+    const messages = detail.map((item) => {
+      const field = item.loc.filter((part) => part !== 'body' && part !== 'query').join('.')
+      return field ? `${field}: ${item.msg}` : item.msg
+    })
+    if (messages.length) return messages.join('; ')
+  }
+
+  return `HTTP ${status}`
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken()
   const headers: HeadersInit = {
@@ -48,7 +86,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error(body.detail || `HTTP ${res.status}`)
+    throw new Error(describeApiError(body, res.status))
   }
   return res.json() as Promise<T>
 }

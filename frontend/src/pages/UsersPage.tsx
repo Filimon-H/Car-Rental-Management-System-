@@ -366,7 +366,7 @@ export default function UsersPage() {
 
       {/* Table */}
       <div className="app-panel overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="[contain:paint] overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">

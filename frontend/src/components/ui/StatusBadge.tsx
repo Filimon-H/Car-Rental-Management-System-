@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { useTranslation } from 'react-i18next'
 
 type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'muted' | 'purple'
 
@@ -8,13 +9,10 @@ type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'muted' | 'p
  * colour and casing.
  */
 const TONES: Record<Tone, string> = {
-  neutral:
-    'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200',
+  neutral: 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200',
   info: 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
-  success:
-    'bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300',
-  warning:
-    'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
+  success: 'bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-300',
+  warning: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
   danger: 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300',
   muted: 'bg-slate-50 text-slate-400 dark:bg-white/5 dark:text-slate-500',
   purple: 'bg-purple-50 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300',
@@ -71,7 +69,9 @@ export function StatusBadge({
   label?: string
   className?: string
 }) {
+  const { t } = useTranslation()
   const tone = STATUS_TONES[status] ?? 'neutral'
+  const translated = t(`agreements.status.${status}`, { defaultValue: humanize(status) })
   return (
     <span
       className={cn(
@@ -81,7 +81,7 @@ export function StatusBadge({
       )}
     >
       <span className={cn('h-1.5 w-1.5 rounded-full', DOTS[tone])} />
-      {label ?? humanize(status)}
+      {label ?? translated}
     </span>
   )
 }

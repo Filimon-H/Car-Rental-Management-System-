@@ -8,6 +8,19 @@ import { apiClient } from '../services/apiClient'
 const UPLOADS_BASE = 'http://localhost:8001/api/uploads'
 function photoUrl(p: string | null) { return p ? `${UPLOADS_BASE}/${p}` : null }
 
+/**
+ * Send a datetime-local value as the API's naive wall-clock representation.
+ *
+ * These columns hold local business time with no offset — the staff app sends
+ * them the same way. Passing the value through toISOString() converted it to
+ * UTC, so a customer picking 09:00 in Addis Ababa had 06:00 stored and every
+ * screen afterwards showed the booking three hours early.
+ */
+function toWallClockIso(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(value)) return value
+  return value.length === 16 ? `${value}:00` : value
+}
+
 function toLocalDatetimeValue(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
@@ -417,9 +430,11 @@ export default function BookingPage() {
     await apiClient.patch('/me', {
       id_type: data.id_type || null,
       id_number: data.id_number || null,
-      id_expiry: data.id_expiry ? new Date(data.id_expiry).toISOString() : null,
+      // Date-only fields are wall-clock too: toISOString() tagged them UTC,
+      // which shifts the calendar day in any zone behind UTC.
+      id_expiry: data.id_expiry ? `${data.id_expiry}T00:00:00` : null,
       license_number: data.license_number || null,
-      license_expiry: data.license_expiry ? new Date(data.license_expiry).toISOString() : null,
+      license_expiry: data.license_expiry ? `${data.license_expiry}T00:00:00` : null,
       emergency_contact_name: data.emergency_contact_name || null,
       emergency_contact_phone: data.emergency_contact_phone || null,
     })
@@ -433,8 +448,8 @@ export default function BookingPage() {
     try {
       await bookingService.createBooking({
         vehicle_id: Number(vehicleId),
-        pickup_datetime: new Date(pickup).toISOString(),
-        expected_return_datetime: new Date(returnDate).toISOString(),
+        pickup_datetime: toWallClockIso(pickup),
+        expected_return_datetime: toWallClockIso(returnDate),
         pickup_location: location || undefined,
         notes: notes || undefined,
       })

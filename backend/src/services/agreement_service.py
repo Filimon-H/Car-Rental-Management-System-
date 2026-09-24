@@ -376,8 +376,12 @@ def close_agreement(
         and return_mileage is not None
         and agreement.pickup_mileage is not None
     ):
+        # The allowance follows the period the customer was billed for. An early
+        # return must not shrink a two-day contracted allowance to one day; a late
+        # return still expands it through the actual return time.
+        allowance_end = max(expected_return_datetime, actual_return_datetime)
         rental_days = billing_service.calculate_rental_days(
-            _ensure_utc(agreement.pickup_datetime), actual_return_datetime
+            _ensure_utc(agreement.pickup_datetime), allowance_end
         )
         excess_km, mileage_charge = billing_service.calculate_mileage_charge(
             start_mileage=agreement.pickup_mileage,
@@ -393,7 +397,8 @@ def close_agreement(
                 amount=mileage_charge,
                 description=(
                     f"Excess mileage: {excess_km} km over "
-                    f"{agreement.mileage_limit_per_day * rental_days} km allowance"
+                    f"{agreement.mileage_limit_per_day * rental_days} km allowance "
+                    f"({rental_days} days × {agreement.mileage_limit_per_day} km/day)"
                 ),
                 entry_type=LedgerEntryType.CHARGE,
                 created_by_id=closed_by_id,

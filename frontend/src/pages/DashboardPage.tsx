@@ -44,72 +44,131 @@ const statusMap: Record<string, { dot: string; text: string; bg: string }> = {
 }
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB', maximumFractionDigits: 0 }).format(value)
+  return new Intl.NumberFormat('en-ET', {
+    style: 'currency',
+    currency: 'ETB',
+    maximumFractionDigits: 0,
+  }).format(value)
 }
 
-function formatDateLabel(value?: string | null) {
+function formatDateLabel(value: string | null | undefined, locale = 'en-US') {
   if (!value) return '--'
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value))
+  return new Intl.DateTimeFormat(locale, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(value))
 }
 
-function formatDateTimeLabel(value?: string | null) {
+function formatDateTimeLabel(value: string | null | undefined, locale = 'en-US') {
   if (!value) return '--'
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value))
+  return new Intl.DateTimeFormat(locale, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value))
 }
 
 function getInitials(name: string) {
-  return name.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase()
+  return name
+    .split(' ')
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, label }: { status: string; label: string }) {
   const tone = statusMap[status] || statusMap.draft
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${tone.bg} ${tone.text}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${tone.bg} ${tone.text}`}
+    >
       <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
-      {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+      {label}
     </span>
   )
 }
 
 function StatCard({
-  title, value, detail, icon, tone = 'neutral', onClick,
+  title,
+  value,
+  detail,
+  icon,
+  tone = 'neutral',
+  onClick,
 }: {
-  title: string; value: number | string; detail: string; icon: ReactNode
-  tone?: keyof typeof toneMap; onClick?: () => void
+  title: string
+  value: number | string
+  detail: string
+  icon: ReactNode
+  tone?: keyof typeof toneMap
+  onClick?: () => void
 }) {
   const card = (
     <div className={`rounded-2xl p-5 shadow-sm transition-all hover:shadow-md ${toneMap[tone]}`}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${tone === 'primary' ? 'text-blue-100' : 'text-slate-400'}`}>
+          <p
+            className={`text-xs font-semibold uppercase tracking-[0.18em] ${tone === 'primary' ? 'text-blue-100' : 'text-slate-400'}`}
+          >
             {title}
           </p>
           <p className="mt-3 text-3xl font-bold tracking-tight">{value}</p>
-          <p className={`mt-2 text-sm ${
-            tone === 'primary' ? 'text-blue-100'
-            : tone === 'danger' ? 'text-red-600'
-            : tone === 'success' ? 'text-emerald-600'
-            : tone === 'warning' ? 'text-amber-600'
-            : 'text-slate-500'
-          }`}>
+          <p
+            className={`mt-2 text-sm ${
+              tone === 'primary'
+                ? 'text-blue-100'
+                : tone === 'danger'
+                  ? 'text-red-600'
+                  : tone === 'success'
+                    ? 'text-emerald-600'
+                    : tone === 'warning'
+                      ? 'text-amber-600'
+                      : 'text-slate-500'
+            }`}
+          >
             {detail}
           </p>
         </div>
-        <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${tone === 'primary' ? 'bg-white/15' : 'bg-slate-100 text-slate-700'}`}>
+        <div
+          className={`flex h-11 w-11 items-center justify-center rounded-xl ${tone === 'primary' ? 'bg-white/15' : 'bg-slate-100 text-slate-700'}`}
+        >
           {icon}
         </div>
       </div>
     </div>
   )
   if (!onClick) return card
-  return <button type="button" onClick={onClick} className="text-left">{card}</button>
+  return (
+    <button type="button" onClick={onClick} className="text-left">
+      {card}
+    </button>
+  )
 }
 
-function QuickAction({ title, description, icon, onClick }: { title: string; description: string; icon: ReactNode; onClick: () => void }) {
+function QuickAction({
+  title,
+  description,
+  icon,
+  onClick,
+}: {
+  title: string
+  description: string
+  icon: ReactNode
+  onClick: () => void
+}) {
   return (
-    <button type="button" onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:border-slate-300 hover:shadow-md">
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">{icon}</div>
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
+    >
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+        {icon}
+      </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-slate-900">{title}</p>
         <p className="text-xs text-slate-500">{description}</p>
@@ -122,9 +181,14 @@ function QuickAction({ title, description, icon, onClick }: { title: string; des
 export default function DashboardPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const dateLocale = i18n.language.startsWith('am') ? 'am-ET' : 'en-US'
 
-  const { data: stats, isLoading, isError } = useQuery({
+  const {
+    data: stats,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => dashboardService.getStats(),
     refetchInterval: 60_000,
@@ -141,7 +205,12 @@ export default function DashboardPage() {
       queryClient.invalidateQueries({ queryKey: ['me', 'telegram'] })
       toast({ title: t('toastMsg.linkCodeReady'), description: t('toastMsg.openBotSendLink') })
     },
-    onError: () => toast({ title: t('toastMsg.couldNotGenerateCode'), description: t('toastMsg.loginAgainRetry'), variant: 'destructive' }),
+    onError: () =>
+      toast({
+        title: t('toastMsg.couldNotGenerateCode'),
+        description: t('toastMsg.loginAgainRetry'),
+        variant: 'destructive',
+      }),
   })
 
   const unlinkTelegramMutation = useMutation({
@@ -197,13 +266,19 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={() => navigate('/agreements/new')}
-              className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-700">
+            <button
+              type="button"
+              onClick={() => navigate('/agreements/new')}
+              className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-700"
+            >
               <Plus className="h-4 w-4" />
               {t('dashboard.newAgreement')}
             </button>
-            <button type="button" onClick={() => navigate('/vehicles/new')}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50">
+            <button
+              type="button"
+              onClick={() => navigate('/vehicles/new')}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            >
               {t('dashboard.addVehicle')}
             </button>
           </div>
@@ -212,20 +287,40 @@ export default function DashboardPage() {
 
       {/* Primary agreement stats */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard title={t('dashboard.activeAgreements')} value={stats?.active_agreements ?? 0}
-          detail={t('dashboard.currentlyRented')} icon={<FileText className="h-5 w-5" />} tone="primary"
-          onClick={() => navigate('/agreements?status=active')} />
-        <StatCard title={t('dashboard.overdueReturns')} value={stats?.overdue_agreements ?? 0}
-          detail={(stats?.overdue_agreements ?? 0) > 0 ? t('dashboard.needsAttention') : t('dashboard.allOnTime')}
+        <StatCard
+          title={t('dashboard.activeAgreements')}
+          value={stats?.active_agreements ?? 0}
+          detail={t('dashboard.currentlyRented')}
+          icon={<FileText className="h-5 w-5" />}
+          tone="primary"
+          onClick={() => navigate('/agreements?status=active')}
+        />
+        <StatCard
+          title={t('dashboard.overdueReturns')}
+          value={stats?.overdue_agreements ?? 0}
+          detail={
+            (stats?.overdue_agreements ?? 0) > 0
+              ? t('dashboard.needsAttention')
+              : t('dashboard.allOnTime')
+          }
           icon={<AlertTriangle className="h-5 w-5" />}
           tone={(stats?.overdue_agreements ?? 0) > 0 ? 'danger' : 'success'}
-          onClick={() => navigate('/agreements?status=overdue')} />
-        <StatCard title={t('dashboard.availableVehicles')} value={stats?.vehicles.available ?? 0}
+          onClick={() => navigate('/agreements?status=overdue')}
+        />
+        <StatCard
+          title={t('dashboard.availableVehicles')}
+          value={stats?.vehicles.available ?? 0}
           detail={t('dashboard.ofTotal', { total: stats?.vehicles.total ?? 0 })}
-          icon={<Car className="h-5 w-5" />} onClick={() => navigate('/vehicles?status=available')} />
-        <StatCard title={t('dashboard.totalCustomers')} value={stats?.total_customers ?? 0}
-          detail={t('dashboard.registeredCustomers')} icon={<Users className="h-5 w-5" />}
-          onClick={() => navigate('/customers')} />
+          icon={<Car className="h-5 w-5" />}
+          onClick={() => navigate('/vehicles?status=available')}
+        />
+        <StatCard
+          title={t('dashboard.totalCustomers')}
+          value={stats?.total_customers ?? 0}
+          detail={t('dashboard.registeredCustomers')}
+          icon={<Users className="h-5 w-5" />}
+          onClick={() => navigate('/customers')}
+        />
       </section>
 
       {/* Revenue row */}
@@ -233,11 +328,15 @@ export default function DashboardPage() {
         <div className="rounded-2xl bg-emerald-600 p-5 text-white shadow-sm">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">{t('dashboardCards.thisMonth')}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">
+                {t('dashboardCards.thisMonth')}
+              </p>
               <p className="mt-3 text-3xl font-bold tracking-tight">
                 {formatCurrency(stats?.revenue.collected_this_month ?? 0)}
               </p>
-              <p className="mt-2 text-sm text-emerald-100">{t('dashboardCards.collectedInPayments')}</p>
+              <p className="mt-2 text-sm text-emerald-100">
+                {t('dashboardCards.collectedInPayments')}
+              </p>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15">
               <TrendingUp className="h-5 w-5" />
@@ -247,7 +346,9 @@ export default function DashboardPage() {
         <div className="rounded-2xl border border-red-100 bg-red-50 p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{t('ledger.outstanding')}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                {t('ledger.outstanding')}
+              </p>
               <p className="mt-3 text-3xl font-bold tracking-tight text-red-700">
                 {formatCurrency(stats?.revenue.outstanding_balance ?? 0)}
               </p>
@@ -261,11 +362,15 @@ export default function DashboardPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{t('dashboardCards.allTime')}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                {t('dashboardCards.allTime')}
+              </p>
               <p className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
                 {formatCurrency(stats?.revenue.total_all_time ?? 0)}
               </p>
-              <p className="mt-2 text-sm text-slate-500">{t('dashboardCards.totalPaymentsReceived')}</p>
+              <p className="mt-2 text-sm text-slate-500">
+                {t('dashboardCards.totalPaymentsReceived')}
+              </p>
             </div>
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
               <FileText className="h-5 w-5" />
@@ -281,20 +386,37 @@ export default function DashboardPage() {
           <div className="app-panel p-5">
             <div className="mb-4">
               <p className="app-kicker">{t('dashboard.quickActions')}</p>
-              <h3 className="mt-2 text-lg font-semibold text-slate-900">{t('dashboard.commonTasks')}</h3>
+              <h3 className="mt-2 text-lg font-semibold text-slate-900">
+                {t('dashboard.commonTasks')}
+              </h3>
             </div>
             <div className="space-y-3">
-              <QuickAction title={t('dashboard.newAgreement')} description={t('dashboard.createStandardRental')}
-                icon={<Plus className="h-4 w-4" />} onClick={() => navigate('/agreements/new')} />
-              <QuickAction title={t('dashboard.weddingAgreement')} description={t('dashboard.startWeddingRental')}
-                icon={<Calendar className="h-4 w-4" />} onClick={() => navigate('/agreements/wedding/new')} />
-              <QuickAction title={t('dashboard.addCustomer')} description={t('dashboard.registerNewCustomer')}
-                icon={<Users className="h-4 w-4" />} onClick={() => navigate('/customers/new')} />
-              <QuickAction title={t('dashboard.addVehicle')} description={t('dashboard.addVehicleToFleet')}
-                icon={<Car className="h-4 w-4" />} onClick={() => navigate('/vehicles/new')} />
+              <QuickAction
+                title={t('dashboard.newAgreement')}
+                description={t('dashboard.createStandardRental')}
+                icon={<Plus className="h-4 w-4" />}
+                onClick={() => navigate('/agreements/new')}
+              />
+              <QuickAction
+                title={t('dashboard.weddingAgreement')}
+                description={t('dashboard.startWeddingRental')}
+                icon={<Calendar className="h-4 w-4" />}
+                onClick={() => navigate('/agreements/wedding/new')}
+              />
+              <QuickAction
+                title={t('dashboard.addCustomer')}
+                description={t('dashboard.registerNewCustomer')}
+                icon={<Users className="h-4 w-4" />}
+                onClick={() => navigate('/customers/new')}
+              />
+              <QuickAction
+                title={t('dashboard.addVehicle')}
+                description={t('dashboard.addVehicleToFleet')}
+                icon={<Car className="h-4 w-4" />}
+                onClick={() => navigate('/vehicles/new')}
+              />
             </div>
           </div>
-
         </div>
 
         {/* Right: Recent agreements */}
@@ -302,10 +424,15 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
             <div>
               <p className="app-kicker">{t('dashboard.recentAgreements')}</p>
-              <h3 className="mt-1 text-lg font-semibold text-slate-900">{t('dashboard.latestActivity')}</h3>
+              <h3 className="mt-1 text-lg font-semibold text-slate-900">
+                {t('dashboard.latestActivity')}
+              </h3>
             </div>
-            <button type="button" onClick={() => navigate('/agreements')}
-              className="text-sm font-medium text-primary transition-colors hover:text-primary-700">
+            <button
+              type="button"
+              onClick={() => navigate('/agreements')}
+              className="text-sm font-medium text-primary transition-colors hover:text-primary-700"
+            >
               {t('dashboard.viewAll')}
             </button>
           </div>
@@ -314,7 +441,7 @@ export default function DashboardPage() {
               {t('dashboard.noAgreementsYet')}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="[contain:paint] overflow-x-auto">
               <table className="min-w-full">
                 <thead className="bg-slate-50">
                   <tr>
@@ -334,9 +461,14 @@ export default function DashboardPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {stats.recent_agreements.map((a) => (
-                    <tr key={a.id} onClick={() => navigate(`/agreements/${a.id}`)}
-                      className="cursor-pointer transition-colors hover:bg-slate-50">
-                      <td className="px-6 py-4 text-sm font-semibold text-slate-800">{a.agreement_number}</td>
+                    <tr
+                      key={a.id}
+                      onClick={() => navigate(`/agreements/${a.id}`)}
+                      className="cursor-pointer transition-colors hover:bg-slate-50"
+                    >
+                      <td className="px-6 py-4 text-sm font-semibold text-slate-800">
+                        {a.agreement_number}
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
@@ -345,9 +477,14 @@ export default function DashboardPage() {
                           <span className="text-sm text-slate-700">{a.customer_name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4"><StatusBadge status={a.status} /></td>
+                      <td className="px-6 py-4">
+                        <StatusBadge
+                          status={a.status}
+                          label={t(`agreements.status.${a.status}`, { defaultValue: a.status })}
+                        />
+                      </td>
                       <td className="px-6 py-4 text-sm text-slate-500">
-                        {formatDateLabel(a.expected_return_datetime)}
+                        {formatDateLabel(a.expected_return_datetime, dateLocale)}
                       </td>
                     </tr>
                   ))}
@@ -359,91 +496,156 @@ export default function DashboardPage() {
       </section>
 
       {/* Secondary stats row */}
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard title={t('dashboard.vehiclesRented')} value={stats?.vehicles.rented ?? 0}
-          detail={t('dashboard.currentlyOut')} icon={<TrendingUp className="h-5 w-5" />} />
-        <StatCard title={t('dashboard.dueToday')} value={stats?.due_today ?? 0}
-          detail={t('dashboard.returnsExpectedToday')} icon={<Clock className="h-5 w-5" />}
-          tone={(stats?.due_today ?? 0) > 0 ? 'warning' : 'neutral'} />
-        <StatCard title={t('dashboard.inMaintenance')} value={stats?.vehicles.maintenance ?? 0}
-          detail={t('dashboard.vehiclesUnavailable')} icon={<Wrench className="h-5 w-5" />}
-          onClick={() => navigate('/vehicles?status=maintenance')} />
-        <StatCard title={t('dashboard.allAgreements')} value={stats?.total_agreements ?? 0}
-          detail={t('dashboard.totalRecords')} icon={<FileText className="h-5 w-5" />}
-          onClick={() => navigate('/agreements')} />
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <StatCard
+          title={t('dashboard.vehiclesRented')}
+          value={stats?.vehicles.rented ?? 0}
+          detail={t('dashboard.currentlyOut')}
+          icon={<TrendingUp className="h-5 w-5" />}
+        />
+        <StatCard
+          title={t('dashboard.dueToday')}
+          value={stats?.due_today ?? 0}
+          detail={t('dashboard.returnsExpectedToday')}
+          icon={<Clock className="h-5 w-5" />}
+          tone={(stats?.due_today ?? 0) > 0 ? 'warning' : 'neutral'}
+        />
+        <StatCard
+          title={t('dashboard.inMaintenance')}
+          value={stats?.vehicles.maintenance ?? 0}
+          detail={t('dashboard.vehiclesUnavailable')}
+          icon={<Wrench className="h-5 w-5" />}
+          onClick={() => navigate('/vehicles?status=maintenance')}
+        />
+        <StatCard
+          title={t('dashboard.serviceDue')}
+          value={stats?.vehicles.service_due ?? 0}
+          detail={t('dashboard.vehiclesNeedingService')}
+          icon={<Wrench className="h-5 w-5" />}
+          tone={(stats?.vehicles.service_due ?? 0) > 0 ? 'warning' : 'success'}
+        />
+        <StatCard
+          title={t('dashboard.allAgreements')}
+          value={stats?.total_agreements ?? 0}
+          detail={t('dashboard.totalRecords')}
+          icon={<FileText className="h-5 w-5" />}
+          onClick={() => navigate('/agreements')}
+        />
       </section>
 
       {/* Detail cards grid */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-
         {/* Customer Agreements Card */}
-        <div onClick={() => navigate('/agreements')} className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50">
+        <div
+          onClick={() => navigate('/agreements')}
+          className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50"
+        >
           <div className="mb-3 flex items-center gap-2">
             <Users className="h-4 w-4 text-slate-400" />
             <p className="app-kicker m-0">{t('dashboardCards.customerAgreements')}</p>
           </div>
-          <div className="text-3xl font-bold tracking-tight text-slate-900">{stats?.customer_agreements?.total ?? 0}</div>
+          <div className="text-3xl font-bold tracking-tight text-slate-900">
+            {stats?.customer_agreements?.total ?? 0}
+          </div>
           <p className="mt-1 text-sm text-slate-500">{t('dashboardCards.activeOverdue')}</p>
           <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">{t('dashboardCards.endingToday')}</span>
-              <span className={`font-medium ${(stats?.customer_agreements?.ending_today ?? 0) > 0 ? 'text-amber-600' : 'text-slate-700'}`}>{stats?.customer_agreements?.ending_today ?? 0}</span>
+              <span
+                className={`font-medium ${(stats?.customer_agreements?.ending_today ?? 0) > 0 ? 'text-amber-600' : 'text-slate-700'}`}
+              >
+                {stats?.customer_agreements?.ending_today ?? 0}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">Within 5 days</span>
-              <span className="font-medium text-slate-700">{stats?.customer_agreements?.expiring_5_days ?? 0}</span>
+              <span className="font-medium text-slate-700">
+                {stats?.customer_agreements?.expiring_5_days ?? 0}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">Within 10 days</span>
-              <span className="font-medium text-slate-700">{stats?.customer_agreements?.expiring_10_days ?? 0}</span>
+              <span className="font-medium text-slate-700">
+                {stats?.customer_agreements?.expiring_10_days ?? 0}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-red-600">{t('agreements.status.overdue')}</span>
-              <span className={`font-medium ${(stats?.customer_agreements?.overdue ?? 0) > 0 ? 'text-red-600' : 'text-slate-700'}`}>{stats?.customer_agreements?.overdue ?? 0}</span>
+              <span
+                className={`font-medium ${(stats?.customer_agreements?.overdue ?? 0) > 0 ? 'text-red-600' : 'text-slate-700'}`}
+              >
+                {stats?.customer_agreements?.overdue ?? 0}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Vendor Agreements Card */}
-        <div onClick={() => navigate('/agreements')} className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50">
+        <div
+          onClick={() => navigate('/agreements')}
+          className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50"
+        >
           <div className="mb-3 flex items-center gap-2">
             <Building2 className="h-4 w-4 text-slate-400" />
             <p className="app-kicker m-0">{t('dashboardCards.vendorAgreements')}</p>
           </div>
-          <div className="text-3xl font-bold tracking-tight text-slate-900">{stats?.vendor_agreements?.total ?? 0}</div>
+          <div className="text-3xl font-bold tracking-tight text-slate-900">
+            {stats?.vendor_agreements?.total ?? 0}
+          </div>
           <p className="mt-1 text-sm text-slate-500">{t('dashboardCards.activeOverdue')}</p>
           <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">{t('dashboardCards.endingToday')}</span>
-              <span className={`font-medium ${(stats?.vendor_agreements?.ending_today ?? 0) > 0 ? 'text-amber-600' : 'text-slate-700'}`}>{stats?.vendor_agreements?.ending_today ?? 0}</span>
+              <span
+                className={`font-medium ${(stats?.vendor_agreements?.ending_today ?? 0) > 0 ? 'text-amber-600' : 'text-slate-700'}`}
+              >
+                {stats?.vendor_agreements?.ending_today ?? 0}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">Within 5 days</span>
-              <span className="font-medium text-slate-700">{stats?.vendor_agreements?.expiring_5_days ?? 0}</span>
+              <span className="font-medium text-slate-700">
+                {stats?.vendor_agreements?.expiring_5_days ?? 0}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">Within 10 days</span>
-              <span className="font-medium text-slate-700">{stats?.vendor_agreements?.expiring_10_days ?? 0}</span>
+              <span className="font-medium text-slate-700">
+                {stats?.vendor_agreements?.expiring_10_days ?? 0}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-red-600">{t('agreements.status.overdue')}</span>
-              <span className={`font-medium ${(stats?.vendor_agreements?.overdue ?? 0) > 0 ? 'text-red-600' : 'text-slate-700'}`}>{stats?.vendor_agreements?.overdue ?? 0}</span>
+              <span
+                className={`font-medium ${(stats?.vendor_agreements?.overdue ?? 0) > 0 ? 'text-red-600' : 'text-slate-700'}`}
+              >
+                {stats?.vendor_agreements?.overdue ?? 0}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Pickups Card */}
-        <div onClick={() => navigate('/agreements')} className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50">
+        <div
+          onClick={() => navigate('/agreements')}
+          className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50"
+        >
           <div className="mb-3 flex items-center gap-2">
             <Car className="h-4 w-4 text-sky-500" />
             <p className="app-kicker text-sky-600 m-0">{t('dashboardCards.upcomingPickups')}</p>
           </div>
-          <div className="text-3xl font-bold tracking-tight text-slate-900">{stats?.pickups?.total ?? 0}</div>
+          <div className="text-3xl font-bold tracking-tight text-slate-900">
+            {stats?.pickups?.total ?? 0}
+          </div>
           <p className="mt-1 text-sm text-slate-500">{t('dashboardCards.scheduledPickups')}</p>
           <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">{t('dashboardCards.today')}</span>
-              <span className={`font-medium ${(stats?.pickups?.today ?? 0) > 0 ? 'text-sky-600' : 'text-slate-700'}`}>{stats?.pickups?.today ?? 0}</span>
+              <span
+                className={`font-medium ${(stats?.pickups?.today ?? 0) > 0 ? 'text-sky-600' : 'text-slate-700'}`}
+              >
+                {stats?.pickups?.today ?? 0}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">{t('dashboardCards.tomorrow')}</span>
@@ -451,54 +653,82 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">Within 5 days</span>
-              <span className="font-medium text-slate-700">{stats?.pickups?.within_5_days ?? 0}</span>
+              <span className="font-medium text-slate-700">
+                {stats?.pickups?.within_5_days ?? 0}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">Within 10 days</span>
-              <span className="font-medium text-slate-700">{stats?.pickups?.within_10_days ?? 0}</span>
+              <span className="font-medium text-slate-700">
+                {stats?.pickups?.within_10_days ?? 0}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Insurance Reminder Card */}
-        <div onClick={() => navigate('/vehicles')} className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50">
+        <div
+          onClick={() => navigate('/vehicles')}
+          className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50"
+        >
           <div className="mb-3 flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-red-600" />
             <p className="app-kicker text-red-700 m-0">{t('dashboardCards.insuranceReminder')}</p>
           </div>
-          <div className="text-3xl font-bold tracking-tight text-red-700">{stats?.vehicles?.insurance?.total ?? 0}</div>
+          <div className="text-3xl font-bold tracking-tight text-red-700">
+            {stats?.vehicles?.insurance?.total ?? 0}
+          </div>
           <p className="mt-1 text-sm text-slate-500">{t('dashboardCards.vehiclesExpiringSoon')}</p>
           <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">{t('dashboardCards.expiringToday')}</span>
-              <span className={`font-medium ${(stats?.vehicles?.insurance?.today ?? 0) > 0 ? 'text-amber-600' : 'text-slate-700'}`}>{stats?.vehicles?.insurance?.today ?? 0}</span>
+              <span
+                className={`font-medium ${(stats?.vehicles?.insurance?.today ?? 0) > 0 ? 'text-amber-600' : 'text-slate-700'}`}
+              >
+                {stats?.vehicles?.insurance?.today ?? 0}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">Within 5 days</span>
-              <span className="font-medium text-slate-700">{stats?.vehicles?.insurance?.within_5_days ?? 0}</span>
+              <span className="font-medium text-slate-700">
+                {stats?.vehicles?.insurance?.within_5_days ?? 0}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">Within 10 days</span>
-              <span className="font-medium text-slate-700">{stats?.vehicles?.insurance?.within_10_days ?? 0}</span>
+              <span className="font-medium text-slate-700">
+                {stats?.vehicles?.insurance?.within_10_days ?? 0}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">{t('dashboardCards.withinThisMonth')}</span>
-              <span className="font-medium text-slate-700">{stats?.vehicles?.insurance?.within_month ?? 0}</span>
+              <span className="font-medium text-slate-700">
+                {stats?.vehicles?.insurance?.within_month ?? 0}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-red-600">{t('dashboardCards.overdueExpired')}</span>
-              <span className={`font-medium ${(stats?.vehicles?.insurance?.overdue ?? 0) > 0 ? 'text-red-600' : 'text-slate-700'}`}>{stats?.vehicles?.insurance?.overdue ?? 0}</span>
+              <span
+                className={`font-medium ${(stats?.vehicles?.insurance?.overdue ?? 0) > 0 ? 'text-red-600' : 'text-slate-700'}`}
+              >
+                {stats?.vehicles?.insurance?.overdue ?? 0}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Fleet Status Card */}
-        <div onClick={() => navigate('/vehicles')} className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50">
+        <div
+          onClick={() => navigate('/vehicles')}
+          className="app-panel cursor-pointer p-5 transition-colors hover:bg-slate-50"
+        >
           <div className="mb-3 flex items-center gap-2">
             <Car className="h-4 w-4 text-emerald-500" />
             <p className="app-kicker text-emerald-600 m-0">{t('dashboardCards.fleetStatus')}</p>
           </div>
-          <div className="text-3xl font-bold tracking-tight text-slate-900">{stats?.vehicles?.total ?? 0}</div>
+          <div className="text-3xl font-bold tracking-tight text-slate-900">
+            {stats?.vehicles?.total ?? 0}
+          </div>
           <p className="mt-1 text-sm text-slate-500">{t('dashboardCards.totalVehiclesFleet')}</p>
           <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
             <div className="flex items-center justify-between text-sm">
@@ -507,7 +737,9 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">{t('vehicles.status.available')}</span>
-              <span className="font-medium text-emerald-600">{stats?.vehicles?.available ?? 0}</span>
+              <span className="font-medium text-emerald-600">
+                {stats?.vehicles?.available ?? 0}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">{t('vehicles.status.reserved')}</span>
@@ -515,13 +747,13 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">{t('vehicles.status.maintenance')}</span>
-              <span className="font-medium text-amber-600">{stats?.vehicles?.maintenance ?? 0}</span>
+              <span className="font-medium text-amber-600">
+                {stats?.vehicles?.maintenance ?? 0}
+              </span>
             </div>
           </div>
         </div>
-
       </section>
-
 
       {/* Telegram — collapsed at bottom, not dominating the page */}
       <section>
@@ -534,11 +766,13 @@ export default function DashboardPage() {
               <span>{t('telegram.botNotifications')}</span>
               {telegramStatus?.linked ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{t('agreements.vendorWedding.linked')}
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  {t('agreements.vendorWedding.linked')}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />{t('telegram.notLinked')}
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  {t('telegram.notLinked')}
                 </span>
               )}
             </div>
@@ -546,48 +780,68 @@ export default function DashboardPage() {
 
           <div className="border-t border-sky-100 p-5 space-y-4">
             <p className="text-sm text-slate-600">
-              Link your staff account to receive overdue alerts and use the bot for customer/vehicle lookups.
+              Link your staff account to receive overdue alerts and use the bot for customer/vehicle
+              lookups.
             </p>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('dashboard.status')}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  {t('dashboard.status')}
+                </p>
                 <p className="mt-2 text-sm font-medium text-slate-900">
-                  {isTelegramLoading ? 'Checking…' : telegramStatus?.linked
-                    ? `Linked as @${telegramStatus.telegram_username ?? 'unknown'}`
-                    : 'Not linked yet'}
+                  {isTelegramLoading
+                    ? 'Checking…'
+                    : telegramStatus?.linked
+                      ? `Linked as @${telegramStatus.telegram_username ?? 'unknown'}`
+                      : 'Not linked yet'}
                 </p>
                 {telegramStatus?.linked_at && (
                   <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
                     <ShieldCheck className="h-3 w-3 text-emerald-500" />
-                    Since {formatDateTimeLabel(telegramStatus.linked_at)}
+                    Since {formatDateTimeLabel(telegramStatus.linked_at, dateLocale)}
                   </p>
                 )}
               </div>
 
               <div className="rounded-xl bg-slate-900 p-4 text-white">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Bot</p>
-                <p className="mt-2 text-sm font-semibold">{botUsername ? `@${botUsername}` : 'Not configured'}</p>
+                <p className="mt-2 text-sm font-semibold">
+                  {botUsername ? `@${botUsername}` : 'Not configured'}
+                </p>
                 {botLink && (
-                  <a href={botLink} target="_blank" rel="noreferrer"
-                    className="mt-2 inline-flex items-center gap-1.5 text-xs text-sky-300 hover:text-sky-200">
-                    {t('telegram.openInTelegram')}<ExternalLink className="h-3 w-3" />
+                  <a
+                    href={botLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs text-sky-300 hover:text-sky-200"
+                  >
+                    {t('telegram.openInTelegram')}
+                    <ExternalLink className="h-3 w-3" />
                   </a>
                 )}
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => createLinkCodeMutation.mutate()}
+              <button
+                type="button"
+                onClick={() => createLinkCodeMutation.mutate()}
                 disabled={createLinkCodeMutation.isPending}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60">
-                <RefreshCw className={`h-4 w-4 ${createLinkCodeMutation.isPending ? 'animate-spin' : ''}`} />
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${createLinkCodeMutation.isPending ? 'animate-spin' : ''}`}
+                />
                 {activeLinkCode ? 'Refresh code' : 'Generate code'}
               </button>
               {telegramStatus?.linked && (
-                <button type="button" onClick={() => unlinkTelegramMutation.mutate()}
+                <button
+                  type="button"
+                  onClick={() => unlinkTelegramMutation.mutate()}
                   disabled={unlinkTelegramMutation.isPending}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                >
                   {t('telegram.removeLink')}
                 </button>
               )}
@@ -597,14 +851,21 @@ export default function DashboardPage() {
               <div className="rounded-xl border border-sky-100 bg-sky-50 p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-sky-500">{t('telegram.yourCode')}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-sky-500">
+                      {t('telegram.yourCode')}
+                    </p>
                     <p className="mt-1 font-mono text-2xl font-bold tracking-widest text-slate-900">
                       {activeLinkCode.code}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">Expires {formatDateTimeLabel(activeLinkCode.expires_at)}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Expires {formatDateTimeLabel(activeLinkCode.expires_at, dateLocale)}
+                    </p>
                   </div>
-                  <button type="button" onClick={handleCopyLinkCode}
-                    className="flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100">
+                  <button
+                    type="button"
+                    onClick={handleCopyLinkCode}
+                    className="flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100"
+                  >
                     <Copy className="h-4 w-4" /> {t('common.copy')}
                   </button>
                 </div>

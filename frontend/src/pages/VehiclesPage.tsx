@@ -105,10 +105,16 @@ export default function VehiclesPage() {
       cell: (vehicle) => (
         <>
           <div>
-            {vehicle.year} · {vehicle.color}
+            {vehicle.year} ·{' '}
+            {t(`vehicleValues.colors.${vehicle.color.toLowerCase()}`, {
+              defaultValue: vehicle.color,
+            })}
           </div>
           <div className="text-xs text-slate-400 dark:text-slate-500">
-            {vehicle.vehicle_type} · {t('vehicles.seats', '{{count}} seats', { count: vehicle.seats })}
+            {t(`vehicleValues.types.${vehicle.vehicle_type.toLowerCase()}`, {
+              defaultValue: vehicle.vehicle_type,
+            })}{' '}
+            · {t('vehicles.seats', '{{count}} seats', { count: vehicle.seats })}
           </div>
         </>
       ),
@@ -148,7 +154,9 @@ export default function VehiclesPage() {
               >
                 <option value="available">{t('vehicles.status.available', 'Available')}</option>
                 <option value="rented">{t('vehicles.status.rented', 'Rented')}</option>
-                <option value="maintenance">{t('vehicles.status.maintenance', 'Maintenance')}</option>
+                <option value="maintenance">
+                  {t('vehicles.status.maintenance', 'Maintenance')}
+                </option>
                 <option value="reserved">{t('vehicles.status.reserved', 'Reserved')}</option>
                 <option value="inactive">{t('vehicles.status.retired', 'Retired')}</option>
               </select>

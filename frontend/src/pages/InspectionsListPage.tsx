@@ -67,7 +67,7 @@ export default function InspectionsListPage() {
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
       ) : data && data.items.length > 0 ? (
-        <div className="overflow-x-auto rounded-lg bg-white shadow">
+        <div className="[contain:paint] overflow-x-auto rounded-lg bg-white shadow">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b text-left text-xs font-semibold uppercase tracking-wider text-gray-500">

@@ -57,7 +57,7 @@ export function DataTable<T>({
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-night-surface dark:ring-night-border',
+        'min-w-0 max-w-full overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-night-surface dark:ring-night-border',
         className
       )}
     >
@@ -75,9 +75,13 @@ export function DataTable<T>({
         </div>
       ) : (
         /* Wide tables scroll horizontally instead of forcing the page to. */
-        <div className="overflow-x-auto">
+        <div className="w-full max-w-full [contain:paint] overflow-x-auto">
           <table className="min-w-full">
-            {caption && <caption className="sr-only">{caption}</caption>}
+            {caption && (
+              <caption className="absolute h-px w-px overflow-hidden whitespace-nowrap [clip-path:inset(50%)]">
+                {caption}
+              </caption>
+            )}
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 dark:border-night-border dark:bg-white/5">
                 {columns.map((col) => (

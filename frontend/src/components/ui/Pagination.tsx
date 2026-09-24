@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 /**
  * Page stepper for the list pages. Announces itself as navigation and reports the
@@ -9,7 +10,7 @@ export function Pagination({
   pageSize,
   total,
   onPageChange,
-  label = 'Pagination',
+  label,
 }: {
   page: number
   pageSize: number
@@ -17,6 +18,7 @@ export function Pagination({
   onPageChange: (page: number) => void
   label?: string
 }) {
+  const { t } = useTranslation()
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
   if (total === 0) return null
 
@@ -28,12 +30,14 @@ export function Pagination({
 
   return (
     <nav
-      aria-label={label}
+      aria-label={label ?? t('pagination.label')}
       className="mt-4 flex flex-wrap items-center justify-between gap-3"
     >
       <p className="text-sm text-slate-500 dark:text-slate-400">
-        Showing <span className="font-medium text-slate-700 dark:text-slate-200">{first}</span>–
-        <span className="font-medium text-slate-700 dark:text-slate-200">{last}</span> of{' '}
+        {t('pagination.showing')}{' '}
+        <span className="font-medium text-slate-700 dark:text-slate-200">{first}</span>–
+        <span className="font-medium text-slate-700 dark:text-slate-200">{last}</span>{' '}
+        {t('pagination.of')}{' '}
         <span className="font-medium text-slate-700 dark:text-slate-200">{total}</span>
       </p>
       <div className="flex items-center gap-2">
@@ -44,10 +48,10 @@ export function Pagination({
           className={buttonClass}
         >
           <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          Previous
+          {t('common.previous')}
         </button>
         <span className="text-sm text-slate-500 dark:text-slate-400" aria-live="polite">
-          Page {page} of {totalPages}
+          {t('pagination.pageOf', { page, totalPages })}
         </span>
         <button
           type="button"
@@ -55,7 +59,7 @@ export function Pagination({
           disabled={page >= totalPages}
           className={buttonClass}
         >
-          Next
+          {t('common.next')}
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>

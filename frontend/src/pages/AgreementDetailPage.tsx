@@ -2,15 +2,38 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Ban, Car, CreditCard, FileText, User, UserCheck, Shield, Printer } from 'lucide-react'
-import { agreementsService, PostChargeData, PostDepositData, PostPaymentData, AgreementDetail, ledgerService, availabilityService } from '@/services/agreements'
+import {
+  ArrowLeft,
+  Ban,
+  Car,
+  CreditCard,
+  FileText,
+  User,
+  UserCheck,
+  Shield,
+  Printer,
+} from 'lucide-react'
+import {
+  agreementsService,
+  PostChargeData,
+  PostDepositData,
+  PostPaymentData,
+  AgreementDetail,
+  ledgerService,
+  availabilityService,
+} from '@/services/agreements'
 import { customersService } from '@/services/customers'
 import { collateralsService } from '@/services/collaterals'
 import { vehiclesService } from '@/services/vehicles'
 import LedgerTable from '@/components/ledger/LedgerTable'
 import { getErrorMessage } from '@/services/apiClient'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { datetimeLocalToWallClockIso, localNowWallClockIso, toDatetimeLocalValue, toNumber } from '@/lib/utils'
+import {
+  datetimeLocalToWallClockIso,
+  localNowWallClockIso,
+  toDatetimeLocalValue,
+  toNumber,
+} from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { documentsService } from '@/services/documents'
 
@@ -33,7 +56,9 @@ export default function AgreementDetailPage() {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<'details' | 'ledger' | 'vehicles'>('details')
   const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const [showDepositModal, setShowDepositModal] = useState<null | 'receive' | 'apply' | 'refund'>(null)
+  const [showDepositModal, setShowDepositModal] = useState<null | 'receive' | 'apply' | 'refund'>(
+    null
+  )
   const [showChargeModal, setShowChargeModal] = useState<null | 'damage' | 'late'>(null)
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false)
   const [confirmAction, setConfirmAction] = useState<null | 'activate' | 'approve'>(null)
@@ -54,7 +79,11 @@ export default function AgreementDetailPage() {
   const isValidId = /^\d+$/.test(idString)
   const agreementId = isValidId ? Number.parseInt(idString, 10) : null
 
-  const { data: agreement, isLoading, error } = useQuery({
+  const {
+    data: agreement,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['agreement', idString],
     queryFn: () => {
       if (!agreementId) {
@@ -68,8 +97,10 @@ export default function AgreementDetailPage() {
   const depositMutation = useMutation({
     mutationFn: async (payload: { action: 'receive' | 'apply' | 'refund'; data: unknown }) => {
       if (!agreementId) throw new Error('Invalid agreement id')
-      if (payload.action === 'receive') return agreementsService.receiveDeposit(agreementId, payload.data as PostDepositData)
-      if (payload.action === 'apply') return agreementsService.applyDeposit(agreementId, payload.data as { amount: number })
+      if (payload.action === 'receive')
+        return agreementsService.receiveDeposit(agreementId, payload.data as PostDepositData)
+      if (payload.action === 'apply')
+        return agreementsService.applyDeposit(agreementId, payload.data as { amount: number })
       return agreementsService.refundDeposit(agreementId, payload.data as { amount: number })
     },
     onSuccess: () => {
@@ -81,7 +112,7 @@ export default function AgreementDetailPage() {
     },
     onError: (err: unknown) => {
       console.error('Deposit action error:', err)
-      const error = err as { response?: { data?: { detail?: string } }, message?: string }
+      const error = err as { response?: { data?: { detail?: string } }; message?: string }
       setPageError(getErrorMessage(error, 'Deposit action failed'))
     },
   })
@@ -89,7 +120,8 @@ export default function AgreementDetailPage() {
   const chargeMutation = useMutation({
     mutationFn: async (payload: { action: 'damage' | 'late'; data: PostChargeData }) => {
       if (!agreementId) throw new Error('Invalid agreement id')
-      if (payload.action === 'damage') return agreementsService.postDamageCharge(agreementId, payload.data)
+      if (payload.action === 'damage')
+        return agreementsService.postDamageCharge(agreementId, payload.data)
       return agreementsService.postLateFee(agreementId, payload.data)
     },
     onSuccess: () => {
@@ -101,7 +133,7 @@ export default function AgreementDetailPage() {
     },
     onError: (err: unknown) => {
       console.error('Charge action error:', err)
-      const error = err as { response?: { data?: { detail?: string } }, message?: string }
+      const error = err as { response?: { data?: { detail?: string } }; message?: string }
       setPageError(getErrorMessage(error, 'Failed to post charge'))
     },
   })
@@ -139,8 +171,7 @@ export default function AgreementDetailPage() {
       if (!agreementId) throw new Error('Invalid agreement id')
       return documentsService.generateReceipt(agreementId, paymentId)
     },
-    onError: (error: unknown) =>
-      setPageError(getErrorMessage(error, t('ledger.receiptFailed'))),
+    onError: (error: unknown) => setPageError(getErrorMessage(error, t('ledger.receiptFailed'))),
   })
 
   const addVehicleMutation = useMutation({
@@ -197,7 +228,7 @@ export default function AgreementDetailPage() {
     },
     onError: (err: unknown) => {
       console.error('Close agreement error:', err)
-      const error = err as { response?: { data?: { detail?: string } }, message?: string }
+      const error = err as { response?: { data?: { detail?: string } }; message?: string }
       setPageError(getErrorMessage(error, 'Failed to close agreement'))
     },
   })
@@ -212,14 +243,18 @@ export default function AgreementDetailPage() {
     },
     onError: (err: unknown) => {
       console.error('Activate agreement error:', err)
-      const error = err as { response?: { data?: { detail?: string } }, message?: string }
+      const error = err as { response?: { data?: { detail?: string } }; message?: string }
       setPageError(getErrorMessage(error, 'Failed to activate agreement'))
     },
   })
 
   const returnMutation = useMutation({
-    mutationFn: (data: { actual_return_datetime: string; return_mileage?: number; fuel_level_in?: number; notes?: string }) =>
-      agreementsService.markReturned(agreementId as number, data),
+    mutationFn: (data: {
+      actual_return_datetime: string
+      return_mileage?: number
+      fuel_level_in?: number
+      notes?: string
+    }) => agreementsService.markReturned(agreementId as number, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
       // LedgerTable keys on the numeric id, so the table and its totals
@@ -229,7 +264,7 @@ export default function AgreementDetailPage() {
     },
     onError: (err: unknown) => {
       console.error('Return agreement error:', err)
-      const error = err as { response?: { data?: { detail?: string } }, message?: string }
+      const error = err as { response?: { data?: { detail?: string } }; message?: string }
       setPageError(getErrorMessage(error, 'Failed to mark agreement returned'))
     },
   })
@@ -259,7 +294,7 @@ export default function AgreementDetailPage() {
       setShowCancelConfirm(false)
     },
     onError: (err: unknown) => {
-      const error = err as { response?: { data?: { detail?: string } }, message?: string }
+      const error = err as { response?: { data?: { detail?: string } }; message?: string }
       setPageError(getErrorMessage(error, 'Failed to cancel agreement'))
     },
   })
@@ -273,13 +308,14 @@ export default function AgreementDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['ledger', agreementId] })
     },
     onError: (err: unknown) => {
-      const error = err as { response?: { data?: { detail?: string } }, message?: string }
+      const error = err as { response?: { data?: { detail?: string } }; message?: string }
       setPageError(getErrorMessage(error, 'Failed to approve booking request'))
     },
   })
 
   const paymentMutation = useMutation({
-    mutationFn: (data: PostPaymentData) => agreementsService.postPayment(agreementId as number, data),
+    mutationFn: (data: PostPaymentData) =>
+      agreementsService.postPayment(agreementId as number, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
       // LedgerTable keys on the numeric id, so the table and its totals
@@ -289,7 +325,7 @@ export default function AgreementDetailPage() {
     },
     onError: (err: unknown) => {
       console.error('Post payment error:', err)
-      const error = err as { response?: { data?: { detail?: string } }, message?: string }
+      const error = err as { response?: { data?: { detail?: string } }; message?: string }
       setPageError(getErrorMessage(error, 'Failed to post payment'))
     },
   })
@@ -351,18 +387,13 @@ export default function AgreementDetailPage() {
   const canPostPayment = ['pending_payment', 'active', 'overdue'].includes(agreement.status)
   const canPostCharge = ['active', 'overdue'].includes(agreement.status)
   const canSettleDeposit = ['active', 'overdue', 'returned', 'closed'].includes(agreement.status)
-  const showSettlementActions =
-    canReceiveDeposit || canPostCharge || canSettleDeposit
+  const showSettlementActions = canReceiveDeposit || canPostCharge || canSettleDeposit
 
   const handleActivate = () => setConfirmAction('activate')
 
   return (
     <div className="p-6">
-      {pageError && (
-        <div className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">
-          {pageError}
-        </div>
-      )}
+      {pageError && <div className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">{pageError}</div>}
       {/* Header */}
       <div className="mb-6">
         <button
@@ -478,9 +509,7 @@ export default function AgreementDetailPage() {
         <div className="rounded-lg bg-white p-4 shadow">
           <div className="text-sm text-gray-500">{t('ledger.balanceDue')}</div>
           <div
-            className={`text-2xl font-bold ${
-              shownBalance > 0 ? 'text-red-600' : 'text-green-600'
-            }`}
+            className={`text-2xl font-bold ${shownBalance > 0 ? 'text-red-600' : 'text-green-600'}`}
           >
             {formatCurrency(shownBalance)}
           </div>
@@ -533,7 +562,9 @@ export default function AgreementDetailPage() {
           <div className="space-y-6">
             <div className="rounded-lg border bg-gray-50 p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-gray-800">{t('sections.depositDeductions')}</div>
+                <div className="text-sm font-semibold text-gray-800">
+                  {t('sections.depositDeductions')}
+                </div>
                 {showSettlementActions && (
                   <div className="flex flex-wrap gap-2">
                     {canReceiveDeposit && (
@@ -595,12 +626,24 @@ export default function AgreementDetailPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
-                <div className="flex justify-between"><span className="text-gray-500">{t('ledger.depositReceived')}</span><span className="font-medium">{formatCurrency(depositReceived)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">{t('ledger.depositApplied')}</span><span className="font-medium">{formatCurrency(depositApplied)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">{t('ledger.depositRefunded')}</span><span className="font-medium">{formatCurrency(depositReturned)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">{t('ledger.depositHeld')}</span><span className="font-medium">{formatCurrency(depositHeld)}</span></div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">{t('ledger.depositReceived')}</span>
+                  <span className="font-medium">{formatCurrency(depositReceived)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">{t('ledger.depositApplied')}</span>
+                  <span className="font-medium">{formatCurrency(depositApplied)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">{t('ledger.depositRefunded')}</span>
+                  <span className="font-medium">{formatCurrency(depositReturned)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">{t('ledger.depositHeld')}</span>
+                  <span className="font-medium">{formatCurrency(depositHeld)}</span>
+                </div>
               </div>
-              <div className="mt-3 text-xs text-gray-500">Deposit is deductible for damage/late fees. Apply deposit to cover charges; refund remaining deposit when appropriate.</div>
+              <div className="mt-3 text-xs text-gray-500">{t('ledger.depositHelper')}</div>
             </div>
 
             {/* Customer Information */}
@@ -630,7 +673,9 @@ export default function AgreementDetailPage() {
                 {/* Identity */}
                 <div className="flex justify-between">
                   <span className="text-gray-500">{t('agreementCreate.idType')}</span>
-                  <span className="font-medium capitalize">{customer?.id_type?.replace('_', ' ') || '—'}</span>
+                  <span className="font-medium capitalize">
+                    {customer?.id_type?.replace('_', ' ') || '—'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">{t('agreementCreate.idNumber')}</span>
@@ -639,7 +684,7 @@ export default function AgreementDetailPage() {
 
                 {/* Driver's license */}
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Driver's License</span>
+                  <span className="text-gray-500">{t('customerCreate.driverLicense')}</span>
                   <span className="font-medium">{customer?.driver_license_number || '—'}</span>
                 </div>
                 <div className="flex justify-between">
@@ -693,7 +738,9 @@ export default function AgreementDetailPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">{t('vehicleUpsert.insuranceExpiry')}</span>
-                    <span className="font-medium">{vehicle.insurance_expiry ? vehicle.insurance_expiry.split('T')[0] : '—'}</span>
+                    <span className="font-medium">
+                      {vehicle.insurance_expiry ? vehicle.insurance_expiry.split('T')[0] : '—'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -736,7 +783,8 @@ export default function AgreementDetailPage() {
                   <div className="flex justify-between">
                     <span className="text-gray-500">{t('customers.columns.name')}</span>
                     <span className="font-medium">
-                      {agreement.collateral_person.first_name} {agreement.collateral_person.last_name}
+                      {agreement.collateral_person.first_name}{' '}
+                      {agreement.collateral_person.last_name}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -788,7 +836,9 @@ export default function AgreementDetailPage() {
             {/* Rental Period & Locations */}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
-                <h3 className="mb-4 font-semibold text-gray-800">{t('agreementCreate.rentalPeriod')}</h3>
+                <h3 className="mb-4 font-semibold text-gray-800">
+                  {t('agreementCreate.rentalPeriod')}
+                </h3>
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-500">{t('agreementActions.pickup')}</span>
@@ -847,8 +897,12 @@ export default function AgreementDetailPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-semibold text-gray-800">{t('ledger.financialLedger')}</h3>
-                <p className="text-xs text-gray-500">Append-only audit trail — every charge, payment, and adjustment</p>
+                <h3 className="text-base font-semibold text-gray-800">
+                  {t('ledger.financialLedger')}
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Append-only audit trail — every charge, payment, and adjustment
+                </p>
               </div>
               {canPostPayment && (
                 <button
@@ -987,9 +1041,7 @@ export default function AgreementDetailPage() {
           entry={reverseTarget}
           isLoading={reverseMutation.isPending}
           onClose={() => setReverseTarget(null)}
-          onConfirm={(reason) =>
-            reverseMutation.mutate({ entryId: reverseTarget.id, reason })
-          }
+          onConfirm={(reason) => reverseMutation.mutate({ entryId: reverseTarget.id, reason })}
         />
       )}
 
@@ -1075,10 +1127,14 @@ export default function AgreementDetailPage() {
           balanceDue={shownBalance}
           onClose={() => setShowSettlementModal(false)}
           onApplyDeposit={(amount) => depositMutation.mutate({ action: 'apply', data: { amount } })}
-          onRefundDeposit={(amount) => depositMutation.mutate({ action: 'refund', data: { amount } })}
+          onRefundDeposit={(amount) =>
+            depositMutation.mutate({ action: 'refund', data: { amount } })
+          }
           onRecordPayment={() => setShowPaymentModal(true)}
           onClose_final={() => {
-            closeMutation.mutate({ actual_return_datetime: agreement.actual_return_datetime || localNowWallClockIso() })
+            closeMutation.mutate({
+              actual_return_datetime: agreement.actual_return_datetime || localNowWallClockIso(),
+            })
           }}
           isLoading={closeMutation.isPending || depositMutation.isPending}
         />
@@ -1113,7 +1169,9 @@ function AmountModal({
 }) {
   const { t } = useTranslation()
   const [amount, setAmount] = useState(defaultAmount ?? '')
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bank_transfer' | 'telebirr' | 'cbe_birr' | 'check' | 'other'>('cash')
+  const [paymentMethod, setPaymentMethod] = useState<
+    'cash' | 'bank_transfer' | 'telebirr' | 'cbe_birr' | 'check' | 'other'
+  >('cash')
   const [description, setDescription] = useState('')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -1123,9 +1181,7 @@ function AmountModal({
     const parsed = Number.parseFloat(amount)
     if (!Number.isFinite(parsed) || (allowNegative ? parsed === 0 : parsed <= 0)) {
       setError(
-        allowNegative
-          ? t('validation.nonZeroAmountRequired')
-          : t('validation.validAmountRequired')
+        allowNegative ? t('validation.nonZeroAmountRequired') : t('validation.validAmountRequired')
       )
       return
     }
@@ -1146,13 +1202,19 @@ function AmountModal({
       <div className="w-full max-w-md rounded-lg bg-white p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold">{title}</h2>
-          <button type="button" onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
             {t('common.close')}
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.amountEtb')}</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t('ledger.amountEtb')}
+            </label>
             <input
               type="number"
               step="0.01"
@@ -1166,10 +1228,22 @@ function AmountModal({
 
           {requirePaymentMethod && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.paymentMethod')}</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                {t('ledger.paymentMethod')}
+              </label>
               <select
                 value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'bank_transfer' | 'telebirr' | 'cbe_birr' | 'check' | 'other')}
+                onChange={(e) =>
+                  setPaymentMethod(
+                    e.target.value as
+                      | 'cash'
+                      | 'bank_transfer'
+                      | 'telebirr'
+                      | 'cbe_birr'
+                      | 'check'
+                      | 'other'
+                  )
+                }
                 className="w-full rounded-lg border border-gray-300 px-3 py-2"
               >
                 <option value="cash">{t('payment.cash')}</option>
@@ -1184,7 +1258,9 @@ function AmountModal({
 
           {showDescription && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.descriptionOptional')}</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                {t('ledger.descriptionOptional')}
+              </label>
               <input
                 type="text"
                 value={description}
@@ -1195,7 +1271,9 @@ function AmountModal({
           )}
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.notesOptional')}</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t('ledger.notesOptional')}
+            </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -1207,7 +1285,11 @@ function AmountModal({
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border px-4 py-2 hover:bg-gray-50"
+            >
               {t('common.cancel')}
             </button>
             <button
@@ -1265,7 +1347,9 @@ function PaymentModal({
         <h2 className="mb-4 text-xl font-bold">{t('ledger.postPayment')}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.amountEtb')}</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t('ledger.amountEtb')}
+            </label>
             <input
               type="number"
               step="0.01"
@@ -1280,7 +1364,9 @@ function PaymentModal({
             {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.paymentMethod')}</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t('ledger.paymentMethod')}
+            </label>
             <select
               value={method}
               onChange={(e) => setMethod(e.target.value as PostPaymentData['payment_method'])}
@@ -1368,7 +1454,11 @@ function ExtendAgreementModal({
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold">{t('agreementActions.extendAgreement')}</h2>
-          <button type="button" onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
             {t('common.close')}
           </button>
         </div>
@@ -1394,16 +1484,23 @@ function ExtendAgreementModal({
               <span className="font-semibold">{formatCurrency(estimatedCharge)}</span>
             </div>
             <p className="mt-1 text-xs text-blue-700">
-              {additionalDays} day{additionalDays === 1 ? '' : 's'} × {formatCurrency(toNumber(dailyRate))}
+              {additionalDays} day{additionalDays === 1 ? '' : 's'} ×{' '}
+              {formatCurrency(toNumber(dailyRate))}
             </p>
           </div>
 
           {(localError || error) && (
-            <p role="alert" className="text-sm text-red-600">{localError || error}</p>
+            <p role="alert" className="text-sm text-red-600">
+              {localError || error}
+            </p>
           )}
 
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border px-4 py-2 hover:bg-gray-50"
+            >
               {t('common.cancel')}
             </button>
             <button
@@ -1426,7 +1523,12 @@ function ReturnModal({
   isLoading,
 }: {
   onClose: () => void
-  onSubmit: (data: { actual_return_datetime: string; return_mileage?: number; fuel_level_in?: number; notes?: string }) => void
+  onSubmit: (data: {
+    actual_return_datetime: string
+    return_mileage?: number
+    fuel_level_in?: number
+    notes?: string
+  }) => void
   isLoading: boolean
 }) {
   const { t } = useTranslation()
@@ -1451,7 +1553,9 @@ function ReturnModal({
         <h2 className="mb-4 text-xl font-bold">{t('agreementActions.markVehicleReturned')}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementActions.returnDateTime')}</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t('agreementActions.returnDateTime')}
+            </label>
             <input
               type="datetime-local"
               value={returnDate}
@@ -1461,7 +1565,9 @@ function ReturnModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementActions.returnMileageOptional')}</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t('agreementActions.returnMileageOptional')}
+            </label>
             <input
               type="number"
               value={mileage}
@@ -1471,7 +1577,9 @@ function ReturnModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementActions.fuelLevelIn')}</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t('agreementActions.fuelLevelIn')}
+            </label>
             <input
               type="number"
               min="0"
@@ -1483,7 +1591,9 @@ function ReturnModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.notesOptional')}</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t('ledger.notesOptional')}
+            </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -1493,7 +1603,11 @@ function ReturnModal({
             />
           </div>
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border px-4 py-2 hover:bg-gray-50"
+            >
               {t('common.cancel')}
             </button>
             <button
@@ -1555,7 +1669,9 @@ function SettlementModal({
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">Total Payments:</span>
-            <span className="font-semibold text-green-600">{formatCurrency(agreement.total_payments)}</span>
+            <span className="font-semibold text-green-600">
+              {formatCurrency(agreement.total_payments)}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">Deposit Held:</span>
@@ -1787,7 +1903,6 @@ function AddWeddingVehicleModal({
   )
 }
 
-
 function ReverseEntryModal({
   entry,
   onClose,
@@ -1856,7 +1971,6 @@ function ReverseEntryModal({
   )
 }
 
-
 function CancelConfirmModal({
   agreementNumber,
   onClose,
@@ -1873,12 +1987,18 @@ function CancelConfirmModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-1 text-lg font-bold text-gray-900">{t('agreementActions.cancelAgreement')}</h2>
+        <h2 className="mb-1 text-lg font-bold text-gray-900">
+          {t('agreementActions.cancelAgreement')}
+        </h2>
         <p className="mb-4 text-sm text-gray-500">
-          {t('common.cancel')}<span className="font-medium">{agreementNumber}</span>? The vehicle will be released back to available. This cannot be undone.
+          {t('common.cancel')}
+          <span className="font-medium">{agreementNumber}</span>? The vehicle will be released back
+          to available. This cannot be undone.
         </p>
         <div className="mb-4">
-          <label className="mb-1 block text-sm font-medium text-gray-700">{t('ledger.reasonOptional')}</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t('ledger.reasonOptional')}
+          </label>
           <input
             type="text"
             value={reason}
@@ -1888,7 +2008,10 @@ function CancelConfirmModal({
           />
         </div>
         <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
+          <button
+            onClick={onClose}
+            className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50"
+          >
             {t('sections.goBack')}
           </button>
           <button

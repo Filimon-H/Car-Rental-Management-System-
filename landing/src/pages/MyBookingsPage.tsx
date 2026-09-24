@@ -80,14 +80,19 @@ export default function MyBookingsPage() {
     if (!extendDate) return 0
     const current = new Date(booking.expected_return_datetime).getTime()
     // picked date at same time as current return
-    const picked = new Date(extendDate + 'T' + new Date(booking.expected_return_datetime).toISOString().slice(11, 16)).getTime()
+    const picked = new Date(
+      `${extendDate}T${booking.expected_return_datetime.slice(11, 16)}`
+    ).getTime()
     return Math.round((picked - current) / 86400000)
   }
 
   async function handleExtend(booking: MyBooking) {
     if (!extendDate) { setExtendError('Please pick a return date'); return }
-    const returnTime = new Date(booking.expected_return_datetime).toISOString().slice(11, 19)
-    const newDt = new Date(`${extendDate}T${returnTime}Z`).toISOString()
+    // Keep the original return time of day and send wall-clock, matching the
+    // rest of the API. Round-tripping through toISOString() and forcing a Z
+    // shifted the booking by the timezone offset on every extension.
+    const returnTime = booking.expected_return_datetime.slice(11, 19) || '00:00:00'
+    const newDt = `${extendDate}T${returnTime}`
     setExtendLoading(true)
     setExtendError('')
     try {
@@ -269,7 +274,7 @@ export default function MyBookingsPage() {
                         <input
                           type="date"
                           value={extendDate}
-                          min={new Date(b.expected_return_datetime).toISOString().slice(0, 10)}
+                          min={b.expected_return_datetime.slice(0, 10)}
                           onChange={e => { setExtendDate(e.target.value); setExtendError('') }}
                           className="w-full bg-dark border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm mb-3 focus:outline-none focus:border-gold [color-scheme:dark]"
                         />

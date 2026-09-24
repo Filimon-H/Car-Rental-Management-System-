@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useTranslation } from 'react-i18next'
@@ -89,7 +89,9 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Confirm New Password</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Confirm New Password
+            </label>
             <input
               type="password"
               value={confirmPassword}
@@ -163,19 +165,25 @@ function getPageTitleKey(pathname: string): string {
   if (pathname === '/dashboard') return 'nav.dashboard'
   if (pathname.startsWith('/agreements/wedding/new')) return 'pageTitle.newWeddingAgreement'
   if (pathname.startsWith('/agreements/wedding')) return 'pageTitle.weddingAgreements'
-  if (pathname.startsWith('/agreements/new') || pathname === '/agreements/new') return 'pageTitle.newAgreement'
-  if (pathname.startsWith('/agreements/') && pathname.endsWith('/print')) return 'pageTitle.printAgreement'
+  if (pathname.startsWith('/agreements/new') || pathname === '/agreements/new')
+    return 'pageTitle.newAgreement'
+  if (pathname.startsWith('/agreements/') && pathname.endsWith('/print'))
+    return 'pageTitle.printAgreement'
   if (pathname.startsWith('/agreements/')) return 'pageTitle.agreementDetails'
   if (pathname === '/agreements') return 'nav.agreements'
   if (pathname.startsWith('/customers/new')) return 'pageTitle.newCustomer'
   if (pathname.includes('/collaterals/new')) return 'pageTitle.newCollateral'
-  if (pathname.includes('/collaterals/') && pathname.endsWith('/edit')) return 'collateralDetail.editCollateral'
+  if (pathname.includes('/collaterals/') && pathname.endsWith('/edit'))
+    return 'collateralDetail.editCollateral'
   if (pathname.includes('/collaterals/')) return 'collateralDetail.title'
-  if (pathname.startsWith('/customers/') && pathname.endsWith('/edit')) return 'customerDetail.editCustomer'
+  if (pathname.startsWith('/customers/') && pathname.endsWith('/edit'))
+    return 'customerDetail.editCustomer'
   if (pathname.startsWith('/customers/')) return 'customerDetail.title'
   if (pathname === '/customers') return 'nav.customers'
-  if (pathname.startsWith('/vehicles/new') || pathname === '/vehicles/new') return 'pageTitle.addVehicle'
-  if (pathname.startsWith('/vehicles/') && pathname.endsWith('/edit')) return 'pageTitle.editVehicle'
+  if (pathname.startsWith('/vehicles/new') || pathname === '/vehicles/new')
+    return 'pageTitle.addVehicle'
+  if (pathname.startsWith('/vehicles/') && pathname.endsWith('/edit'))
+    return 'pageTitle.editVehicle'
   if (pathname.startsWith('/vehicles/')) return 'pageTitle.vehicleDetails'
   if (pathname === '/vehicles') return 'nav.vehicles'
   if (pathname === '/vendors') return 'nav.vendors'
@@ -210,10 +218,19 @@ export default function Layout() {
   const location = useLocation()
   const { user, logout } = useAuthStore()
   const { isDark, toggle: toggleTheme } = useTheme()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
+  )
   const [langMenuOpen, setLangMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [showChangePassword, setShowChangePassword] = useState(false)
+
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 1024px)')
+    const syncSidebar = (event: MediaQueryListEvent) => setSidebarOpen(event.matches)
+    desktop.addEventListener('change', syncSidebar)
+    return () => desktop.removeEventListener('change', syncSidebar)
+  }, [])
 
   const handleLogout = () => {
     logout()
@@ -238,25 +255,26 @@ export default function Layout() {
 
   const currentLang = languages.find((item) => item.code === i18n.language) || languages[0]
   const pageTitle = t(getPageTitleKey(location.pathname))
-  const todayLabel = new Intl.DateTimeFormat('en-US', {
+  const todayLabel = new Intl.DateTimeFormat(i18n.language.startsWith('am') ? 'am-ET' : 'en-US', {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
   }).format(new Date())
 
   return (
-    <div className="flex min-h-screen bg-transparent">
+    <div className="flex min-h-screen max-w-full overflow-x-clip bg-transparent">
       {/* Visible only on keyboard focus: lets keyboard and screen-reader users jump
           past the sidebar instead of tabbing through every nav link on each page. */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
+        data-visually-hidden="true"
+        className="focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:h-auto focus:w-auto focus:overflow-visible focus:whitespace-normal focus:[clip-path:none] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
       >
-        Skip to main content
+        {t('common.skipToMain')}
       </a>
       <button
         type="button"
-        aria-label="Close navigation"
+        aria-label={t('common.closeNavigation')}
         onClick={() => setSidebarOpen(false)}
         className={`fixed inset-0 z-40 bg-slate-950/40 transition-opacity lg:hidden ${
           sidebarOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
@@ -278,12 +296,18 @@ export default function Layout() {
           {sidebarOpen ? (
             <>
               <div className="flex items-center gap-3">
-                <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${isDark ? 'bg-orange-brand' : 'bg-primary'}`}>
+                <div
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg ${isDark ? 'bg-orange-brand' : 'bg-primary'}`}
+                >
                   <Car className="h-4.5 w-4.5 text-white" />
                 </div>
                 <div>
                   <p className="text-base font-bold tracking-tight text-white">FleetOps</p>
-                  <p className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? 'text-night-subtle' : 'text-slate-500'}`}>Admin</p>
+                  <p
+                    className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? 'text-night-subtle' : 'text-slate-500'}`}
+                  >
+                    Admin
+                  </p>
                 </div>
               </div>
               <button
@@ -338,54 +362,60 @@ export default function Layout() {
             )
             if (visibleItems.length === 0) return null
             return (
-            <div key={group.label} className="mb-4">
-              {sidebarOpen && (
-                <p className={`mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] ${isDark ? 'text-night-subtle/60' : 'text-slate-500'}`}>
-                  {t(group.label)}
-                </p>
-              )}
-              <div className="space-y-1">
-                {visibleItems.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    onClick={handleNavClick}
-                    title={!sidebarOpen ? t(item.label) : undefined}
-                    className={({ isActive }) =>
-                      `flex items-center rounded-xl transition-colors ${
-                        sidebarOpen ? 'gap-3 px-3 py-2.5' : 'justify-center px-2 py-3'
-                      } ${
-                        isActive
-                          ? isDark
-                            ? 'bg-orange-brand/20 text-orange-brand'
-                            : 'bg-white/10 text-white'
-                          : isDark
-                          ? 'text-white/60 hover:bg-white/10 hover:text-white'
-                          : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                      }`
-                    }
+              <div key={group.label} className="mb-4">
+                {sidebarOpen && (
+                  <p
+                    className={`mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] ${isDark ? 'text-night-subtle/60' : 'text-slate-500'}`}
                   >
-                    <item.icon className="h-[18px] w-[18px] flex-shrink-0" />
-                    {sidebarOpen && (
-                      <span className="truncate text-sm font-medium">
-                        {t(item.label)}
-                      </span>
-                    )}
-                  </NavLink>
-                ))}
+                    {t(group.label)}
+                  </p>
+                )}
+                <div className="space-y-1">
+                  {visibleItems.map((item) => (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      onClick={handleNavClick}
+                      title={!sidebarOpen ? t(item.label) : undefined}
+                      className={({ isActive }) =>
+                        `flex items-center rounded-xl transition-colors ${
+                          sidebarOpen ? 'gap-3 px-3 py-2.5' : 'justify-center px-2 py-3'
+                        } ${
+                          isActive
+                            ? isDark
+                              ? 'bg-orange-brand/20 text-orange-brand'
+                              : 'bg-white/10 text-white'
+                            : isDark
+                              ? 'text-white/60 hover:bg-white/10 hover:text-white'
+                              : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                        }`
+                      }
+                    >
+                      <item.icon className="h-[18px] w-[18px] flex-shrink-0" />
+                      {sidebarOpen && (
+                        <span className="truncate text-sm font-medium">{t(item.label)}</span>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
               </div>
-            </div>
             )
           })}
         </nav>
 
         <div className="border-t border-white/10 p-3">
           {sidebarOpen && user ? (
-            <div className={`flex items-center gap-3 rounded-xl px-3 py-3 ${isDark ? 'bg-black/20' : 'bg-white/5'}`}>
+            <div
+              className={`flex items-center gap-3 rounded-xl px-3 py-3 ${isDark ? 'bg-black/20' : 'bg-white/5'}`}
+            >
               <UserAvatar name={user.full_name} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-white">{user.full_name}</p>
-                <p className={`truncate text-xs capitalize ${isDark ? 'text-night-subtle/70' : 'text-slate-400'}`}>{user.role}</p>
+                <p
+                  className={`truncate text-xs capitalize ${isDark ? 'text-night-subtle/70' : 'text-slate-400'}`}
+                >
+                  {user.role}
+                </p>
               </div>
               <button
                 type="button"
@@ -409,26 +439,32 @@ export default function Layout() {
         </div>
       </aside>
 
-      <div className={`flex flex-1 flex-col transition-[margin] duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-[76px]'}`}>
+      <div
+        className={`flex min-w-0 flex-1 flex-col transition-[margin] duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-[76px]'}`}
+      >
         <header className="sticky top-0 z-30 px-4 pt-4 sm:px-6 lg:px-8">
-          <div className="app-panel flex min-h-[72px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
-            <div className="flex items-center gap-3">
+          <div className="app-panel flex min-h-[72px] min-w-0 items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-6">
+            <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
                 onClick={() => setSidebarOpen((open) => !open)}
+                aria-label={t('common.toggleNavigation')}
+                aria-expanded={sidebarOpen}
                 className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50"
               >
                 <Menu className="h-4 w-4" />
               </button>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
                   {todayLabel}
                 </p>
-                <h1 className="text-xl font-semibold tracking-tight text-slate-900">{pageTitle}</h1>
+                <h1 className="truncate text-xl font-semibold tracking-tight text-slate-900">
+                  {pageTitle}
+                </h1>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-3">
               {/* Dark mode toggle */}
               <button
                 type="button"
@@ -443,7 +479,7 @@ export default function Layout() {
                 <button
                   type="button"
                   onClick={() => setLangMenuOpen((open) => !open)}
-                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                  className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:gap-2 sm:px-3"
                 >
                   <Globe className="h-4 w-4 text-primary" />
                   <span>{currentLang.flag}</span>
@@ -484,14 +520,14 @@ export default function Layout() {
                   <button
                     type="button"
                     onClick={() => setUserMenuOpen((open) => !open)}
-                    className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors hover:bg-slate-50"
+                    className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1.5 transition-colors hover:bg-slate-50 sm:gap-3 sm:px-3 sm:py-2"
                   >
                     <UserAvatar name={user.full_name} />
                     <div className="hidden sm:block text-left">
                       <p className="text-sm font-medium text-slate-800">{user.full_name}</p>
                       <p className="text-xs capitalize text-slate-400">{user.role}</p>
                     </div>
-                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                    <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
                   </button>
 
                   {userMenuOpen && (
@@ -505,7 +541,10 @@ export default function Layout() {
                       <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
                         <button
                           type="button"
-                          onClick={() => { setUserMenuOpen(false); setShowChangePassword(true) }}
+                          onClick={() => {
+                            setUserMenuOpen(false)
+                            setShowChangePassword(true)
+                          }}
                           className="flex w-full items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                         >
                           <KeyRound className="h-4 w-4 text-slate-400" />
@@ -513,7 +552,10 @@ export default function Layout() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => { setUserMenuOpen(false); handleLogout() }}
+                          onClick={() => {
+                            setUserMenuOpen(false)
+                            handleLogout()
+                          }}
                           className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                         >
                           <LogOut className="h-4 w-4" />
@@ -528,7 +570,7 @@ export default function Layout() {
           </div>
         </header>
 
-        <main id="main-content" className="flex-1 overflow-y-auto px-4 pb-8 pt-4 sm:px-6 lg:px-8">
+        <main id="main-content" className="w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-8 pt-4 sm:px-6 lg:px-8">
           {/* Scoped to the route so a page that throws leaves the nav and header
               usable, and navigating away clears the error. */}
           <ErrorBoundary resetKey={location.pathname}>
@@ -537,9 +579,7 @@ export default function Layout() {
         </main>
       </div>
 
-      {showChangePassword && (
-        <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
-      )}
+      {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
     </div>
   )
 }

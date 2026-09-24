@@ -23,6 +23,7 @@ export interface DashboardVehicleStats {
   rented: number
   maintenance: number
   reserved: number
+  service_due: number
   insurance: DashboardInsuranceStats
 }
 

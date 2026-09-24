@@ -39,7 +39,10 @@
     "unknown": "ያልታወቀ",
     "value": "ዋጋ",
     "view": "ይመልከቱ",
-    "yes": "አዎ"
+    "yes": "አዎ",
+    "skipToMain": "ወደ ዋናው ይዘት ዝለል",
+    "closeNavigation": "የአሰሳ ምናሌን ዝጋ",
+    "toggleNavigation": "የአሰሳ ምናሌን ክፈት ወይም ዝጋ"
   },
   "auth": {
     "login": "ግባ",
@@ -137,7 +140,9 @@
     "reviewOverdue": "ያለፉ ስምምነቶችን ይገምግሙ",
     "returnsDueToday": "ዛሬ የሚመለሱ",
     "returnsDueTodayDesc_one": "ዛሬ {{count}} መኪና ይመለሳል ተብሎ ይጠበቃል።",
-    "returnsDueTodayDesc_other": "ዛሬ {{count}} መኪኖች ይመለሳሉ ተብሎ ይጠበቃል።"
+    "returnsDueTodayDesc_other": "ዛሬ {{count}} መኪኖች ይመለሳሉ ተብሎ ይጠበቃል።",
+    "serviceDue": "የጥገና ጊዜ የደረሰ",
+    "vehiclesNeedingService": "ጥገና የሚያስፈልጋቸው መኪኖች"
   },
   "agreements": {
     "addVehicle": "ተሽከርካሪ ጨምር",
@@ -650,7 +655,8 @@
     "totalPayments": "ጠቅላላ የተከፈለ",
     "vendorPaid": "ለአቅራቢ የተከፈለ",
     "vendorsDesc": "ለውጭ የመኪና አቅራቢዎች የተከፈሉ ክፍያዎች",
-    "vendorsTab": "አቅራቢዎች"
+    "vendorsTab": "አቅራቢዎች",
+    "depositHelper": "ተቀማጩ ለጉዳትና ለዘገየ ክፍያ ይውላል። ለክፍያዎች ይተግብሩት፣ የቀረውንም ይመልሱ።"
   },
   "users": {
     "activeAccount": "ንቁ መለያ",
@@ -1005,5 +1011,32 @@
     "startDate": "የመጀመሪያ ቀን",
     "title": "ሪፖርቶች",
     "vendorPayables": "ለአቅራቢዎች የሚከፈል"
+  },
+  "pagination": {
+    "label": "ገጽ መቀየሪያ",
+    "showing": "እየታየ ያለው",
+    "of": "ከ",
+    "pageOf": "ገጽ {{page}} ከ {{totalPages}}"
+  },
+  "vehicleValues": {
+    "colors": {
+      "gray": "ግራጫ",
+      "grey": "ግራጫ",
+      "blue": "ሰማያዊ",
+      "white": "ነጭ",
+      "black": "ጥቁር",
+      "silver": "ብርማ",
+      "red": "ቀይ"
+    },
+    "types": {
+      "standard": "መደበኛ",
+      "compact": "ኮምፓክት",
+      "sedan": "ሴዳን",
+      "suv": "ስፖርት መኪና",
+      "pickup": "ፒካፕ",
+      "pickup_truck": "ፒካፕ መኪና",
+      "van": "ቫን",
+      "convertible": "ጣሪያው የሚከፈት"
+    }
   }
 }

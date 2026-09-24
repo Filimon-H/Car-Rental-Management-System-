@@ -496,13 +496,14 @@ def _agreement_to_response(a: Agreement, db: Session | None = None) -> MyBooking
     total_paid = None
     balance_due = None
     if db is not None:
-        total_charge = ledger_service.get_total_charges(db, a.id)
-        total_paid = ledger_service.get_total_payments(db, a.id)
-        deposit_applied = ledger_service.get_deposit_applied(db, a.id)
-        balance_due = max(
-            Decimal("0"),
-            total_charge - total_paid - deposit_applied,
-        )
+        # Use the shared breakdown rather than a fifth copy of this formula.
+        # The local version left out adjustments, so a customer given a 600
+        # discount was still shown the full amount owed — the same fault as
+        # the dashboard's outstanding tile.
+        breakdown = agreement_service.get_balance_breakdown(db, a.id)
+        total_charge = breakdown["total_charges"] + breakdown["net_adjustments"]
+        total_paid = breakdown["total_payments"]
+        balance_due = breakdown["balance_due"]
 
     return MyBookingResponse(
         id=a.id,

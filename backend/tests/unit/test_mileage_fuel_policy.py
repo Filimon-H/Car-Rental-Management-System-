@@ -65,7 +65,38 @@ class TestExcessMileage:
             return_mileage=10_750,
         )
         descriptions = _charge_descriptions(db, active_agreement.id)
-        assert any("Excess mileage: 150 km" in d for d in descriptions), descriptions
+        assert any(
+            "Excess mileage: 150 km over 600 km allowance (3 days × 200 km/day)" in d
+            for d in descriptions
+        ), descriptions
+
+    def test_early_return_keeps_allowance_for_all_billed_days(
+        self, db: Session, active_agreement
+    ):
+        """A partial second contracted day is billed and grants its mileage allowance."""
+        active_agreement.expected_return_datetime = (
+            active_agreement.pickup_datetime + timedelta(hours=25)
+        )
+        active_agreement.mileage_limit_per_day = 200
+        active_agreement.excess_mileage_rate = Decimal("15.00")
+        db.commit()
+
+        agreement_service.close_agreement(
+            db=db,
+            agreement_id=active_agreement.id,
+            actual_return_datetime=active_agreement.pickup_datetime + timedelta(hours=1),
+            return_mileage=10_500,
+        )
+
+        entries = db.query(LedgerEntry).filter(
+            LedgerEntry.agreement_id == active_agreement.id,
+            LedgerEntry.description.contains("Excess mileage"),
+        ).all()
+        assert len(entries) == 1
+        assert entries[0].amount == Decimal("1500.00")
+        assert entries[0].description == (
+            "Excess mileage: 100 km over 400 km allowance (2 days × 200 km/day)"
+        )
 
     def test_not_charged_within_allowance(self, db: Session, active_agreement):
         active_agreement.mileage_limit_per_day = 200

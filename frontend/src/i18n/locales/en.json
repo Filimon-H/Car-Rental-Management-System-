@@ -39,7 +39,10 @@
     "unknown": "Unknown",
     "value": "Value",
     "view": "View",
-    "yes": "Yes"
+    "yes": "Yes",
+    "skipToMain": "Skip to main content",
+    "closeNavigation": "Close navigation",
+    "toggleNavigation": "Toggle navigation"
   },
   "auth": {
     "login": "Login",
@@ -137,7 +140,9 @@
     "reviewOverdue": "Review overdue agreements",
     "returnsDueToday": "Returns due today",
     "returnsDueTodayDesc_one": "{{count}} vehicle expected back today.",
-    "returnsDueTodayDesc_other": "{{count}} vehicles expected back today."
+    "returnsDueTodayDesc_other": "{{count}} vehicles expected back today.",
+    "serviceDue": "Service Due",
+    "vehiclesNeedingService": "Vehicles needing service"
   },
   "agreements": {
     "addVehicle": "Add Vehicle",
@@ -650,7 +655,8 @@
     "totalPayments": "Total Payments",
     "vendorPaid": "Vendor Paid",
     "vendorsDesc": "Payments made to external car suppliers",
-    "vendorsTab": "Vendors"
+    "vendorsTab": "Vendors",
+    "depositHelper": "Deposit is deductible for damage and late fees. Apply it to charges, then refund any remaining amount."
   },
   "users": {
     "activeAccount": "Active account",
@@ -1005,5 +1011,32 @@
     "startDate": "Start Date",
     "title": "Reports",
     "vendorPayables": "Vendor Payables"
+  },
+  "pagination": {
+    "label": "Pagination",
+    "showing": "Showing",
+    "of": "of",
+    "pageOf": "Page {{page}} of {{totalPages}}"
+  },
+  "vehicleValues": {
+    "colors": {
+      "gray": "Gray",
+      "grey": "Grey",
+      "blue": "Blue",
+      "white": "White",
+      "black": "Black",
+      "silver": "Silver",
+      "red": "Red"
+    },
+    "types": {
+      "standard": "Standard",
+      "compact": "Compact",
+      "sedan": "Sedan",
+      "suv": "SUV",
+      "pickup": "Pickup",
+      "pickup_truck": "Pickup Truck",
+      "van": "Van",
+      "convertible": "Convertible"
+    }
   }
 }

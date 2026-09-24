@@ -57,6 +57,8 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    max-width: 100%;
+    overflow-x: clip;
   }
   * {
     @apply border-border;
@@ -71,7 +73,24 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     min-height: 100vh;
+    max-width: 100%;
+    overflow-x: clip;
     background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  }
+  #root {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+  [data-visually-hidden='true'] {
+    position: fixed;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    white-space: nowrap;
+    border: 0;
+    clip-path: inset(50%);
   }
   .dark body {
     background: linear-gradient(180deg, #0d0407 0%, #110609 100%);
