@@ -45,6 +45,7 @@ class PublicCustomerProfile(BaseModel):
 
 
 class UpdateProfileRequest(BaseModel):
+    phone_primary: Optional[str] = Field(None, min_length=7, max_length=20)
     phone_secondary: Optional[str] = None
     id_type: Optional[str] = None
     id_number: Optional[str] = None
@@ -65,6 +66,8 @@ class PublicVehicleResponse(BaseModel):
     transmission: Optional[str]
     color: str
     daily_rate: Decimal
+    weekly_rate: Optional[Decimal] = None
+    monthly_rate: Optional[Decimal] = None
     photo_front: Optional[str]
     photo_back: Optional[str]
     photo_left: Optional[str]
@@ -88,6 +91,31 @@ class BookingCreateRequest(BaseModel):
 
 class ExtendBookingRequest(BaseModel):
     new_return_datetime: datetime
+
+
+class BookingQuoteRequest(BaseModel):
+    vehicle_id: int
+    pickup_datetime: datetime
+    expected_return_datetime: datetime
+
+
+class BookingQuoteResponse(BaseModel):
+    days: int
+    total: Decimal
+    daily_rate: Decimal
+    weekly_rate: Optional[Decimal] = None
+    monthly_rate: Optional[Decimal] = None
+    pricing_note: str
+
+
+class ExtensionQuoteRequest(BaseModel):
+    new_return_datetime: datetime
+
+
+class ExtensionQuoteResponse(BaseModel):
+    days: int
+    total: Decimal
+    daily_rate: Decimal
 
 
 class MyBookingVehicle(BaseModel):
@@ -116,6 +144,14 @@ class MyBookingResponse(BaseModel):
     total_charge: Optional[Decimal] = None
     total_paid: Optional[Decimal] = None
     balance_due: Optional[Decimal] = None
+    deposit_amount: Decimal = Decimal("0")
+    advance_payment: Decimal = Decimal("0")
+    deposit_received: Decimal = Decimal("0")
+    deposit_held: Decimal = Decimal("0")
+    mileage_limit_per_day: Optional[int] = None
+    excess_mileage_rate: Optional[Decimal] = None
+    fuel_level_out: Optional[int] = None
+    fuel_charge_rate: Optional[Decimal] = None
 
     class Config:
         from_attributes = True

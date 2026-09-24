@@ -1,6 +1,7 @@
 import { create } from 'zustand'
+import { API_BASE_URL } from './apiClient'
 
-const STAFF_API_URL = 'http://localhost:8001/api'
+const STAFF_API_URL = API_BASE_URL
 
 interface AdminAuthState {
   adminToken: string | null

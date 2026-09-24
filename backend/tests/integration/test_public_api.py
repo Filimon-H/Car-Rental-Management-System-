@@ -153,7 +153,8 @@ class TestSignup:
         customer = db.query(Customer).filter(Customer.id == user.customer_id).first()
         assert customer is not None
         assert customer.first_name == signup_payload["first_name"]
-        assert customer.phone_primary == signup_payload["phone"]
+        # Stored canonically, so a staff-created record for the same person matches.
+        assert customer.phone_primary == "+251912345678"
 
     def test_duplicate_email_rejected(self, client: TestClient, signup_payload: dict):
         client.post("/api/public/auth/signup", json=signup_payload)
@@ -217,7 +218,7 @@ class TestProfile:
         assert resp.status_code == 200
         data = resp.json()
         assert data["first_name"] == signup_payload["first_name"]
-        assert data["phone_primary"] == signup_payload["phone"]
+        assert data["phone_primary"] == "+251912345678"
 
     def test_me_unauthenticated_rejected(self, client: TestClient):
         resp = client.get("/api/public/me")

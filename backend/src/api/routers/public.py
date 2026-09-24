@@ -7,6 +7,7 @@ import string
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Annotated
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request
 from slowapi import Limiter
@@ -15,6 +16,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from src.api.deps.auth import CurrentCustomerUser
 from src.core.db import get_db
+from src.core.config import settings
 from src.core.errors import BusinessError, ConflictError, ErrorCode, NotFoundError, UnauthorizedError
 from src.core.security import (
     ISSUER_CUSTOMER,
@@ -30,7 +32,11 @@ from src.models.telegram import TelegramCustomerLink, TelegramCustomerLinkCode
 from src.models.vehicle import Vehicle, VehicleStatus
 from src.schemas.public import (
     BookingCreateRequest,
+    BookingQuoteRequest,
+    BookingQuoteResponse,
     ExtendBookingRequest,
+    ExtensionQuoteRequest,
+    ExtensionQuoteResponse,
     LoginRequest,
     MyBookingResponse,
     UpdateProfileRequest,
@@ -42,8 +48,9 @@ from src.schemas.public import (
     TelegramLinkStatus,
     TokenResponse,
 )
+from src.schemas.fields import normalize_ethiopian_phone
 from src.services import agreement_service, billing_service, ledger_service
-from src.services.customer_validation_service import find_customer_by_phone
+from src.services.customer_validation_service import find_customer_by_phone, normalize_phone
 from src.models.ledger_entry import LedgerEntryType
 
 # Credential endpoints are unauthenticated and internet-facing, so they are
@@ -54,6 +61,31 @@ router = APIRouter()
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _canonical_phone(value: str | None) -> str | None:
+    """Store customer phones in the same +251 form staff records use.
+
+    This used its own rule, which left a bare nine-digit number such as
+    911123456 unconverted while the staff validator canonicalised it — so the
+    same person signing up here and being created by staff got two different
+    stored values, and duplicate detection could not match them.
+    """
+    if value is None:
+        return None
+    normalized = normalize_ethiopian_phone(value)
+    return normalized if isinstance(normalized, str) else value
+
+
+def _as_business_wall_clock(value: datetime) -> datetime:
+    """Return the local business wall-clock value used by agreement columns."""
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(ZoneInfo(settings.scheduler_timezone)).replace(tzinfo=None)
+
+
+def _business_now() -> datetime:
+    return datetime.now(ZoneInfo(settings.scheduler_timezone)).replace(tzinfo=None)
 
 
 def _issue_customer_token(user: CustomerUser) -> str:
@@ -78,7 +110,7 @@ def signup(request: Request, body: SignupRequest, db: Annotated[Session, Depends
     customer = Customer(
         first_name=body.first_name,
         last_name=body.last_name,
-        phone_primary=body.phone,
+        phone_primary=_canonical_phone(body.phone),
         email=body.email,
         business_type="individual",
         is_active=True,
@@ -155,11 +187,15 @@ def update_me(
 ):
     db.refresh(current_user)
     customer = current_user.customer
-    if body.phone_primary and find_customer_by_phone(
-        db, body.phone_primary, exclude_customer_id=customer.id
+    values = body.model_dump(exclude_unset=True)
+    if values.get("phone_primary") and find_customer_by_phone(
+        db, values["phone_primary"], exclude_customer_id=customer.id
     ):
         raise ConflictError("Phone number already registered")
-    for field, value in body.model_dump(exclude_unset=True).items():
+    for phone_field in ("phone_primary", "phone_secondary", "emergency_contact_phone"):
+        if values.get(phone_field):
+            values[phone_field] = _canonical_phone(values[phone_field])
+    for field, value in values.items():
         setattr(customer, field, value)
     db.commit()
     db.refresh(customer)
@@ -200,6 +236,8 @@ def _to_public_vehicle(v: Vehicle, db: Session) -> PublicVehicleResponse:
         transmission=v.transmission,
         color=v.color,
         daily_rate=v.daily_rate,
+        weekly_rate=v.weekly_rate,
+        monthly_rate=v.monthly_rate,
         photo_front=v.photo_front,
         photo_back=v.photo_back,
         photo_left=v.photo_left,
@@ -234,6 +272,33 @@ def get_vehicle(vehicle_id: int, db: Annotated[Session, Depends(get_db)]):
 # ---------------------------------------------------------------------------
 
 
+def _quote_for_vehicle(vehicle: Vehicle, pickup: datetime, return_at: datetime) -> BookingQuoteResponse:
+    start = _as_business_wall_clock(pickup)
+    end = _as_business_wall_clock(return_at)
+    if end <= start:
+        raise BusinessError(ErrorCode.INVALID_INPUT, "Return date must be after pickup date")
+    days, total = billing_service.calculate_rental_charge(
+        start, end, vehicle.daily_rate, vehicle.weekly_rate, vehicle.monthly_rate
+    )
+    uses_tiers = total < vehicle.daily_rate * days
+    return BookingQuoteResponse(
+        days=days,
+        total=total,
+        daily_rate=vehicle.daily_rate,
+        weekly_rate=vehicle.weekly_rate,
+        monthly_rate=vehicle.monthly_rate,
+        pricing_note=("Best weekly/monthly tier applied" if uses_tiers else "Daily rate applied"),
+    )
+
+
+@router.post("/quotes", response_model=BookingQuoteResponse)
+def quote_booking(body: BookingQuoteRequest, db: Annotated[Session, Depends(get_db)]):
+    vehicle = db.query(Vehicle).filter(Vehicle.id == body.vehicle_id, Vehicle.is_active.is_(True)).first()
+    if not vehicle:
+        raise NotFoundError("Vehicle", body.vehicle_id)
+    return _quote_for_vehicle(vehicle, body.pickup_datetime, body.expected_return_datetime)
+
+
 @router.post("/bookings", response_model=MyBookingResponse)
 def create_booking(
     body: BookingCreateRequest,
@@ -244,12 +309,12 @@ def create_booking(
     if not vehicle:
         raise NotFoundError("Vehicle", body.vehicle_id)
 
-    now = datetime.now(timezone.utc)
-    pickup = body.pickup_datetime if body.pickup_datetime.tzinfo else body.pickup_datetime.replace(tzinfo=timezone.utc)
-    if pickup <= now:
+    pickup = _as_business_wall_clock(body.pickup_datetime)
+    return_at = _as_business_wall_clock(body.expected_return_datetime)
+    if pickup <= _business_now():
         raise BusinessError(ErrorCode.INVALID_INPUT, "Pickup date must be in the future")
 
-    if body.expected_return_datetime <= body.pickup_datetime:
+    if return_at <= pickup:
         raise BusinessError(ErrorCode.INVALID_INPUT, "Return date must be after pickup date")
 
     # Load the linked customer
@@ -262,8 +327,8 @@ def create_booking(
         agreement_type=AgreementType.CUSTOMER_VEHICLE,
         status=AgreementStatus.BOOKING_REQUESTED,
         customer_id=customer.id,
-        pickup_datetime=body.pickup_datetime,
-        expected_return_datetime=body.expected_return_datetime,
+        pickup_datetime=pickup,
+        expected_return_datetime=return_at,
         agreed_daily_rate=vehicle.daily_rate,
         deposit_amount=0,
         pickup_location=body.pickup_location,
@@ -276,8 +341,8 @@ def create_booking(
     segment = AgreementVehicleSegment(
         agreement_id=agreement.id,
         vehicle_id=vehicle.id,
-        start_datetime=body.pickup_datetime,
-        end_datetime=body.expected_return_datetime,
+        start_datetime=pickup,
+        end_datetime=return_at,
         daily_rate=vehicle.daily_rate,
     )
     db.add(segment)
@@ -333,6 +398,30 @@ def cancel_booking(
     return {"detail": "Booking cancelled"}
 
 
+@router.post("/bookings/{booking_id}/extension-quote", response_model=ExtensionQuoteResponse)
+def quote_extension(
+    booking_id: int,
+    req: ExtensionQuoteRequest,
+    current_user: CurrentCustomerUser,
+    db: Annotated[Session, Depends(get_db)],
+):
+    db.refresh(current_user)
+    agreement = db.query(Agreement).filter(
+        Agreement.id == booking_id,
+        Agreement.customer_id == current_user.customer.id,
+    ).first()
+    if not agreement:
+        raise NotFoundError("Booking", booking_id)
+    current_return = _as_business_wall_clock(agreement.expected_return_datetime)
+    new_return = _as_business_wall_clock(req.new_return_datetime)
+    if new_return <= current_return:
+        raise BusinessError(ErrorCode.INVALID_INPUT, "New return date must be later than the current return date")
+    days, total = billing_service.calculate_extension_charge(
+        current_return, new_return, agreement.agreed_daily_rate
+    )
+    return ExtensionQuoteResponse(days=days, total=total, daily_rate=agreement.agreed_daily_rate)
+
+
 @router.post("/bookings/{booking_id}/extend", response_model=MyBookingResponse)
 def extend_booking(
     booking_id: int,
@@ -356,18 +445,14 @@ def extend_booking(
 
     if agreement.status not in (
         AgreementStatus.ACTIVE,
+        AgreementStatus.OVERDUE,
         AgreementStatus.PENDING_PAYMENT,
         AgreementStatus.BOOKING_REQUESTED,
     ):
-        raise BusinessError(ErrorCode.INVALID_INPUT, "Can only extend active or pending bookings")
+        raise BusinessError(ErrorCode.INVALID_INPUT, "Can only extend active, overdue, or pending bookings")
 
-    new_dt = req.new_return_datetime
-    if new_dt.tzinfo is None:
-        new_dt = new_dt.replace(tzinfo=timezone.utc)
-
-    current_return = agreement.expected_return_datetime
-    if current_return.tzinfo is None:
-        current_return = current_return.replace(tzinfo=timezone.utc)
+    new_dt = _as_business_wall_clock(req.new_return_datetime)
+    current_return = _as_business_wall_clock(agreement.expected_return_datetime)
 
     if new_dt <= current_return:
         raise BusinessError(ErrorCode.INVALID_INPUT, "New return date must be later than the current return date")
@@ -397,7 +482,7 @@ def extend_booking(
 
     # Post extension charge if a rental charge already exists (i.e. agreement
     # was already approved/active — not a bare booking_requested with no charge yet).
-    if agreement.status in (AgreementStatus.PENDING_PAYMENT, AgreementStatus.ACTIVE):
+    if agreement.status in (AgreementStatus.PENDING_PAYMENT, AgreementStatus.ACTIVE, AgreementStatus.OVERDUE):
         ext_days, ext_charge = billing_service.calculate_rental_charge(
             current_return, new_dt, agreement.agreed_daily_rate
         )
@@ -495,6 +580,8 @@ def _agreement_to_response(a: Agreement, db: Session | None = None) -> MyBooking
     total_charge = None
     total_paid = None
     balance_due = None
+    deposit_received = Decimal("0")
+    deposit_held = Decimal("0")
     if db is not None:
         # Use the shared breakdown rather than a fifth copy of this formula.
         # The local version left out adjustments, so a customer given a 600
@@ -504,6 +591,8 @@ def _agreement_to_response(a: Agreement, db: Session | None = None) -> MyBooking
         total_charge = breakdown["total_charges"] + breakdown["net_adjustments"]
         total_paid = breakdown["total_payments"]
         balance_due = breakdown["balance_due"]
+        deposit_received = breakdown["deposit_received"]
+        deposit_held = breakdown["deposit_held"]
 
     return MyBookingResponse(
         id=a.id,
@@ -520,4 +609,14 @@ def _agreement_to_response(a: Agreement, db: Session | None = None) -> MyBooking
         total_charge=total_charge,
         total_paid=total_paid,
         balance_due=balance_due,
+        # Both columns are nullable, and the response declares them as plain
+        # Decimal — an unset advance_payment failed validation outright.
+        deposit_amount=a.deposit_amount or Decimal("0"),
+        advance_payment=a.advance_payment or Decimal("0"),
+        deposit_received=deposit_received,
+        deposit_held=deposit_held,
+        mileage_limit_per_day=a.mileage_limit_per_day,
+        excess_mileage_rate=a.excess_mileage_rate,
+        fuel_level_out=a.fuel_level_out,
+        fuel_charge_rate=a.fuel_charge_rate,
     )

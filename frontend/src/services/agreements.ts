@@ -100,6 +100,16 @@ export interface PostChargeData {
   notes?: string
 }
 
+export interface BookingApprovalData {
+  deposit_amount?: number
+  advance_payment?: number
+  pickup_mileage?: number
+  mileage_limit_per_day?: number
+  excess_mileage_rate?: number
+  fuel_level_out?: number
+  fuel_charge_rate?: number
+}
+
 export interface AgreementListResponse {
   items: Agreement[]
   total: number
@@ -271,8 +281,8 @@ export const agreementsService = {
     return apiClient.post(`/agreements/${id}/cancel`, { reason: reason || null })
   },
 
-  async approveRequest(id: number): Promise<Agreement> {
-    return apiClient.post(`/agreements/${id}/approve-request`)
+  async approveRequest(id: number, data: BookingApprovalData = {}): Promise<Agreement> {
+    return apiClient.post(`/agreements/${id}/approve-request`, data)
   },
 }
 

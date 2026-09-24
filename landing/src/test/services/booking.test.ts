@@ -18,9 +18,9 @@ const mockApiClient = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
 }))
-vi.mock('@/services/apiClient', () => ({ apiClient: mockApiClient }))
+vi.mock('../../services/apiClient', () => ({ apiClient: mockApiClient }))
 
-import { bookingService } from '@/services/booking'
+import { bookingService } from '../../services/booking'
 
 // ─── Sample fixtures ──────────────────────────────────────────────────────────
 

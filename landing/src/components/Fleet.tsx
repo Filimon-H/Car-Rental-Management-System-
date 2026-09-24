@@ -5,11 +5,11 @@ import { useQuery } from '@tanstack/react-query'
 import { bookingService, PublicVehicle } from '../services/booking'
 import { cars, categories, type Car } from '../data/cars'
 
-const UPLOADS_BASE = 'http://localhost:8001/api/uploads'
+import { uploadsUrl } from '../services/apiClient'
 
 function photoUrl(path: string | null): string | null {
   if (!path) return null
-  return `${UPLOADS_BASE}/${path}`
+  return uploadsUrl(path) || ''
 }
 
 function getPhotos(car: PublicVehicle): string[] {

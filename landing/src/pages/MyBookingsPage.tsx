@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Car, Calendar, X, ArrowLeft, Send, Copy, Check, ExternalLink, Clock, AlertTriangle } from 'lucide-react'
 import { useAuthStore } from '../services/auth'
-import { bookingService, MyBooking, TelegramLinkCode, TelegramLinkStatus, STATUS_LABELS, STATUS_COLORS } from '../services/booking'
+import { bookingService, ExtensionQuote, MyBooking, TelegramLinkCode, TelegramLinkStatus, STATUS_LABELS, STATUS_COLORS } from '../services/booking'
 
 function getDaysLeft(returnDateIso: string): number {
   return Math.floor((new Date(returnDateIso).getTime() - Date.now()) / 86400000)
@@ -39,6 +39,7 @@ export default function MyBookingsPage() {
   const [extendConfirming, setExtendConfirming] = useState(false)
   const [extendError, setExtendError] = useState('')
   const [extendLoading, setExtendLoading] = useState(false)
+  const [extensionQuote, setExtensionQuote] = useState<ExtensionQuote | null>(null)
 
   const loadTelegramStatus = useCallback(() => {
     bookingService.getTelegramStatus().then(setTelegramStatus).catch(() => {})
@@ -100,10 +101,27 @@ export default function MyBookingsPage() {
       setBookings(prev => prev.map(b => b.id === booking.id ? updated : b))
       setExtendingId(null)
       setExtendDate('')
+      setExtensionQuote(null)
       setExtendConfirming(false)
     } catch (err: unknown) {
       setExtendError(err instanceof Error ? err.message : 'Failed to extend')
       setExtendConfirming(false)
+    } finally {
+      setExtendLoading(false)
+    }
+  }
+
+  async function prepareExtension(booking: MyBooking) {
+    if (!extendDate) { setExtendError('Please pick a date'); return }
+    const returnTime = booking.expected_return_datetime.slice(11, 19) || '00:00:00'
+    const newDt = `${extendDate}T${returnTime}`
+    setExtendLoading(true)
+    setExtendError('')
+    try {
+      setExtensionQuote(await bookingService.getExtensionQuote(booking.id, newDt))
+      setExtendConfirming(true)
+    } catch (err: unknown) {
+      setExtendError(err instanceof Error ? err.message : 'Could not calculate extension')
     } finally {
       setExtendLoading(false)
     }
@@ -234,14 +252,28 @@ export default function MyBookingsPage() {
                   </div>
                 )}
 
+                {(Number(b.deposit_amount) > 0 || b.mileage_limit_per_day || b.fuel_level_out !== null) && (
+                  <div className="mt-3 rounded-lg bg-dark px-3 py-2 text-xs text-gray-400 space-y-1">
+                    {Number(b.deposit_amount) > 0 && (
+                      <p>Deposit required: <span className="text-white">{Number(b.deposit_amount).toLocaleString()} ETB</span> · received {Number(b.deposit_received).toLocaleString()} ETB</p>
+                    )}
+                    {b.mileage_limit_per_day && (
+                      <p>Mileage allowance: <span className="text-white">{b.mileage_limit_per_day} km/day</span>{b.excess_mileage_rate ? ` · ${Number(b.excess_mileage_rate).toLocaleString()} ETB per excess km` : ''}</p>
+                    )}
+                    {b.fuel_level_out !== null && (
+                      <p>Fuel at handover: <span className="text-white">{b.fuel_level_out}%</span>{b.fuel_charge_rate ? ` · ${Number(b.fuel_charge_rate).toLocaleString()} ETB per missing percent` : ''}</p>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
                   <span className="text-gold font-semibold text-sm">
                     {Number(b.agreed_daily_rate).toLocaleString()} ETB / day
                   </span>
                   <div className="flex gap-2">
-                    {(b.status === 'active' || b.status === 'pending_payment' || b.status === 'booking_requested') && (
+                    {(b.status === 'active' || b.status === 'overdue' || b.status === 'pending_payment' || b.status === 'booking_requested') && (
                       <button
-                        onClick={() => { setExtendingId(b.id); setExtendDate(''); setExtendError('') }}
+                        onClick={() => { setExtendingId(b.id); setExtendDate(''); setExtendError(''); setExtensionQuote(null) }}
                         className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 text-xs border border-blue-400/30 rounded-lg px-3 py-1.5 transition-colors"
                       >
                         <Clock className="h-3.5 w-3.5" />
@@ -282,8 +314,7 @@ export default function MyBookingsPage() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => {
-                              if (!extendDate) { setExtendError('Please pick a date'); return }
-                              setExtendConfirming(true)
+                              prepareExtension(b)
                             }}
                             className="bg-gold hover:bg-gold-light text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
                           >
@@ -312,12 +343,12 @@ export default function MyBookingsPage() {
                           </div>
                           <div className="border-t border-gray-700 pt-2 flex justify-between text-sm">
                             <span className="text-gray-300 font-medium">Extra days</span>
-                            <span className="text-gold font-bold">+{getExtendDays(b)} days</span>
+                            <span className="text-gold font-bold">+{extensionQuote?.days ?? getExtendDays(b)} days</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span className="text-gray-300 font-medium">Additional cost</span>
                             <span className="text-gold font-bold">
-                              {(getExtendDays(b) * Number(b.agreed_daily_rate)).toLocaleString()} ETB
+                              {Number(extensionQuote?.total ?? 0).toLocaleString()} ETB
                             </span>
                           </div>
                         </div>

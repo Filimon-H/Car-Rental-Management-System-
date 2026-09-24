@@ -21,6 +21,7 @@ from src.schemas.agreement import (
     AgreementCreate,
     AgreementDetailResponse,
     AgreementExtend,
+    BookingApprovalRequest,
     AgreementListResponse,
     AgreementResponse,
     CollateralSummary,
@@ -504,12 +505,14 @@ async def approve_booking_request(
     agreement_id: int,
     current_user: Annotated[CurrentUser, Depends(require_permission(Permission.MANAGE_BOOKINGS))],
     db: Annotated[Session, Depends(get_db)],
+    data: BookingApprovalRequest | None = None,
 ) -> AgreementResponse:
     """Approve a customer booking request: locks vehicle, posts charge, moves to pending_payment."""
     agreement = agreement_service.approve_booking_request(
         db=db,
         agreement_id=agreement_id,
         approved_by_id=current_user.id,
+        **(data.model_dump() if data else {}),
     )
     audit_service.log_agreement_event(
         db=db,

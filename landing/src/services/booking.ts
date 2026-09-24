@@ -10,6 +10,8 @@ export interface PublicVehicle {
   transmission: string | null
   color: string
   daily_rate: string
+  weekly_rate: string | null
+  monthly_rate: string | null
   photo_front: string | null
   photo_back: string | null
   photo_left: string | null
@@ -42,6 +44,29 @@ export interface MyBooking {
   total_charge: string | null
   total_paid: string | null
   balance_due: string | null
+  deposit_amount: string
+  advance_payment: string
+  deposit_received: string
+  deposit_held: string
+  mileage_limit_per_day: number | null
+  excess_mileage_rate: string | null
+  fuel_level_out: number | null
+  fuel_charge_rate: string | null
+}
+
+export interface PriceQuote {
+  days: number
+  total: string
+  daily_rate: string
+  weekly_rate: string | null
+  monthly_rate: string | null
+  pricing_note: string
+}
+
+export interface ExtensionQuote {
+  days: number
+  total: string
+  daily_rate: string
 }
 
 export interface CreateBookingData {
@@ -69,16 +94,20 @@ export const bookingService = {
   getVehicle: (id: number) => apiClient.get<PublicVehicle>(`/vehicles/${id}`),
   getMyBookings: () => apiClient.get<MyBooking[]>('/bookings'),
   createBooking: (data: CreateBookingData) => apiClient.post<MyBooking>('/bookings', data),
+  getQuote: (data: Pick<CreateBookingData, 'vehicle_id' | 'pickup_datetime' | 'expected_return_datetime'>) =>
+    apiClient.post<PriceQuote>('/quotes', data),
   cancelBooking: (id: number) => apiClient.post(`/bookings/${id}/cancel`),
   generateTelegramLinkCode: () => apiClient.post<TelegramLinkCode>('/me/telegram/link-code'),
   getTelegramStatus: () => apiClient.get<TelegramLinkStatus>('/me/telegram'),
   extendBooking: (id: number, new_return_datetime: string) =>
     apiClient.post<MyBooking>(`/bookings/${id}/extend`, { new_return_datetime }),
+  getExtensionQuote: (id: number, new_return_datetime: string) =>
+    apiClient.post<ExtensionQuote>(`/bookings/${id}/extension-quote`, { new_return_datetime }),
 }
 
 export const STATUS_LABELS: Record<string, string> = {
   booking_requested: 'Pending Review',
-  pending_payment: 'Confirmed – Pay at Pickup',
+  pending_payment: 'Confirmed – Payment Required Before Pickup',
   active: 'Active',
   returned: 'Returned',
   closed: 'Closed',

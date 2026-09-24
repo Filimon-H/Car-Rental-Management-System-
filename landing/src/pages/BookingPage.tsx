@@ -2,11 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Car, Calendar, MapPin, ArrowLeft, User, ChevronRight, Shield } from 'lucide-react'
 import { useAuthStore, CustomerProfile } from '../services/auth'
-import { bookingService, PublicVehicle } from '../services/booking'
-import { apiClient } from '../services/apiClient'
-
-const UPLOADS_BASE = 'http://localhost:8001/api/uploads'
-function photoUrl(p: string | null) { return p ? `${UPLOADS_BASE}/${p}` : null }
+import { bookingService, PriceQuote, PublicVehicle } from '../services/booking'
+import { apiClient, uploadsUrl as photoUrl } from '../services/apiClient'
 
 /**
  * Send a datetime-local value as the API's naive wall-clock representation.
@@ -231,7 +228,7 @@ interface BookingDatesProps {
   vehicle: PublicVehicle
   profileData: ProfileFormData
   onBack: () => void
-  onSubmit: (pickup: string, returnDate: string, location: string, notes: string) => Promise<void>
+  onSubmit: (pickup: string, returnDate: string, pickupLocation: string, returnLocation: string, notes: string) => Promise<void>
   submitting: boolean
   error: string
 }
@@ -246,13 +243,40 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
   const [pickup, setPickup] = useState(toLocalDatetimeValue(tomorrow))
   const [returnDate, setReturnDate] = useState(toLocalDatetimeValue(dayAfter))
   const [pickupLocation, setPickupLocation] = useState('')
+  const [returnLocation, setReturnLocation] = useState('')
   const [notes, setNotes] = useState('')
   const [localError, setLocalError] = useState('')
+  const [quote, setQuote] = useState<PriceQuote | null>(null)
+  const [quoteLoading, setQuoteLoading] = useState(false)
 
   const days = daysBetween(pickup, returnDate)
-  const total = days * parseFloat(vehicle.daily_rate)
-  const photo = photoUrl(vehicle.photo_front)
+  const total = quote ? Number(quote.total) : days * parseFloat(vehicle.daily_rate)
 
+  useEffect(() => {
+    if (days <= 0) {
+      setQuote(null)
+      return
+    }
+    let cancelled = false
+    setQuoteLoading(true)
+    const timer = window.setTimeout(() => {
+      bookingService.getQuote({
+        vehicle_id: vehicle.id,
+        pickup_datetime: toWallClockIso(pickup),
+        expected_return_datetime: toWallClockIso(returnDate),
+      }).then((result) => {
+        if (!cancelled) setQuote(result)
+      }).catch(() => {
+        if (!cancelled) setQuote(null)
+      }).finally(() => {
+        if (!cancelled) setQuoteLoading(false)
+      })
+    }, 250)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [days, pickup, returnDate, vehicle.id])
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (new Date(returnDate) <= new Date(pickup)) {
@@ -260,7 +284,7 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
       return
     }
     setLocalError('')
-    await onSubmit(pickup, returnDate, pickupLocation, notes)
+    await onSubmit(pickup, returnDate, pickupLocation, returnLocation, notes)
   }
 
   return (
@@ -324,6 +348,18 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
         </div>
 
         <div>
+          <label className="block text-sm text-gray-400 mb-1.5 flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5" /> Return location (optional)
+          </label>
+          <input
+            value={returnLocation}
+            onChange={(e) => setReturnLocation(e.target.value)}
+            className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
+            placeholder="e.g. Bole International Airport"
+          />
+        </div>
+
+        <div>
           <label className="block text-sm text-gray-400 mb-1.5">Notes (optional)</label>
           <textarea
             value={notes}
@@ -337,9 +373,10 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
         {days > 0 && (
           <div className="bg-dark-300 rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-400 text-sm">{days} day{days !== 1 ? 's' : ''} × {Number(vehicle.daily_rate).toLocaleString()} ETB</span>
-              <span className="text-gold font-bold text-lg">{total.toLocaleString()} ETB</span>
+              <span className="text-gray-400 text-sm">{quote?.days ?? days} day{(quote?.days ?? days) !== 1 ? 's' : ''}</span>
+              <span className="text-gold font-bold text-lg">{quoteLoading ? 'Calculating…' : `${total.toLocaleString()} ETB`}</span>
             </div>
+            {quote && <p className="text-gray-500 text-xs mb-1">{quote.pricing_note}</p>}
             <p className="text-gray-600 text-xs">
               + deposit collected at pickup · final price confirmed by staff
             </p>
@@ -366,7 +403,7 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
           </button>
           <button
             type="submit"
-            disabled={submitting || days <= 0}
+            disabled={submitting || quoteLoading || days <= 0}
             className="flex-1 bg-gold hover:bg-gold-light text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-60"
           >
             {submitting ? 'Submitting…' : 'Confirm Booking Request'}
@@ -442,7 +479,7 @@ export default function BookingPage() {
     setStep(2)
   }
 
-  async function handleBooking(pickup: string, returnDate: string, location: string, notes: string) {
+  async function handleBooking(pickup: string, returnDate: string, pickupLocation: string, returnLocation: string, notes: string) {
     setError('')
     setSubmitting(true)
     try {
@@ -450,7 +487,8 @@ export default function BookingPage() {
         vehicle_id: Number(vehicleId),
         pickup_datetime: toWallClockIso(pickup),
         expected_return_datetime: toWallClockIso(returnDate),
-        pickup_location: location || undefined,
+        pickup_location: pickupLocation || undefined,
+        return_location: returnLocation || undefined,
         notes: notes || undefined,
       })
       navigate('/my-bookings')

@@ -1,4 +1,7 @@
-const BASE_URL = 'http://localhost:8001/api/public'
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
+const BASE_URL = `${API_BASE_URL}/public`
+export const uploadsUrl = (path: string | null) =>
+  path ? `${API_BASE_URL}/uploads/${path}` : null
 
 function getToken(): string | null {
   return localStorage.getItem('customer_token')

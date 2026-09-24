@@ -19,6 +19,7 @@ import {
   PostDepositData,
   PostPaymentData,
   AgreementDetail,
+  BookingApprovalData,
   ledgerService,
   availabilityService,
 } from '@/services/agreements'
@@ -61,7 +62,8 @@ export default function AgreementDetailPage() {
   )
   const [showChargeModal, setShowChargeModal] = useState<null | 'damage' | 'late'>(null)
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false)
-  const [confirmAction, setConfirmAction] = useState<null | 'activate' | 'approve'>(null)
+  const [confirmAction, setConfirmAction] = useState<null | 'activate'>(null)
+  const [showApprovalModal, setShowApprovalModal] = useState(false)
   const [showAddVehicle, setShowAddVehicle] = useState(false)
   const [reverseTarget, setReverseTarget] = useState<{
     id: number
@@ -300,12 +302,13 @@ export default function AgreementDetailPage() {
   })
 
   const approveRequestMutation = useMutation({
-    mutationFn: () => agreementsService.approveRequest(agreementId as number),
+    mutationFn: (data: BookingApprovalData) => agreementsService.approveRequest(agreementId as number, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
       // LedgerTable keys on the numeric id, so the table and its totals
       // stayed stale after a payment until the page was reloaded.
       queryClient.invalidateQueries({ queryKey: ['ledger', agreementId] })
+      setShowApprovalModal(false)
     },
     onError: (err: unknown) => {
       const error = err as { response?: { data?: { detail?: string } }; message?: string }
@@ -429,7 +432,7 @@ export default function AgreementDetailPage() {
             {agreement.status === 'booking_requested' && (
               <>
                 <button
-                  onClick={() => setConfirmAction('approve')}
+                  onClick={() => setShowApprovalModal(true)}
                   disabled={approveRequestMutation.isPending}
                   className="rounded-lg bg-yellow-600 px-4 py-2 text-white hover:bg-yellow-700 disabled:opacity-60"
                 >
@@ -1057,32 +1060,24 @@ export default function AgreementDetailPage() {
 
       {confirmAction && (
         <ConfirmModal
-          title={
-            confirmAction === 'activate'
-              ? t('agreementActions.confirmActivateTitle')
-              : t('agreementActions.confirmApproveTitle')
-          }
-          message={
-            confirmAction === 'activate'
-              ? t('agreementActions.confirmActivateBody')
-              : t('agreementActions.confirmApproveBody')
-          }
-          confirmLabel={
-            confirmAction === 'activate'
-              ? t('agreementActions.activateHandover')
-              : t('agreementActions.approveBooking')
-          }
-          isLoading={
-            confirmAction === 'activate'
-              ? activateMutation.isPending
-              : approveRequestMutation.isPending
-          }
+          title={t('agreementActions.confirmActivateTitle')}
+          message={t('agreementActions.confirmActivateBody')}
+          confirmLabel={t('agreementActions.activateHandover')}
+          isLoading={activateMutation.isPending}
           onClose={() => setConfirmAction(null)}
           onConfirm={() => {
-            if (confirmAction === 'activate') activateMutation.mutate()
-            else approveRequestMutation.mutate()
+            activateMutation.mutate()
             setConfirmAction(null)
           }}
+        />
+      )}
+
+      {showApprovalModal && (
+        <BookingApprovalModal
+          agreement={agreement}
+          isLoading={approveRequestMutation.isPending}
+          onClose={() => setShowApprovalModal(false)}
+          onSubmit={(data) => approveRequestMutation.mutate(data)}
         />
       )}
 
@@ -2023,6 +2018,116 @@ function CancelConfirmModal({
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+
+/**
+ * Commercial and handover terms, captured before a booking request is
+ * approved.
+ *
+ * A request created through the customer portal carries no deposit, mileage
+ * allowance or fuel reading, so the return charges added for staff-created
+ * agreements could never apply to one. This collects them at the point of
+ * approval; every field is optional, and a blank one is omitted rather than
+ * sent as zero.
+ */
+function BookingApprovalModal({
+  agreement,
+  onClose,
+  onSubmit,
+  isLoading,
+}: {
+  agreement: AgreementDetail
+  onClose: () => void
+  onSubmit: (data: BookingApprovalData) => void
+  isLoading: boolean
+}) {
+  const { t } = useTranslation()
+  const [values, setValues] = useState<Record<string, string>>({
+    deposit_amount: agreement.deposit_amount ? String(agreement.deposit_amount) : '',
+    advance_payment: '',
+    pickup_mileage: '',
+    mileage_limit_per_day: '',
+    excess_mileage_rate: '',
+    fuel_level_out: '',
+    fuel_charge_rate: '',
+  })
+
+  const fields: { key: keyof BookingApprovalData; label: string; step?: string; max?: number }[] = [
+    { key: 'deposit_amount', label: t('agreementActions.depositRequired'), step: '0.01' },
+    { key: 'advance_payment', label: t('agreementActions.advanceRequired'), step: '0.01' },
+    { key: 'pickup_mileage', label: t('agreementActions.pickupMileage') },
+    { key: 'mileage_limit_per_day', label: t('agreementActions.mileageAllowance') },
+    { key: 'excess_mileage_rate', label: t('agreementActions.excessMileageRate'), step: '0.01' },
+    { key: 'fuel_level_out', label: t('agreementActions.fuelLevelOut'), max: 100 },
+    { key: 'fuel_charge_rate', label: t('agreementActions.fuelChargeRate'), step: '0.01' },
+  ]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          // Send only what was filled in; an omitted term stays unset rather
+          // than being recorded as a zero allowance.
+          const payload: BookingApprovalData = {}
+          for (const { key } of fields) {
+            const raw = values[key]?.trim()
+            if (!raw) continue
+            const parsed = Number.parseFloat(raw)
+            if (Number.isFinite(parsed)) payload[key] = parsed
+          }
+          onSubmit(payload)
+        }}
+        className="my-8 w-full max-w-lg rounded-lg bg-white p-6 shadow-xl"
+      >
+        <h2 className="mb-1 text-lg font-bold text-gray-900">
+          {t('agreementActions.confirmTerms')}
+        </h2>
+        <p className="mb-4 text-sm text-gray-500">{t('agreementActions.confirmTermsHint')}</p>
+
+        <div className="mb-4 grid gap-4 sm:grid-cols-2">
+          {fields.map(({ key, label, step, max }) => (
+            <div key={key}>
+              <label
+                htmlFor={`approval-${key}`}
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
+                {label}
+              </label>
+              <input
+                id={`approval-${key}`}
+                type="number"
+                min={0}
+                max={max}
+                step={step ?? '1'}
+                value={values[key] ?? ''}
+                onChange={(e) => setValues((prev) => ({ ...prev, [key]: e.target.value }))}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="rounded-lg bg-yellow-600 px-4 py-2 text-sm text-white hover:bg-yellow-700 disabled:opacity-50"
+          >
+            {isLoading ? t('common.loading') : t('agreementActions.approveBooking')}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }

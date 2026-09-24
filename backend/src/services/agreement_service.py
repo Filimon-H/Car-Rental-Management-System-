@@ -717,6 +717,13 @@ def approve_booking_request(
     db: Session,
     agreement_id: int,
     approved_by_id: int | None = None,
+    deposit_amount: Decimal | None = None,
+    advance_payment: Decimal | None = None,
+    pickup_mileage: int | None = None,
+    mileage_limit_per_day: int | None = None,
+    excess_mileage_rate: Decimal | None = None,
+    fuel_level_out: int | None = None,
+    fuel_charge_rate: Decimal | None = None,
 ) -> Agreement:
     """Approve a customer booking request: check availability, lock vehicle, post rental charge."""
     from sqlalchemy.orm import joinedload
@@ -735,6 +742,21 @@ def approve_booking_request(
             ErrorCode.INVALID_INPUT,
             f"Cannot approve an agreement with status '{agreement.status.value}'",
         )
+
+    # Staff confirms these contract terms while reviewing a public request.
+    # Values omitted by older clients preserve the existing defaults.
+    terms = {
+        "deposit_amount": deposit_amount,
+        "advance_payment": advance_payment,
+        "pickup_mileage": pickup_mileage,
+        "mileage_limit_per_day": mileage_limit_per_day,
+        "excess_mileage_rate": excess_mileage_rate,
+        "fuel_level_out": fuel_level_out,
+        "fuel_charge_rate": fuel_charge_rate,
+    }
+    for field, value in terms.items():
+        if value is not None:
+            setattr(agreement, field, value)
 
     for segment in agreement.vehicle_segments:
         vehicle = db.query(Vehicle).filter(Vehicle.id == segment.vehicle_id).with_for_update().first()

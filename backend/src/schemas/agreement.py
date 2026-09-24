@@ -52,6 +52,18 @@ class AgreementExtend(BaseModel):
         return _normalize_to_business_wall_time(value)
 
 
+class BookingApprovalRequest(BaseModel):
+    """Commercial and handover terms confirmed by staff before approval."""
+
+    deposit_amount: Decimal | None = Field(default=None, ge=0)
+    advance_payment: Decimal | None = Field(default=None, ge=0)
+    pickup_mileage: int | None = Field(default=None, ge=0)
+    mileage_limit_per_day: int | None = Field(default=None, gt=0)
+    excess_mileage_rate: Decimal | None = Field(default=None, ge=0)
+    fuel_level_out: int | None = Field(default=None, ge=0, le=100)
+    fuel_charge_rate: Decimal | None = Field(default=None, ge=0)
+
+
 class AgreementClose(BaseModel):
     """Schema for closing an agreement."""
 
