@@ -17,7 +17,7 @@ import { useAuthStore } from './services/auth'
 
 function LandingPage() {
   return (
-    <main className="min-h-screen bg-dark">
+    <main id="top" className="min-h-screen bg-dark">
       <Header />
       <Hero />
       <About />

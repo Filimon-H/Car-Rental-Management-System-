@@ -54,7 +54,7 @@ export default function Header() {
         <div className="flex items-center justify-between h-28">
 
           {/* Logo */}
-          <a href="#" className="flex items-center flex-shrink-0" onClick={(e) => scrollToSection(e, '#')}>
+          <a href="#top" className="flex items-center flex-shrink-0" onClick={(e) => scrollToSection(e, '#')}>
             <img src="/logo.png" alt="Nod Car Rent" className="h-20 md:h-24 w-auto" />
           </a>
 

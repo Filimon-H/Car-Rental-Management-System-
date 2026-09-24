@@ -46,7 +46,7 @@ export default function Footer() {
 
         <div className="grid md:grid-cols-3 gap-12 mb-12">
           <div>
-            <a href="#" className="inline-flex mb-5">
+            <a href="#top" className="inline-flex mb-5">
               <img
                 src="/logo.png"
                 alt="Nod Car Rent"
