@@ -426,6 +426,82 @@ def cancel_booking(
     return {"detail": "Booking cancelled"}
 
 
+#: Statuses in which an agreement genuinely holds a vehicle. A booking that
+#: is only requested holds nothing — staff have not approved it — which is why
+#: two overlapping requests are allowed to exist.
+_VEHICLE_HOLDING_STATUSES = (
+    AgreementStatus.PENDING_PAYMENT,
+    AgreementStatus.ACTIVE,
+    AgreementStatus.OVERDUE,
+)
+
+
+#: Statuses an extension may be requested for. Shared by the quote and the
+#: extend handler so a quote can never promise what extend will refuse.
+_EXTENDABLE_STATUSES = (
+    AgreementStatus.ACTIVE,
+    AgreementStatus.OVERDUE,
+    AgreementStatus.PENDING_PAYMENT,
+    AgreementStatus.BOOKING_REQUESTED,
+)
+
+
+def _require_extendable(agreement: Agreement) -> None:
+    if agreement.status not in _EXTENDABLE_STATUSES:
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT,
+            "Can only extend active, overdue, or pending bookings",
+        )
+
+
+def _extension_quote(
+    agreement: Agreement, new_return: datetime
+) -> ExtensionQuoteResponse:
+    """Price an extension by re-pricing the whole rental.
+
+    Charging the extra days at the flat daily rate quoted a customer more than
+    the rental actually costs: 3 days + 4 days was billed 3,300 + 4,400 while
+    the agreement charged the 6,500 weekly tier, and a two-month extension
+    quoted 55,000 against 50,000 to book the same span outright. Tiers apply
+    to the rental as a whole, so the only consistent extension price is the
+    difference between the whole rental before and after.
+    """
+    pickup = _as_business_wall_clock(agreement.pickup_datetime)
+    current_return = _as_business_wall_clock(agreement.expected_return_datetime)
+
+    vehicle = next(
+        (s.vehicle for s in agreement.vehicle_segments if s.vehicle is not None),
+        None,
+    )
+    weekly = vehicle.weekly_rate if vehicle else None
+    monthly = vehicle.monthly_rate if vehicle else None
+    daily = agreement.agreed_daily_rate
+
+    _, before = billing_service.calculate_rental_charge(
+        pickup, current_return, daily, weekly, monthly
+    )
+    _, after = billing_service.calculate_rental_charge(
+        pickup, new_return, daily, weekly, monthly
+    )
+    extra_days = billing_service.calculate_rental_days(current_return, new_return)
+    total = after - before
+
+    # A longer rental never costs less; guard against a tier boundary making
+    # the delta negative rather than handing the customer a credit.
+    if total < 0:
+        total = Decimal("0")
+
+    uses_tiers = total < daily * extra_days
+    return ExtensionQuoteResponse(
+        days=extra_days,
+        total=total,
+        daily_rate=daily,
+        pricing_note=(
+            "Best weekly/monthly tier applied" if uses_tiers else "Daily rate applied"
+        ),
+    )
+
+
 @router.post("/bookings/{booking_id}/extension-quote", response_model=ExtensionQuoteResponse)
 def quote_extension(
     booking_id: int,
@@ -440,14 +516,14 @@ def quote_extension(
     ).first()
     if not agreement:
         raise NotFoundError("Booking", booking_id)
+    # Without this the endpoint quoted 930,000 ETB to extend a rental that had
+    # already closed, and priced extensions on cancelled bookings.
+    _require_extendable(agreement)
     current_return = _as_business_wall_clock(agreement.expected_return_datetime)
     new_return = _as_business_wall_clock(req.new_return_datetime)
     if new_return <= current_return:
         raise BusinessError(ErrorCode.INVALID_INPUT, "New return date must be later than the current return date")
-    days, total = billing_service.calculate_extension_charge(
-        current_return, new_return, agreement.agreed_daily_rate
-    )
-    return ExtensionQuoteResponse(days=days, total=total, daily_rate=agreement.agreed_daily_rate)
+    return _extension_quote(agreement, new_return)
 
 
 @router.post("/bookings/{booking_id}/extend", response_model=MyBookingResponse)
@@ -471,13 +547,7 @@ def extend_booking(
     if not agreement:
         raise NotFoundError("Booking", booking_id)
 
-    if agreement.status not in (
-        AgreementStatus.ACTIVE,
-        AgreementStatus.OVERDUE,
-        AgreementStatus.PENDING_PAYMENT,
-        AgreementStatus.BOOKING_REQUESTED,
-    ):
-        raise BusinessError(ErrorCode.INVALID_INPUT, "Can only extend active, overdue, or pending bookings")
+    _require_extendable(agreement)
 
     new_dt = _as_business_wall_clock(req.new_return_datetime)
     current_return = _as_business_wall_clock(agreement.expected_return_datetime)
@@ -491,18 +561,40 @@ def extend_booking(
         None,
     )
     if segment:
-        # Extension: this agreement already holds the vehicle, so RENTED is the
-        # expected status and the gate would reject its own rental.
-        available = availability_repository.check_vehicle_available(
-            db,
-            segment.vehicle_id,
-            current_return,
-            new_dt,
-            exclude_agreement_id=agreement.id,
-            skip_status_check=True,
+        # Only a real hold blocks an extension.
+        #
+        # This used to call check_vehicle_available, which counts any
+        # non-cancelled agreement — including other BOOKING_REQUESTED rows.
+        # But creating a booking does not check availability at all, so a
+        # customer could make two overlapping requests without warning and
+        # then be refused an extension because of the one the system had just
+        # let them create. Requests are requests: nothing is reserved until
+        # staff approve. The error also named no agreement, so there was no
+        # way to tell which booking was in the way.
+        blocker = (
+            db.query(Agreement)
+            .join(AgreementVehicleSegment)
+            .filter(
+                AgreementVehicleSegment.vehicle_id == segment.vehicle_id,
+                Agreement.id != agreement.id,
+                Agreement.status.in_(_VEHICLE_HOLDING_STATUSES),
+                AgreementVehicleSegment.start_datetime < new_dt,
+                AgreementVehicleSegment.end_datetime > current_return,
+            )
+            .first()
         )
-        if not available:
-            raise BusinessError(ErrorCode.INVALID_INPUT, "Vehicle is already booked during that extension period")
+        if blocker:
+            raise BusinessError(
+                ErrorCode.INVALID_INPUT,
+                f"Vehicle is already booked during that extension period "
+                f"by {blocker.agreement_number}",
+            )
+
+    # Price it before the dates move: the quote re-prices the whole rental, so
+    # it has to see the rental as the customer saw it when they were quoted.
+    quote = _extension_quote(agreement, new_dt)
+
+    if segment:
         segment.end_datetime = new_dt
 
     agreement.expected_return_datetime = new_dt
@@ -511,14 +603,16 @@ def extend_booking(
     # Post extension charge if a rental charge already exists (i.e. agreement
     # was already approved/active — not a bare booking_requested with no charge yet).
     if agreement.status in (AgreementStatus.PENDING_PAYMENT, AgreementStatus.ACTIVE, AgreementStatus.OVERDUE):
-        ext_days, ext_charge = billing_service.calculate_rental_charge(
-            current_return, new_dt, agreement.agreed_daily_rate
-        )
+        # Charge exactly what was quoted. This used to re-derive the amount
+        # from the flat daily rate, so a customer quoted the weekly tier was
+        # still billed day-by-day.
         ledger_service.post_charge(
             db=db,
             agreement_id=agreement.id,
-            amount=ext_charge,
-            description=f"Extension charge: +{ext_days} day(s) @ {agreement.agreed_daily_rate}/day",
+            amount=quote.total,
+            description=(
+                f"Extension charge: +{quote.days} day(s) — {quote.pricing_note}"
+            ),
             entry_type=LedgerEntryType.CHARGE,
             auto_commit=False,
         )

@@ -116,6 +116,9 @@ class ExtensionQuoteResponse(BaseModel):
     days: int
     total: Decimal
     daily_rate: Decimal
+    # The extend step showed a bare number while the booking page explained
+    # which tier it had applied, so a tiered extension looked like an error.
+    pricing_note: str | None = None
 
 
 class MyBookingVehicle(BaseModel):
