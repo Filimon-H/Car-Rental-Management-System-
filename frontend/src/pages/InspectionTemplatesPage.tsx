@@ -79,7 +79,9 @@ export default function InspectionTemplatesPage() {
       <div className="mb-6 flex items-center gap-3">
         <ClipboardList className="h-8 w-8 text-blue-500" />
         <h1 className="text-2xl font-bold text-gray-800">
-          {t('inspections.templates.title', 'Inspection Templates')}
+          {tab === 'templates'
+            ? t('inspections.templates.title', 'Inspection Templates')
+            : t('inspection.pageTitle')}
         </h1>
         {tab === 'templates' && (
           <button

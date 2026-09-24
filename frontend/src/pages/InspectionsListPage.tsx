@@ -76,7 +76,7 @@ export default function InspectionsListPage() {
                 <th className="px-4 py-3">{t('vehicleDetail.plate')}</th>
                 <th className="px-4 py-3">{t('nav.agreements')}</th>
                 <th className="px-4 py-3">{t('inspection.inspector')}</th>
-                <th className="px-4 py-3">{t('sections.type')}</th>
+                <th className="px-4 py-3">{t('inspection.status')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">

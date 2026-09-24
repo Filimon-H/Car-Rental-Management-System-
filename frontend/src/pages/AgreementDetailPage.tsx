@@ -12,6 +12,7 @@ import { getErrorMessage } from '@/services/apiClient'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { datetimeLocalToWallClockIso, localNowWallClockIso, toDatetimeLocalValue, toNumber } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { documentsService } from '@/services/documents'
 
 const statusColors: Record<string, string> = {
   booking_requested: 'bg-orange-100 text-orange-800',
@@ -131,6 +132,15 @@ export default function AgreementDetailPage() {
     onError: (error: unknown) => {
       setPageError(getErrorMessage(error, t('ledger.reverseFailed')))
     },
+  })
+
+  const receiptMutation = useMutation({
+    mutationFn: (paymentId: number) => {
+      if (!agreementId) throw new Error('Invalid agreement id')
+      return documentsService.generateReceipt(agreementId, paymentId)
+    },
+    onError: (error: unknown) =>
+      setPageError(getErrorMessage(error, t('ledger.receiptFailed'))),
   })
 
   const addVehicleMutation = useMutation({
@@ -852,6 +862,7 @@ export default function AgreementDetailPage() {
             <LedgerTable
               agreementId={Number(id)}
               onReverse={canPostCharge ? setReverseTarget : undefined}
+              onReceipt={(entryId) => receiptMutation.mutate(entryId)}
             />
           </div>
         )}

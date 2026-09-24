@@ -78,9 +78,11 @@ interface LedgerTableProps {
   agreementId: number
   /** Omit to render the table read-only, as the customer ledger does. */
   onReverse?: (entry: { id: number; description: string; amount: number | string }) => void
+  /** Offered on payment rows only; a receipt for anything else is meaningless. */
+  onReceipt?: (entryId: number) => void
 }
 
-export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps) {
+export default function LedgerTable({ agreementId, onReverse, onReceipt }: LedgerTableProps) {
   const { t } = useTranslation()
   const { data: entries, isLoading, error } = useQuery({
     queryKey: ['ledger', agreementId],
@@ -233,7 +235,7 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
               <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">
                 Balance
               </th>
-              {onReverse && (
+              {(onReverse || onReceipt) && (
                 <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">
                   {t('common.actions')}
                 </th>
@@ -347,27 +349,39 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
                       <p className="text-xs font-normal text-gray-500">settled</p>
                     )}
                   </td>
-                  {onReverse && (
+                  {(onReverse || onReceipt) && (
                     <td className="px-4 py-3 text-right">
-                      {reversed || entry.entry_type === 'reversal' ? (
-                        <span className="text-xs text-gray-400">
-                          {reversed ? t('ledger.alreadyReversed') : '—'}
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onReverse({
-                              id: entry.id,
-                              description: entry.description,
-                              amount: entry.amount,
-                            })
-                          }
-                          className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                        >
-                          {t('ledger.reverse')}
-                        </button>
-                      )}
+                      <div className="flex justify-end gap-2">
+                        {onReceipt && entry.entry_type === 'payment' && !reversed && (
+                          <button
+                            type="button"
+                            onClick={() => onReceipt(entry.id)}
+                            className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            {t('ledger.receipt')}
+                          </button>
+                        )}
+                        {onReverse &&
+                          (reversed || entry.entry_type === 'reversal' ? (
+                            <span className="text-xs text-gray-400">
+                              {reversed ? t('ledger.alreadyReversed') : '—'}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onReverse({
+                                  id: entry.id,
+                                  description: entry.description,
+                                  amount: entry.amount,
+                                })
+                              }
+                              className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                            >
+                              {t('ledger.reverse')}
+                            </button>
+                          ))}
+                      </div>
                     </td>
                   )}
                 </tr>
@@ -392,7 +406,7 @@ export default function LedgerTable({ agreementId, onReverse }: LedgerTableProps
               }`}>
                 {fmt(balance)}
               </td>
-              {onReverse && <td className="px-4 py-3" />}
+              {(onReverse || onReceipt) && <td className="px-4 py-3" />}
             </tr>
           </tfoot>
         </table>

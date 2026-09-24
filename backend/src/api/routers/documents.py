@@ -17,7 +17,10 @@ router = APIRouter()
 
 class DocumentResponse(BaseModel):
     filename: str
-    filepath: str
+    # The absolute server path was returned to clients, exposing the
+    # deployment's directory layout. Callers need the download URL, not a
+    # path they cannot use.
+    download_url: str
     agreement_id: Optional[int] = None
     inspection_id: Optional[int] = None
     payment_id: Optional[int] = None
@@ -42,7 +45,11 @@ async def generate_agreement_document(
             agreement_id=agreement_id,
             template_name=template,
         )
-        return DocumentResponse(**result)
+        result.pop("filepath", None)
+        return DocumentResponse(
+            **result,
+            download_url=f"/api/documents/download/{result['filename']}",
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -63,7 +70,11 @@ async def generate_receipt(
             agreement_id=agreement_id,
             payment_id=payment_id,
         )
-        return DocumentResponse(**result)
+        result.pop("filepath", None)
+        return DocumentResponse(
+            **result,
+            download_url=f"/api/documents/download/{result['filename']}",
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -82,7 +93,11 @@ async def generate_inspection_report(
             db=db,
             inspection_id=inspection_id,
         )
-        return DocumentResponse(**result)
+        result.pop("filepath", None)
+        return DocumentResponse(
+            **result,
+            download_url=f"/api/documents/download/{result['filename']}",
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

@@ -7,6 +7,7 @@ import { inspectionsService } from '@/services/inspections'
 import { getErrorMessage } from '@/services/apiClient'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { documentsService } from '@/services/documents'
 
 export default function InspectionDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -49,6 +50,12 @@ export default function InspectionDetailPage() {
       setCustomerName('')
     },
     onError: (error: unknown) => setPageError(getErrorMessage(error, t('inspection.signFailed'))),
+  })
+
+  const reportMutation = useMutation({
+    mutationFn: () => documentsService.generateInspectionReport(inspectionId as number),
+    onError: (error: unknown) =>
+      setPageError(getErrorMessage(error, t('inspection.reportFailed'))),
   })
 
   if (inspectionId === null) {
@@ -112,6 +119,14 @@ export default function InspectionDetailPage() {
         </div>
 
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => reportMutation.mutate()}
+            disabled={reportMutation.isPending}
+            className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {t('inspection.generateReport')}
+          </button>
           {!isLocked && (
             <button
               type="button"

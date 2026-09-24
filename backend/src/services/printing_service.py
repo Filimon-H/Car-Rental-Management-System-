@@ -9,6 +9,8 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from src.core.errors import BusinessError, ErrorCode
+from src.models.ledger_entry import LedgerEntryType
 from src.models.agreement import Agreement
 from src.models.customer import Customer
 from src.models.vehicle import Vehicle
@@ -219,18 +221,40 @@ def generate_receipt(
         raise ValueError("Agreement not found")
     
     customer = agreement.customer
-    balance = ledger_service.get_agreement_balance(db, agreement_id)
     entries = ledger_service.get_ledger_entries(db, agreement_id)
-    
-    # Get latest payment or specific payment
-    payment_entries = [e for e in entries if e.amount < 0]
+
+    # A receipt must show the balance the rest of the system reports.
+    # get_agreement_balance is the signed sum of every row, which nets the
+    # held deposit off the total, so the receipt read 5,000 low against the
+    # header, the ledger tab and /ledger/{id}/balance.
+    from src.services import agreement_service
+
+    balance = agreement_service.get_balance_breakdown(db, agreement_id)["balance_due"]
+
+    # Only an actual payment can be receipted. Selecting on amount < 0 also
+    # matched deposits, applied deposits and negative adjustments — a -300
+    # discount was issued as a 300 payment receipt.
+    reversed_ids = {e.reversed_entry_id for e in entries if e.reversed_entry_id is not None}
+    payment_entries = [
+        e
+        for e in entries
+        if e.entry_type == LedgerEntryType.PAYMENT and e.id not in reversed_ids
+    ]
+
     if payment_id:
         payment = next((e for e in payment_entries if e.id == payment_id), None)
+        if not payment:
+            raise BusinessError(
+                ErrorCode.INVALID_INPUT,
+                "That entry is not a payment, or it has been reversed",
+            )
     else:
         payment = payment_entries[-1] if payment_entries else None
-    
+
     if not payment:
-        raise ValueError("No payment found")
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT, "No payment on this agreement to receipt"
+        )
     
     # Generate filename
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
