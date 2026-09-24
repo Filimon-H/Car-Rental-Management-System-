@@ -1,5 +1,11 @@
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
 const BASE_URL = `${API_BASE_URL}/public`
+
+/** Telegram bot handle, overridable per deployment. */
+export const TELEGRAM_BOT_USERNAME =
+  import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'Novacar67_bot'
+export const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
+
 export const uploadsUrl = (path: string | null) =>
   path ? `${API_BASE_URL}/uploads/${path}` : null
 

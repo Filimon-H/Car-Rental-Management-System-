@@ -1,7 +1,8 @@
 import { Phone, Mail, MapPin, Send } from 'lucide-react'
 import { contactInfo } from '../data/cars'
+import { TELEGRAM_BOT_URL, TELEGRAM_BOT_USERNAME } from '../services/apiClient'
 
-const TELEGRAM_BOT_URL = 'https://t.me/Novacar67_bot'
+
 
 const quickLinks = [
   { name: 'About', href: '#about' },
@@ -19,7 +20,7 @@ export default function Footer() {
             { icon: <Phone className="h-5 w-5 text-white" />, label: 'Call us', value: contactInfo.phones[0], href: `tel:${contactInfo.phones[0]}` },
             { icon: <Mail className="h-5 w-5 text-white" />, label: 'Write to us', value: contactInfo.email, href: `mailto:${contactInfo.email}` },
             { icon: <MapPin className="h-5 w-5 text-white" />, label: 'Address', value: contactInfo.address.city, href: undefined },
-            { icon: <Send className="h-5 w-5 text-white" />, label: 'Telegram bot', value: '@Novacar67_bot', href: TELEGRAM_BOT_URL },
+            { icon: <Send className="h-5 w-5 text-white" />, label: 'Telegram bot', value: `@${TELEGRAM_BOT_USERNAME}`, href: TELEGRAM_BOT_URL },
           ].map(({ icon, label, value, href }) => {
             const content = (
               <div className="flex items-center gap-4 bg-dark-200 rounded-2xl p-6 h-full hover:bg-dark-300 transition-colors">
@@ -82,7 +83,7 @@ export default function Footer() {
               className="inline-flex items-center gap-2.5 bg-[#229ED9] hover:bg-[#1a8bc4] text-white text-sm font-semibold px-5 py-2.5 rounded-full transition-colors"
             >
               <Send className="h-4 w-4" />
-              Open @Novacar67_bot
+              Open @{TELEGRAM_BOT_USERNAME}
             </a>
           </div>
         </div>

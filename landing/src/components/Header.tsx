@@ -4,8 +4,9 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { contactInfo } from '../data/cars'
 import { useAuthStore } from '../services/auth'
+import { TELEGRAM_BOT_URL, TELEGRAM_BOT_USERNAME } from '../services/apiClient'
 
-const TELEGRAM_BOT_URL = 'https://t.me/Novacar67_bot'
+
 
 export default function Header() {
   const { t } = useTranslation()
@@ -165,7 +166,7 @@ export default function Header() {
                 className="flex items-center gap-2 text-[#229ED9] text-sm font-medium"
               >
                 <Send className="h-4 w-4" />
-                Book on Telegram (@Novacar67_bot)
+                Book on Telegram (@{TELEGRAM_BOT_USERNAME})
               </a>
               {token ? (
                 <>
