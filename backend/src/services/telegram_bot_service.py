@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from html import escape
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import httpx
 from sqlalchemy import or_
@@ -24,9 +25,81 @@ from src.models.customer_user import CustomerUser
 from src.models.staff_user import StaffUser
 from src.models.telegram import TelegramCustomerLink, TelegramCustomerLinkCode, TelegramStaffLink
 from src.models.vehicle import Vehicle, VehicleStatus
+from src.schemas.fields import normalize_ethiopian_phone
 from src.services import agreement_service, telegram_link_service
 
 logger = get_logger(__name__)
+
+#: Telegram rejects a sendMessage payload longer than this, and the failure
+#: surfaces as silence: staff get no reply and no error. Stay well under it.
+TELEGRAM_MESSAGE_LIMIT = 4096
+
+#: Rows in any list command before truncating.
+MAX_LIST_ROWS = 10
+
+
+def _looks_like_link_code(text: str) -> bool:
+    """A bare token shaped like the codes the web app issues."""
+    candidate = text.strip()
+    return (
+        6 <= len(candidate) <= 12
+        and candidate.isalnum()
+        and candidate.upper() == candidate
+        and any(c.isalpha() for c in candidate)
+    )
+
+
+def mask_id_number(id_number: str | None) -> str:
+    """Show at most the last four digits of a government ID.
+
+    The rule here was `len(...) > 4`, so a short ID printed in full while a
+    long one beside it was masked -- same command, same field, two
+    treatments. Telegram stores chat history on its own servers and syncs it
+    to every signed-in device, outside the web app's access controls, which
+    makes a complete ID number the worst thing to print here.
+    """
+    if not id_number:
+        return "—"
+    tail = id_number[-4:]
+    return f"...{tail}"
+
+
+def _business_time(value: datetime) -> datetime:
+    """A stored timestamp as Addis wall time."""
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(ZoneInfo(settings.scheduler_timezone))
+
+
+def format_business_datetime(value: datetime, fmt: str = "%Y-%m-%d %H:%M") -> str:
+    """Render a timestamp in the timezone staff actually work in.
+
+    Due times were printed in UTC to Addis-based staff, so a rental running
+    to midnight read as "due 20:59" -- three hours early, on the exact
+    moment a late fee starts.
+    """
+    return f"{_business_time(value).strftime(fmt)} EAT"
+
+
+def truncate_rows(rows: list[str], header: str, limit: int = MAX_LIST_ROWS) -> str:
+    """Join rows under a header, capping the list and saying so.
+
+    Silently cutting at the query's LIMIT was its own trap: staff saw five
+    results with no indication a sixth existed.
+    """
+    shown = rows[:limit]
+    body = [header, *shown]
+    hidden = len(rows) - len(shown)
+    if hidden > 0:
+        body.append(f"…and {hidden} more — open the web app to see them all.")
+    text = "\n".join(body)
+    while len(text) > TELEGRAM_MESSAGE_LIMIT and len(shown) > 1:
+        shown = shown[:-1]
+        hidden = len(rows) - len(shown)
+        text = "\n".join(
+            [header, *shown, f"…and {hidden} more — open the web app to see them all."]
+        )
+    return text
 
 ID_TYPE_LABELS = {
     "1": ("national_id", "National ID"),
@@ -66,6 +139,11 @@ class TelegramBotService:
         self._registration_states: dict[int, CustomerRegistrationState] = {}
         self._booking_states: dict[int, BookingState] = {}
         self._extend_states: dict[int, dict] = {}
+        #: Chats that sent a bare /customer or /car and owe us a search term.
+        #: Telegram's command-suggestion popup swallows the Enter key, so
+        #: "/customer 0923677823" often arrives as a bare "/customer" with
+        #: the argument dropped and nothing said about it.
+        self._pending_search_states: dict[int, str] = {}
 
     @property
     def enabled(self) -> bool:
@@ -242,6 +320,21 @@ class TelegramBotService:
             await self._handle_extend_message(chat_id, text)
             return
 
+        pending = self._pending_search_states.pop(chat_id, None)
+        if pending:
+            await self._handle_command(
+                chat_id, telegram_user_id, telegram_username, f"{pending} {text}"
+            )
+            return
+
+        # A code-shaped string in a chat is almost always a link attempt with
+        # the /link prefix forgotten; pointing at /help was a dead end.
+        if _looks_like_link_code(text):
+            await self._send_message(
+                chat_id, f"If this is a link code, send: /link {escape(text)}"
+            )
+            return
+
         await self._send_message(chat_id, "Use /help to see available commands.")
 
     async def _handle_command(
@@ -269,6 +362,7 @@ class TelegramBotService:
             self._registration_states.pop(chat_id, None)
             self._booking_states.pop(chat_id, None)
             self._extend_states.pop(chat_id, None)
+            self._pending_search_states.pop(chat_id, None)
             await self._send_message(chat_id, "Current action cancelled.")
             return
 
@@ -505,9 +599,18 @@ class TelegramBotService:
             await self._send_message(chat_id, "You do not have permission to view customers.")
             return
         if len(search) < 2:
-            await self._send_message(chat_id, "Usage: /customer NAME_OR_PHONE")
+            self._pending_search_states[chat_id] = "/customer"
+            await self._send_message(
+                chat_id,
+                "Send the name or phone number to search for, or /cancel to stop.",
+            )
             return
 
+        # Staff type the local format they read off a caller ID; records
+        # store +251.... Without this, /customer 0923677823 found nothing
+        # for a customer whose number is +251923677823.
+        normalized = normalize_ethiopian_phone(search)
+        phone_term = f"%{normalized}%" if isinstance(normalized, str) else f"%{search}%"
         search_term = f"%{search}%"
         customers = (
             db.query(Customer)
@@ -516,28 +619,29 @@ class TelegramBotService:
                 or_(
                     Customer.first_name.ilike(search_term),
                     Customer.last_name.ilike(search_term),
-                    Customer.phone_primary.ilike(search_term),
+                    Customer.phone_primary.ilike(phone_term),
                     Customer.id_number.ilike(search_term),
                 )
             )
             .order_by(Customer.first_name, Customer.last_name)
-            .limit(5)
+            .limit(MAX_LIST_ROWS + 1)
             .all()
         )
         if not customers:
             await self._send_message(chat_id, "No matching customers found.")
             return
 
-        lines = ["Customer matches:"]
+        lines = []
         for customer in customers:
-            masked_id = (
-                f"...{customer.id_number[-4:]}" if customer.id_number and len(customer.id_number) > 4 else customer.id_number
-            )
             lines.append(
                 f"{customer.id}: {escape(customer.full_name)} | {escape(customer.phone_primary)}"
-                + (f" | ID {escape(masked_id)}" if masked_id else "")
+                + (
+                    f" | ID {escape(mask_id_number(customer.id_number))}"
+                    if customer.id_number
+                    else ""
+                )
             )
-        await self._send_message(chat_id, "\n".join(lines))
+        await self._send_message(chat_id, truncate_rows(lines, "Customer matches:"))
 
     async def _handle_vehicle_lookup(
         self,
@@ -551,7 +655,11 @@ class TelegramBotService:
             await self._send_message(chat_id, "You do not have permission to view vehicles.")
             return
         if len(search) < 1:
-            await self._send_message(chat_id, "Usage: /car PLATE_OR_MODEL")
+            self._pending_search_states[chat_id] = "/car"
+            await self._send_message(
+                chat_id,
+                "Send the plate or model to search for, or /cancel to stop.",
+            )
             return
 
         search_term = f"%{search}%"
@@ -566,20 +674,20 @@ class TelegramBotService:
                 )
             )
             .order_by(Vehicle.plate_number)
-            .limit(5)
+            .limit(MAX_LIST_ROWS + 1)
             .all()
         )
         if not vehicles:
             await self._send_message(chat_id, "No matching vehicles found.")
             return
 
-        lines = ["Vehicle matches:"]
+        lines = []
         for vehicle in vehicles:
             lines.append(
                 f"{escape(vehicle.plate_number)} | {escape(vehicle.make)} {escape(vehicle.model)} {vehicle.year}"
                 f" | {vehicle.status.value} | ETB {vehicle.daily_rate}"
             )
-        await self._send_message(chat_id, "\n".join(lines))
+        await self._send_message(chat_id, truncate_rows(lines, "Vehicle matches:"))
 
     async def _handle_due_today(self, db, staff_user: StaffUser, chat_id: int) -> None:
         """List agreements due today."""
@@ -600,13 +708,13 @@ class TelegramBotService:
             await self._send_message(chat_id, "No agreements are due today.")
             return
 
-        lines = ["Agreements due today:"]
-        for agreement in due_today[:10]:
+        lines = []
+        for agreement in due_today:
             lines.append(
                 f"{escape(agreement.agreement_number)} | {escape(agreement.customer.full_name)} | "
-                f"{agreement.expected_return_datetime.astimezone(timezone.utc).strftime('%H:%M UTC')}"
+                f"{format_business_datetime(agreement.expected_return_datetime, '%H:%M')}"
             )
-        await self._send_message(chat_id, "\n".join(lines))
+        await self._send_message(chat_id, truncate_rows(lines, "Agreements due today:"))
 
     async def _handle_overdue(self, db, staff_user: StaffUser, chat_id: int) -> None:
         """List overdue agreements with balance due."""
@@ -619,23 +727,27 @@ class TelegramBotService:
             .options(joinedload(Agreement.customer))
             .filter(Agreement.status == AgreementStatus.OVERDUE)
             .order_by(Agreement.expected_return_datetime.asc())
-            .limit(10)
+            .limit(MAX_LIST_ROWS + 1)
             .all()
         )
         if not agreements:
             await self._send_message(chat_id, "No overdue agreements found.")
             return
 
-        lines = ["Overdue agreements:"]
-        for agreement in agreements:
+        # Only the rows that will be shown need a balance; the extra row the
+        # query fetched exists solely to prove more of them are out there.
+        lines = []
+        for agreement in agreements[:MAX_LIST_ROWS]:
             summary = agreement_service.get_agreement_summary(db, agreement.id)
-            balance_due = summary["balance_due"]
             lines.append(
                 f"{escape(agreement.agreement_number)} | {escape(agreement.customer.full_name)} | "
-                f"due {agreement.expected_return_datetime.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} | "
-                f"balance ETB {balance_due}"
+                f"due {format_business_datetime(agreement.expected_return_datetime)} | "
+                f"balance ETB {summary['balance_due']}"
             )
-        await self._send_message(chat_id, "\n".join(lines))
+        body = truncate_rows(lines, "Overdue agreements:")
+        if len(agreements) > MAX_LIST_ROWS:
+            body += "\n…and more — open the web app to see them all."
+        await self._send_message(chat_id, body)
 
     async def _start_customer_registration(self, staff_user: StaffUser, chat_id: int) -> None:
         """Start guided customer creation."""
@@ -714,11 +826,39 @@ class TelegramBotService:
                         await self._send_message(chat_id, "A customer with that ID number already exists.")
                         return
 
+                # Store one canonical form, and refuse a number already on
+                # file. Without this, "0923677823" and "+251923677823"
+                # became separate people: three records ended up sharing one
+                # number under three spellings of the same name, splitting
+                # that customer's agreements across them.
+                raw_phone = state.data["phone_primary"] or ""
+                normalized_phone = normalize_ethiopian_phone(raw_phone)
+                phone_primary = (
+                    normalized_phone if isinstance(normalized_phone, str) else raw_phone
+                )
+
+                if phone_primary:
+                    existing = (
+                        db.query(Customer)
+                        .filter(Customer.phone_primary == phone_primary)
+                        .first()
+                    )
+                    if existing:
+                        self._registration_states.pop(chat_id, None)
+                        await self._send_message(
+                            chat_id,
+                            f"That phone number already belongs to "
+                            f"{escape(existing.full_name)} (customer {existing.id}). "
+                            f"Use /customer {escape(phone_primary)} to open the record, "
+                            f"or correct the number and try again.",
+                        )
+                        return
+
                 customer = Customer(
                     business_type="individual",
                     first_name=state.data["first_name"] or "",
                     last_name=state.data["last_name"] or "",
-                    phone_primary=state.data["phone_primary"] or "",
+                    phone_primary=phone_primary,
                     id_number=state.data.get("id_number"),
                     license_number=state.data.get("driver_license_number"),
                 )
