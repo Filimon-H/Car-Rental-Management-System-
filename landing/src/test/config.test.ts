@@ -294,3 +294,39 @@ describe('cancelling a booking is deliberate', () => {
     expect(page).toContain('estimatedTotal(b)')
   })
 })
+
+describe('the booking flow keeps what the customer entered', () => {
+  it('dates live above the step that renders them', () => {
+    // BookingDatesStep unmounts when you go back to edit details, so dates
+    // held in its own state were silently reset to the defaults.
+    const page = code('BookingPage.tsx')
+    expect(page).toContain('initialDates')
+    expect(page).toContain('onDatesChange')
+  })
+
+  it('an expired document is flagged on the confirm step too', () => {
+    const page = code('BookingPage.tsx')
+    expect(page).toContain('isExpired(profileData.license_expiry)')
+    expect(page).toContain('isExpired(profileData.id_expiry)')
+  })
+
+  it('an unavailable car explains the redirect', () => {
+    const page = code('BookingPage.tsx')
+    expect(page).toContain('no longer available for booking')
+    expect(code('App.tsx')).toContain('notice')
+  })
+})
+
+describe('the pending estimate comes from the server', () => {
+  it('the card does not recompute it from the daily rate', () => {
+    // days x agreed_daily_rate missed the tier: 11,000 shown for a 9,800
+    // booking.
+    const page = code('MyBookingsPage.tsx')
+    expect(page).toContain('booking.estimated_total')
+    expect(page).not.toMatch(/agreed_daily_rate\s*\?\?\s*0/)
+  })
+
+  it('the tier note is shown alongside it', () => {
+    expect(code('MyBookingsPage.tsx')).toContain('b.pricing_note')
+  })
+})

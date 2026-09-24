@@ -16,6 +16,10 @@ import MyBookingsPage from './pages/MyBookingsPage'
 import { useAuthStore } from './services/auth'
 
 function LandingPage() {
+  // A redirect away from /book/:id carries its reason here; without showing
+  // it the customer just lands on the homepage with no explanation.
+  const location = useLocation()
+  const notice = (location.state as { notice?: string } | null)?.notice
   /*
     Header and Footer used to sit inside <main>, so the banner and
     contentinfo landmarks were nested in the main landmark and a skip link
@@ -36,6 +40,14 @@ function LandingPage() {
       </a>
       <Header />
       <main id="main">
+        {notice && (
+          <div
+            role="status"
+            className="bg-amber-500/10 border-b border-amber-500/30 text-amber-300 text-sm text-center px-4 py-3"
+          >
+            {notice}
+          </div>
+        )}
         <Hero />
         <About />
         <Services />

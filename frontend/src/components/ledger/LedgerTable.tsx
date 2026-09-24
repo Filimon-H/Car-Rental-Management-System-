@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toNumber } from '@/lib/utils'
+import { formatDate as sharedFormatDate } from '../../lib/utils'
 
 interface TypeMeta {
   label: string
@@ -103,7 +104,7 @@ export default function LedgerTable({ agreementId, onReverse, onReceipt }: Ledge
     )
 
   const fmtDate = (s: string) =>
-    new Date(s).toLocaleDateString('en-US', {
+    sharedFormatDate(s, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

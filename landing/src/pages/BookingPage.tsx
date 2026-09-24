@@ -267,17 +267,24 @@ interface BookingDatesProps {
   error: string
   /** Clears the parent's submission error once the customer edits the dates. */
   onClearError: () => void
+  /** Dates survive a trip back to step 1; see the state in BookingPage. */
+  initialDates: { pickup: string; returnDate: string } | null
+  onDatesChange: (dates: { pickup: string; returnDate: string }) => void
 }
 
-function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, error, onClearError }: BookingDatesProps) {
+function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, error, onClearError, initialDates, onDatesChange }: BookingDatesProps) {
   const tomorrow = new Date()
   tomorrow.setDate(tomorrow.getDate() + 1)
   tomorrow.setHours(9, 0, 0, 0)
   const dayAfter = new Date(tomorrow)
   dayAfter.setDate(dayAfter.getDate() + 2)
 
-  const [pickup, setPickup] = useState(toLocalDatetimeValue(tomorrow))
-  const [returnDate, setReturnDate] = useState(toLocalDatetimeValue(dayAfter))
+  const [pickup, setPickup] = useState(
+    initialDates?.pickup ?? toLocalDatetimeValue(tomorrow)
+  )
+  const [returnDate, setReturnDate] = useState(
+    initialDates?.returnDate ?? toLocalDatetimeValue(dayAfter)
+  )
   const [pickupLocation, setPickupLocation] = useState('')
   const [returnLocation, setReturnLocation] = useState('')
   const [notes, setNotes] = useState('')
@@ -309,6 +316,10 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
     setLocalError('')
     onClearError()
   }
+
+  useEffect(() => {
+    onDatesChange({ pickup, returnDate })
+  }, [pickup, returnDate, onDatesChange])
 
   useEffect(() => {
     // No point pricing a range the server will reject.
@@ -357,8 +368,25 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
           <button type="button" onClick={onBack} className="text-gold text-xs hover:underline">Edit</button>
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-          <div><span className="text-gray-500">ID:</span> <span className="text-white">{profileData.id_number} ({profileData.id_type.replace('_', ' ')})</span></div>
-          <div><span className="text-gray-500">License:</span> <span className="text-white">{profileData.license_number}</span></div>
+          <div>
+            <span className="text-gray-500">ID:</span>{' '}
+            <span className="text-white">{profileData.id_number} ({profileData.id_type.replace('_', ' ')})</span>
+            {isExpired(profileData.id_expiry) && (
+              <span className="text-amber-400"> · expired {formatExpiry(profileData.id_expiry)}</span>
+            )}
+          </div>
+          <div>
+            <span className="text-gray-500">License:</span>{' '}
+            <span className="text-white">{profileData.license_number}</span>
+            {/*
+              The expiry warnings lived only on step 1, so at the moment of
+              confirming, the summary showed a licence number with nothing
+              flagged — the customer saw no problem until submission failed.
+            */}
+            {isExpired(profileData.license_expiry) && (
+              <span className="text-amber-400"> · expired {formatExpiry(profileData.license_expiry)}</span>
+            )}
+          </div>
           {profileData.emergency_contact_name && (
             <div className="col-span-2"><span className="text-gray-500">Emergency:</span> <span className="text-white">{profileData.emergency_contact_name} · {profileData.emergency_contact_phone}</span></div>
           )}
@@ -495,6 +523,12 @@ export default function BookingPage() {
   const [loadingVehicle, setLoadingVehicle] = useState(true)
   const [step, setStep] = useState<1 | 2>(1)
   const [profileData, setProfileData] = useState<ProfileFormData | null>(null)
+  /*
+    The dates live here, not in BookingDatesStep. That step unmounts when the
+    customer goes back to edit their details, so entering Oct 1 to Oct 11 and
+    returning reset the fields to the defaults without saying so.
+  */
+  const [dates, setDates] = useState<{ pickup: string; returnDate: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -523,10 +557,21 @@ export default function BookingPage() {
     bookingService
       .getVehicle(Number(vehicleId))
       .then((v) => {
-        if (v.status !== 'available') navigate('/')
-        else setVehicle(v)
+        // Bouncing to / with no message left the customer wondering what
+        // they had done wrong.
+        if (v.status !== 'available') {
+          navigate('/', {
+            replace: true,
+            state: { notice: 'That car is no longer available for booking.' },
+          })
+        } else setVehicle(v)
       })
-      .catch(() => navigate('/'))
+      .catch(() =>
+        navigate('/', {
+          replace: true,
+          state: { notice: "We couldn't load that car. Please try another." },
+        })
+      )
       .finally(() => setLoadingVehicle(false))
   }, [vehicleId, navigate])
 
@@ -635,6 +680,8 @@ export default function BookingPage() {
             submitting={submitting}
             error={error}
             onClearError={() => setError('')}
+            initialDates={dates}
+            onDatesChange={setDates}
           />
         )}
       </div>

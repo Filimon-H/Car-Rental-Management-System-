@@ -37,6 +37,7 @@ import {
 } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { documentsService } from '@/services/documents'
+import { formatDateTime } from '../lib/utils'
 
 const statusColors: Record<string, string> = {
   booking_requested: 'bg-orange-100 text-orange-800',
@@ -333,15 +334,15 @@ export default function AgreementDetailPage() {
     },
   })
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+  // Was pinned to en-US, so the Amharic UI still showed "Oct 5, 2026".
+  const formatDate = (dateStr: string) =>
+    formatDateTime(dateStr, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     })
-  }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-ET', {

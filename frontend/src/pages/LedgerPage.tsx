@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast'
 import customersService, { CustomerLedgerEntry } from '@/services/customers'
 import vendorsService from '@/services/vendors'
 import { toNumber } from '@/lib/utils'
+import { formatDate as sharedFormatDate } from '../lib/utils'
 
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ function fmt(n: number) {
 }
 
 function fmtDate(s: string) {
-  return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  return sharedFormatDate(s, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 function fmtTime(s: string) {

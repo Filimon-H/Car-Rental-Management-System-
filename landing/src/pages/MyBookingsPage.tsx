@@ -23,21 +23,16 @@ function dayAfter(isoDatetime: string): string {
 }
 
 /**
- * What a pending request is expected to cost, from its own agreed rate.
+ * What a pending request is expected to cost.
  *
- * Untiered, and labelled as an estimate: staff confirm the final price on
- * approval, and tiered pricing can only bring it down.
+ * This used to compute days x agreed_daily_rate in the client, which missed
+ * the weekly/monthly tier the booking quote and the approval charge both
+ * apply: a rental quoted 9,800 and charged 9,800 was shown here as 11,000.
+ * The server now sends the figure priced by that same engine.
  */
-function estimatedTotal(booking: MyBooking): string {
-  const days = Math.max(
-    1,
-    Math.ceil(
-      (new Date(booking.expected_return_datetime).getTime() -
-        new Date(booking.pickup_datetime).getTime()) /
-        86400000
-    )
-  )
-  return (days * Number(booking.agreed_daily_rate ?? 0)).toLocaleString()
+function estimatedTotal(booking: MyBooking): string | null {
+  if (booking.estimated_total == null) return null
+  return Number(booking.estimated_total).toLocaleString()
 }
 
 function formatDate(iso: string) {
@@ -285,11 +280,14 @@ export default function MyBookingsPage() {
                   <div className="mt-3 border-t border-gray-700/50 pt-3 text-xs">
                     <p className="text-gray-500">Estimated total</p>
                     <p className="text-white font-medium">
-                      {estimatedTotal(b)} ETB{' '}
+                      {estimatedTotal(b) ?? '—'} ETB{' '}
                       <span className="text-gray-500 font-normal">
                         — confirmed by staff on approval
                       </span>
                     </p>
+                    {b.pricing_note && (
+                      <p className="text-gray-500 mt-0.5">{b.pricing_note}</p>
+                    )}
                   </div>
                 ) : b.total_charge !== null && (
                   <div className="mt-3 border-t border-gray-700/50 pt-3 grid grid-cols-3 gap-2 text-xs">

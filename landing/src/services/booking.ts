@@ -36,6 +36,10 @@ export interface MyBooking {
   pickup_datetime: string
   expected_return_datetime: string
   agreed_daily_rate: string
+  /** Server-side estimate for a pending request, priced with the same tiers
+   *  as the booking quote. Null once the ledger carries the real charge. */
+  estimated_total?: string | null
+  pricing_note?: string | null
   pickup_location: string | null
   return_location: string | null
   notes: string | null

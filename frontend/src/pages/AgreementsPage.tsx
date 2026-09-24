@@ -11,6 +11,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { PageToolbar, FilterTabs } from '@/components/ui/PageToolbar'
 import { Button } from '@/components/ui/Button'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { formatDate as sharedFormatDate } from '../lib/utils'
 
 const PAGE_SIZE = 20
 
@@ -62,11 +63,7 @@ export default function AgreementsPage() {
   })
 
   const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
+    sharedFormatDate(dateStr, { year: 'numeric', month: 'short', day: 'numeric' })
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB' }).format(amount)

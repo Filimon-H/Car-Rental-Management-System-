@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import i18n from '../i18n'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -73,4 +74,45 @@ export function stripBlanks<T extends object>(data: T): Partial<T> {
   return Object.fromEntries(
     Object.entries(data).filter(([, value]) => value !== '' && value !== null && value !== undefined)
   ) as Partial<T>
+}
+
+// ---------------------------------------------------------------------------
+// Dates
+// ---------------------------------------------------------------------------
+
+/**
+ * The locale to format dates in, following the active UI language.
+ *
+ * Every call site passed a hardcoded 'en-US', so switching the interface to
+ * አማርኛ still rendered "Oct 5, 2026" in the agreement header and the
+ * agreements table. Reading i18next's current language keeps them in step.
+ *
+ * Amharic is mapped to am-ET so month names and numerals come out in
+ * Ethiopic rather than falling back to the browser's default region.
+ */
+export function activeDateLocale(): string {
+  const lang = i18n.resolvedLanguage || i18n.language || 'en'
+  return lang.startsWith('am') ? 'am-ET' : 'en-GB'
+}
+
+/** A date in the active language: "5 Oct 2026" / "05 ጥቅም 2026". */
+export function formatDate(
+  value: string | Date | null | undefined,
+  options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }
+): string {
+  if (!value) return '—'
+  const d = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString(activeDateLocale(), options)
+}
+
+/** A date and time in the active language. */
+export function formatDateTime(
+  value: string | Date | null | undefined,
+  options: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }
+): string {
+  if (!value) return '—'
+  const d = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleString(activeDateLocale(), options)
 }
