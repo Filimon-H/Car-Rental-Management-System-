@@ -2,13 +2,15 @@
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from src.core.config import settings
 from src.core.errors import BusinessError, ErrorCode
 from src.models.ledger_entry import LedgerEntryType
 from src.models.agreement import Agreement
@@ -33,14 +35,36 @@ def format_currency(amount: Decimal) -> str:
     return f"ETB {amount:,.2f}"
 
 
+def _to_local(dt: datetime) -> datetime:
+    """Convert a stored timestamp to the configured local timezone.
+
+    Ledger and agreement timestamps are stored in UTC. Printing them raw
+    labelled a UTC time as local, so a payment taken at 11:38 in
+    Africa/Addis_Ababa appeared on the receipt as 08:38 — three hours early.
+    Naive values are assumed UTC, which is how they are written.
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(ZoneInfo(settings.scheduler_timezone))
+
+
+def format_payment_method(method) -> str:
+    """Human-readable payment method, e.g. bank_transfer -> Bank Transfer."""
+    if not method:
+        return "N/A"
+    value = method.value if hasattr(method, "value") else str(method)
+    special = {"telebirr": "TeleBirr", "cbe_birr": "CBE Birr"}
+    return special.get(value, value.replace("_", " ").title())
+
+
 def format_date(dt: datetime) -> str:
     """Format datetime for documents."""
-    return dt.strftime("%B %d, %Y")
+    return _to_local(dt).strftime("%B %d, %Y")
 
 
 def format_datetime(dt: datetime) -> str:
     """Format datetime with time for documents."""
-    return dt.strftime("%B %d, %Y at %I:%M %p")
+    return _to_local(dt).strftime("%B %d, %Y at %I:%M %p")
 
 
 def generate_agreement_document(
@@ -277,7 +301,7 @@ Phone: {customer.phone_primary}
 --------------------------------------------------------------------------------
 
 Amount Paid: {format_currency(abs(payment.amount))}
-Payment Method: {payment.payment_method.value if payment.payment_method else 'N/A'}
+Payment Method: {format_payment_method(payment.payment_method)}
 Reference: {payment.payment_reference or 'N/A'}
 Date: {format_datetime(payment.created_at)}
 

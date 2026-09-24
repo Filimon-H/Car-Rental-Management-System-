@@ -2,6 +2,7 @@
 
 from typing import Annotated, Optional
 
+from src.core.errors import AppException
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -52,6 +53,10 @@ async def generate_agreement_document(
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except (AppException, HTTPException):
+        # Already carries its own status and message — re-raising unchanged
+        # stops a deliberate 400 being rewrapped as a 500 by the catch-all.
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Document generation failed: {str(e)}")
 
@@ -77,6 +82,10 @@ async def generate_receipt(
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except (AppException, HTTPException):
+        # Already carries its own status and message — re-raising unchanged
+        # stops a deliberate 400 being rewrapped as a 500 by the catch-all.
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Receipt generation failed: {str(e)}")
 
@@ -100,6 +109,10 @@ async def generate_inspection_report(
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except (AppException, HTTPException):
+        # Already carries its own status and message — re-raising unchanged
+        # stops a deliberate 400 being rewrapped as a 500 by the catch-all.
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
 
