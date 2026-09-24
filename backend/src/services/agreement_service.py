@@ -14,7 +14,7 @@ from src.models.agreement import Agreement, AgreementStatus, AgreementType
 from src.models.agreement_vehicle_segment import AgreementVehicleSegment
 from src.models.customer import Customer
 from src.models.vehicle import Vehicle, VehicleStatus
-from src.models.ledger_entry import LedgerEntryType
+from src.models.ledger_entry import LedgerEntry, LedgerEntryType
 from src.repositories import availability_repository
 from src.services import billing_service, ledger_service
 from src.services.vehicle_status_service import release_vehicle
@@ -276,10 +276,7 @@ def create_standard_agreement(
         weekly_rate=vehicle.weekly_rate,
         monthly_rate=vehicle.monthly_rate,
     )
-    flat = daily_rate * days
-    description = f"Rental charge: {days} days @ {daily_rate}/day"
-    if charge < flat:
-        description = f"Rental charge: {days} days (tiered rate, saved {flat - charge})"
+    description = _rental_charge_description(days, daily_rate, charge)
     ledger_service.post_charge(
         db=db,
         agreement_id=agreement.id,
@@ -668,6 +665,117 @@ def extend_agreement(
     return agreement
 
 
+def _find_blocking_agreement(
+    db: Session, vehicle_id: int, agreement: Agreement
+) -> Agreement | None:
+    """The other agreement whose hold overlaps this one, if any."""
+    return (
+        db.query(Agreement)
+        .join(AgreementVehicleSegment)
+        .filter(
+            AgreementVehicleSegment.vehicle_id == vehicle_id,
+            Agreement.id != agreement.id,
+            Agreement.status.in_(
+                [
+                    AgreementStatus.PENDING_PAYMENT,
+                    AgreementStatus.ACTIVE,
+                    AgreementStatus.OVERDUE,
+                ]
+            ),
+            AgreementVehicleSegment.start_datetime < agreement.expected_return_datetime,
+            AgreementVehicleSegment.end_datetime > agreement.pickup_datetime,
+        )
+        .order_by(AgreementVehicleSegment.start_datetime)
+        .first()
+    )
+
+
+def _rental_charge_description(
+    days: int, daily_rate: Decimal, charge: Decimal
+) -> str:
+    """Describe a rental charge in terms that match its amount.
+
+    The approval path described every charge as "N days @ rate/day" even when
+    a tier had been applied, so the ledger read "7 days @ 1100.00/day" beside
+    a debit of 6,500 — 7 x 1,100 is 7,700, and to anyone auditing the ledger
+    that looks like an arithmetic error rather than the weekly rate.
+    """
+    flat = daily_rate * days
+    if charge < flat:
+        return (
+            f"Rental charge: {days} days — tiered rate {charge} "
+            f"(saved {flat - charge} against {daily_rate}/day)"
+        )
+    return f"Rental charge: {days} days @ {daily_rate}/day"
+
+
+def _reverse_outstanding_charges_on_cancel(
+    db: Session,
+    agreement: Agreement,
+    cancelled_by_id: int | None,
+) -> None:
+    """Clear charges for a cancelled booking nobody has paid against.
+
+    An approved booking carries a posted rental charge. Cancelling it used to
+    change the status and release the vehicle while leaving that charge
+    standing, so the customer kept seeing a balance due on a rental that will
+    never happen and staff had no Reverse action on the row to clear it.
+
+    Only when nothing has been paid. Once money has changed hands the charge
+    is half of a record -- what was owed against what was received -- and
+    reversing it would turn a refund into a silent write-off. That is a
+    decision for staff, who can reverse entries individually.
+
+    A cancellation fee, if the business wants one, belongs here as its own
+    charge rather than as the untouched remains of the rental charge.
+    """
+    from src.services import ledger_service
+
+    if ledger_service.get_total_payments(db, agreement.id) > 0:
+        return
+
+    reversible = (
+        LedgerEntryType.CHARGE,
+        LedgerEntryType.LATE_FEE,
+        LedgerEntryType.DAMAGE_CHARGE,
+        LedgerEntryType.ADJUSTMENT,
+    )
+    already_reversed = {
+        row.reversed_entry_id
+        for row in db.query(LedgerEntry)
+        .filter(
+            LedgerEntry.agreement_id == agreement.id,
+            LedgerEntry.reversed_entry_id.isnot(None),
+        )
+        .all()
+    }
+
+    entries = (
+        db.query(LedgerEntry)
+        .filter(
+            LedgerEntry.agreement_id == agreement.id,
+            LedgerEntry.entry_type.in_(reversible),
+        )
+        .all()
+    )
+    for entry in entries:
+        if entry.id in already_reversed or entry.amount == 0:
+            continue
+        db.add(
+            LedgerEntry(
+                agreement_id=agreement.id,
+                entry_type=LedgerEntryType.REVERSAL,
+                amount=-entry.amount,
+                description=(
+                    f"Reversal of entry #{entry.id}: booking cancelled before payment"
+                ),
+                reversed_entry_id=entry.id,
+                created_by_id=cancelled_by_id,
+            )
+        )
+    db.flush()
+
+
 def cancel_agreement(
     db: Session,
     agreement_id: int,
@@ -705,6 +813,8 @@ def cancel_agreement(
     if not was_booking_request:
         for segment in agreement.vehicle_segments:
             release_vehicle(db, segment.vehicle, agreement_id)
+
+    _reverse_outstanding_charges_on_cancel(db, agreement, cancelled_by_id)
 
     db.commit()
     db.refresh(agreement)
@@ -768,10 +878,26 @@ def approve_booking_request(
         if not availability_repository.check_vehicle_available(
             db, vehicle.id, agreement.pickup_datetime, agreement.expected_return_datetime,
             exclude_agreement_id=agreement.id,
+            # Another pending request is not a hold: counting it as one meant
+            # two overlapping requests deadlocked, neither approvable.
+            holds_only=True,
         ):
+            # Name the blocker. Competing requests for one car is the normal
+            # case this flow exists to resolve, and staff previously hit a
+            # wall with no way to tell what was in the way.
+            blocker = _find_blocking_agreement(db, vehicle.id, agreement)
+            detail = (
+                f" Blocked by {blocker.agreement_number} "
+                f"({blocker.pickup_datetime:%d %b} to "
+                f"{blocker.expected_return_datetime:%d %b}, "
+                f"{blocker.status.value.replace('_', ' ')})."
+                if blocker
+                else ""
+            )
             raise BusinessError(
                 ErrorCode.VEHICLE_NOT_AVAILABLE,
-                f"Vehicle {vehicle.plate_number} is no longer available for the requested dates",
+                f"Vehicle {vehicle.plate_number} is no longer available for the "
+                f"requested dates.{detail}",
             )
 
         vehicle.status = VehicleStatus.RESERVED
@@ -790,7 +916,9 @@ def approve_booking_request(
         db=db,
         agreement_id=agreement.id,
         amount=charge,
-        description=f"Rental charge: {days} days @ {agreement.agreed_daily_rate}/day",
+        description=_rental_charge_description(
+            days, agreement.agreed_daily_rate, charge
+        ),
         entry_type=LedgerEntryType.CHARGE,
         created_by_id=approved_by_id,
     )

@@ -742,10 +742,34 @@ def _agreement_to_response(a: Agreement, db: Session | None = None) -> MyBooking
         deposit_received = breakdown["deposit_received"]
         deposit_held = breakdown["deposit_held"]
 
+    # Price a pending request the way the booking page quoted it, so the
+    # estimate, the quote and the eventual charge cannot disagree.
+    estimated_total = None
+    pricing_note = None
+    if a.status == AgreementStatus.BOOKING_REQUESTED:
+        tier_vehicle = next(
+            (s.vehicle for s in a.vehicle_segments if s.vehicle is not None), None
+        )
+        days, est = billing_service.calculate_rental_charge(
+            _as_business_wall_clock(a.pickup_datetime),
+            _as_business_wall_clock(a.expected_return_datetime),
+            a.agreed_daily_rate,
+            tier_vehicle.weekly_rate if tier_vehicle else None,
+            tier_vehicle.monthly_rate if tier_vehicle else None,
+        )
+        estimated_total = est
+        pricing_note = (
+            "Best weekly/monthly tier applied"
+            if est < a.agreed_daily_rate * days
+            else "Daily rate applied"
+        )
+
     return MyBookingResponse(
         id=a.id,
         agreement_number=a.agreement_number,
         status=a.status.value,
+        estimated_total=estimated_total,
+        pricing_note=pricing_note,
         pickup_datetime=a.pickup_datetime,
         expected_return_datetime=a.expected_return_datetime,
         agreed_daily_rate=a.agreed_daily_rate,

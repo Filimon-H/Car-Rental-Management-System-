@@ -335,3 +335,141 @@ class TestOverlapRulesAreConsistent:
         assert blocker.agreement_number in r.json()["detail"], (
             f"error does not name the blocking agreement: {r.json()['detail']}"
         )
+
+
+class TestThePendingEstimateMatchesTheQuote:
+    """A pending card showed days x daily_rate, missing the tier.
+
+    The payload carried only agreed_daily_rate and a zero ledger, so the
+    client recomputed 10 x 1,100 = 11,000 for a booking quoted 9,800 and
+    later charged 9,800.
+    """
+
+    def test_the_estimate_equals_the_booking_quote(
+        self, client, db: Session, customer_headers, customer, tiered_vehicle
+    ):
+        pickup = datetime.now().replace(microsecond=0) + timedelta(days=11)
+        ret = pickup + timedelta(days=10)
+
+        quoted = quote_booking(client, customer_headers, tiered_vehicle.id, pickup, ret)
+        assert quoted["pricing_note"] == "Best weekly/monthly tier applied"
+
+        created = client.post(
+            "/api/public/bookings",
+            json={
+                "vehicle_id": tiered_vehicle.id,
+                "pickup_datetime": pickup.isoformat(),
+                "expected_return_datetime": ret.isoformat(),
+            },
+            headers=customer_headers,
+        )
+        assert created.status_code in (200, 201), created.text
+        body = created.json()
+
+        assert body["estimated_total"] is not None, "no estimate on a pending booking"
+        assert Decimal(body["estimated_total"]) == Decimal(quoted["total"]), (
+            f"card would show {body['estimated_total']} for a {quoted['total']} quote"
+        )
+        assert body["pricing_note"] == quoted["pricing_note"]
+
+
+class TestTheLedgerDescriptionMatchesItsAmount:
+    def test_a_tiered_charge_does_not_claim_a_daily_rate(
+        self, db: Session, customer, tiered_vehicle
+    ):
+        """"7 days @ 1100.00/day" beside a 6,500 debit reads as a mistake."""
+        from src.models.ledger_entry import LedgerEntry, LedgerEntryType
+
+        pickup = datetime.now().replace(microsecond=0) + timedelta(days=11)
+        agreement = agreement_service.create_standard_agreement(
+            db=db,
+            customer_id=customer.id,
+            vehicle_id=tiered_vehicle.id,
+            pickup_datetime=pickup,
+            expected_return_datetime=pickup + timedelta(days=7),
+            daily_rate=tiered_vehicle.daily_rate,
+        )
+        entry = (
+            db.query(LedgerEntry)
+            .filter(
+                LedgerEntry.agreement_id == agreement.id,
+                LedgerEntry.entry_type == LedgerEntryType.CHARGE,
+            )
+            .one()
+        )
+        assert entry.amount == Decimal("6500.00"), entry.amount
+        assert "@ 1100.00/day" not in entry.description, entry.description
+        assert "tiered" in entry.description.lower(), entry.description
+
+
+class TestApprovalSaysWhatIsBlockingIt:
+    """Staff hit a wall on a conflict the system let a customer create.
+
+    Two overlapping requests are accepted silently; approving the first then
+    failed with a message naming only the vehicle, so there was no way to
+    find the request standing in the way.
+    """
+
+    def test_the_error_names_the_conflicting_agreement(
+        self, client, db: Session, customer_headers, customer, tiered_vehicle
+    ):
+        from src.core.errors import BusinessError
+        from src.models.agreement import Agreement
+
+        pickup = datetime.now().replace(microsecond=0) + timedelta(days=11)
+
+        def request(start, end):
+            r = client.post(
+                "/api/public/bookings",
+                json={
+                    "vehicle_id": tiered_vehicle.id,
+                    "pickup_datetime": start.isoformat(),
+                    "expected_return_datetime": end.isoformat(),
+                },
+                headers=customer_headers,
+            )
+            assert r.status_code in (200, 201), r.text
+            return db.query(Agreement).filter(Agreement.id == r.json()["id"]).one()
+
+        first = request(pickup, pickup + timedelta(days=10))
+        second = request(pickup + timedelta(days=4), pickup + timedelta(days=7))
+
+        # Approving the second makes it a real hold.
+        agreement_service.approve_booking_request(db, second.id)
+
+        with pytest.raises(BusinessError) as exc:
+            agreement_service.approve_booking_request(db, first.id)
+
+        assert second.agreement_number in str(exc.value), str(exc.value)
+
+    def test_two_pending_requests_do_not_deadlock(
+        self, client, db: Session, customer_headers, customer, tiered_vehicle
+    ):
+        """Neither could be approved: each counted the other as a hold.
+
+        Creating a booking does not check availability, so two overlapping
+        requests can always exist. Treating a request as a hold left staff
+        unable to approve either without cancelling one first.
+        """
+        from src.models.agreement import Agreement
+
+        pickup = datetime.now().replace(microsecond=0) + timedelta(days=11)
+
+        def request(start, end):
+            r = client.post(
+                "/api/public/bookings",
+                json={
+                    "vehicle_id": tiered_vehicle.id,
+                    "pickup_datetime": start.isoformat(),
+                    "expected_return_datetime": end.isoformat(),
+                },
+                headers=customer_headers,
+            )
+            assert r.status_code in (200, 201), r.text
+            return db.query(Agreement).filter(Agreement.id == r.json()["id"]).one()
+
+        first = request(pickup, pickup + timedelta(days=10))
+        request(pickup + timedelta(days=4), pickup + timedelta(days=7))
+
+        approved = agreement_service.approve_booking_request(db, first.id)
+        assert approved.status == AgreementStatus.PENDING_PAYMENT

@@ -15,6 +15,20 @@ from src.models.vehicle import Vehicle, VehicleStatus
 # caught by the overlap check.
 _BOOKABLE_STATUSES = (VehicleStatus.AVAILABLE, VehicleStatus.RESERVED)
 
+#: Statuses that never occupy a vehicle.
+_RELEASED_STATUSES = [
+    AgreementStatus.CANCELLED,
+    AgreementStatus.CLOSED,
+    AgreementStatus.RETURNED,
+]
+
+
+def _excluded_statuses(holds_only: bool) -> list[AgreementStatus]:
+    """Which agreements to ignore when looking for an overlap."""
+    if holds_only:
+        return _RELEASED_STATUSES + [AgreementStatus.BOOKING_REQUESTED, AgreementStatus.DRAFT]
+    return _RELEASED_STATUSES
+
 
 def check_vehicle_available(
     db: Session,
@@ -23,6 +37,7 @@ def check_vehicle_available(
     end_datetime: datetime,
     exclude_agreement_id: int | None = None,
     skip_status_check: bool = False,
+    holds_only: bool = False,
 ) -> bool:
     """Check if a vehicle is available for the given date range.
 
@@ -42,6 +57,13 @@ def check_vehicle_available(
             agreement that already holds this vehicle, where RENTED is the expected
             state. Never set this when attaching a vehicle the agreement does not
             already hold — that is how a RENTED vehicle gets double-booked.
+        holds_only: Count only agreements that genuinely hold the vehicle,
+            ignoring unapproved booking requests. Creating a booking does not
+            check availability, so two overlapping requests can always exist;
+            counting them as holds meant neither could then be approved —
+            a deadlock staff could only escape by cancelling one. Approval is
+            the moment a request becomes a hold, so it is the one caller that
+            needs this.
 
     Returns:
         True if vehicle is available, False otherwise
@@ -62,7 +84,7 @@ def check_vehicle_available(
         .join(Agreement)
         .filter(
             AgreementVehicleSegment.vehicle_id == vehicle_id,
-            Agreement.status.not_in([AgreementStatus.CANCELLED, AgreementStatus.CLOSED, AgreementStatus.RETURNED]),
+            Agreement.status.not_in(_excluded_statuses(holds_only)),
             # Overlap condition: NOT (segment ends before start OR segment starts after end)
             # Which is equivalent to: segment starts before end AND segment ends after start
             AgreementVehicleSegment.start_datetime < end_datetime,

@@ -155,6 +155,12 @@ class MyBookingResponse(BaseModel):
     excess_mileage_rate: Optional[Decimal] = None
     fuel_level_out: Optional[int] = None
     fuel_charge_rate: Optional[Decimal] = None
+    # What a not-yet-approved booking is expected to cost. Nothing is posted
+    # to the ledger until staff approve, so without this the customer's card
+    # showed 0.00 right after they agreed to a price -- and a client that
+    # recomputed it from the daily rate missed the tier the quote applied.
+    estimated_total: Optional[Decimal] = None
+    pricing_note: Optional[str] = None
 
     class Config:
         from_attributes = True
