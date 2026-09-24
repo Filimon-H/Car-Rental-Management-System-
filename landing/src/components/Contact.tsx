@@ -1,9 +1,44 @@
 import { Phone, Mail, MapPin, Send } from 'lucide-react'
 import { useState } from 'react'
-import { contactInfo } from '../data/cars'
+import { contactInfo, telHref } from '../data/cars'
 
 export default function Contact() {
-  const [email, setEmail] = useState('')
+  const [form, setForm] = useState({ name: '', phone: '', email: '', message: '' })
+  const [error, setError] = useState('')
+
+  const update =
+    (field: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setForm((prev) => ({ ...prev, [field]: e.target.value }))
+      setError('')
+    }
+
+  // A name and a message are the minimum worth sending on.
+  const canSend = form.name.trim() !== '' && form.message.trim() !== ''
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!canSend) {
+      setError('Please add your name and a message.')
+      return
+    }
+
+    const lines = [
+      form.message.trim(),
+      '',
+      `Name: ${form.name.trim()}`,
+      form.phone.trim() ? `Phone: ${form.phone.trim()}` : null,
+      form.email.trim() ? `Email: ${form.email.trim()}` : null,
+    ].filter((line) => line !== null)
+
+    const subject = `Rental enquiry from ${form.name.trim()}`
+    const href =
+      `mailto:${contactInfo.email}` +
+      `?subject=${encodeURIComponent(subject)}` +
+      `&body=${encodeURIComponent(lines.join('\n'))}`
+
+    window.location.href = href
+  }
 
   return (
     <section id="contact" className="py-24 bg-dark-100">
@@ -22,9 +57,15 @@ export default function Contact() {
         <div className="grid lg:grid-cols-2 gap-12">
           <div className="space-y-6">
             {[
-              { icon: <Phone className="h-5 w-5" />, label: 'Call Us', value: contactInfo.phones.join(' / '), href: `tel:${contactInfo.phones[0]}` },
+              { icon: <Phone className="h-5 w-5" />, label: 'Call Us', value: contactInfo.phones[0], href: telHref(contactInfo.phones[0]) },
+              // Second number was plain text, so only the first was dialable.
+              { icon: <Phone className="h-5 w-5" />, label: 'Call Us (alt)', value: contactInfo.phones[1], href: telHref(contactInfo.phones[1]) },
               { icon: <Mail className="h-5 w-5" />, label: 'Email Us', value: contactInfo.email, href: `mailto:${contactInfo.email}` },
-              { icon: <MapPin className="h-5 w-5" />, label: 'Our Office', value: `${contactInfo.address.line1}, ${contactInfo.address.line2}, ${contactInfo.address.city}`, href: '#' },
+              { icon: <MapPin className="h-5 w-5" />, label: 'Our Office', value: `${contactInfo.address.line1}, ${contactInfo.address.line2}, ${contactInfo.address.city}`,
+                // Was href="#", which jumped to the top of the page.
+                href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                  `${contactInfo.address.line1}, ${contactInfo.address.line2}, ${contactInfo.address.city}`
+                )}` },
             ].map(({ icon, label, value, href }) => (
               <a
                 key={label}
@@ -57,37 +98,84 @@ export default function Contact() {
 
           <div className="bg-dark-200 rounded-2xl p-8">
             <h3 className="text-white text-xl font-semibold mb-6">Send us a message</h3>
-            <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Your Name"
-                className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-gold"
-              />
-              <input
-                type="tel"
-                placeholder="Phone Number"
-                className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-gold"
-              />
-              <input
-                type="email"
-                placeholder="Email Address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-gold"
-              />
-              <textarea
-                rows={4}
-                placeholder="Your message..."
-                className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-gold resize-none"
-              />
-              <a
-                href={`mailto:${contactInfo.email}`}
-                className="btn-gold-filled flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold"
+            {/*
+              A real form. Every field was previously uncontrolled and the
+              button was a bare mailto, so a visitor's name, phone and message
+              were discarded and their mail client opened empty — the site
+              lost the enquiry it had just asked for.
+
+              The message is composed into the mailto at submit time, so the
+              lead survives without a backend. Storing enquiries server-side
+              is the better answer and needs a table and an admin inbox.
+            */}
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+              <div>
+                <label htmlFor="contact-name" className="sr-only">Your name</label>
+                <input
+                  id="contact-name"
+                  name="name"
+                  type="text"
+                  required
+                  value={form.name}
+                  onChange={update('name')}
+                  placeholder="Your Name"
+                  className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-gold"
+                />
+              </div>
+              <div>
+                <label htmlFor="contact-phone" className="sr-only">Phone number</label>
+                <input
+                  id="contact-phone"
+                  name="phone"
+                  type="tel"
+                  value={form.phone}
+                  onChange={update('phone')}
+                  placeholder="Phone Number"
+                  className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-gold"
+                />
+              </div>
+              <div>
+                <label htmlFor="contact-email" className="sr-only">Email address</label>
+                <input
+                  id="contact-email"
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={update('email')}
+                  placeholder="Email Address"
+                  className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-gold"
+                />
+              </div>
+              <div>
+                <label htmlFor="contact-message" className="sr-only">Your message</label>
+                <textarea
+                  id="contact-message"
+                  name="message"
+                  rows={4}
+                  required
+                  value={form.message}
+                  onChange={update('message')}
+                  placeholder="Your message..."
+                  className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-gold resize-none"
+                />
+              </div>
+
+              {error && (
+                <p role="alert" className="text-sm text-red-400">{error}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={!canSend}
+                className="btn-gold-filled flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="h-4 w-4" />
                 Send Message
-              </a>
-            </div>
+              </button>
+              <p className="text-xs text-gray-500 text-center">
+                Opens your email app with the message ready to send.
+              </p>
+            </form>
           </div>
         </div>
       </div>

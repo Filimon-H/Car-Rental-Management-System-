@@ -143,3 +143,11 @@ export const contactInfo: ContactInfo = {
     city: 'Addis Ababa, Ethiopia',
   },
 }
+
+/**
+ * A phone number as a tel: href.
+ *
+ * RFC 3966 does not allow spaces, and the display values are spaced for
+ * readability, so linking them directly produced an invalid href.
+ */
+export const telHref = (phone: string) => `tel:${phone.replace(/[\s()-]/g, '')}`

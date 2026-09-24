@@ -6,6 +6,15 @@ export const TELEGRAM_BOT_USERNAME =
   import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'Novacar67_bot'
 export const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
 
+/**
+ * Where the staff app lives.
+ *
+ * This was hardcoded to http://localhost:3000/login, which is dead for every
+ * visitor once deployed and advertises the admin app's location publicly.
+ */
+export const STAFF_LOGIN_URL =
+  import.meta.env.VITE_STAFF_LOGIN_URL || 'http://localhost:3000/login'
+
 export const uploadsUrl = (path: string | null) =>
   path ? `${API_BASE_URL}/uploads/${path}` : null
 

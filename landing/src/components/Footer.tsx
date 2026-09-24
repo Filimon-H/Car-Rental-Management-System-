@@ -1,6 +1,7 @@
 import { Phone, Mail, MapPin, Send } from 'lucide-react'
-import { contactInfo } from '../data/cars'
+import { contactInfo, telHref } from '../data/cars'
 import { TELEGRAM_BOT_URL, TELEGRAM_BOT_USERNAME } from '../services/apiClient'
+import { STAFF_LOGIN_URL } from '../services/apiClient'
 
 
 
@@ -17,7 +18,7 @@ export default function Footer() {
       <div className="container mx-auto px-4 lg:px-8">
         <div className="grid md:grid-cols-4 gap-6 mb-12">
           {[
-            { icon: <Phone className="h-5 w-5 text-white" />, label: 'Call us', value: contactInfo.phones[0], href: `tel:${contactInfo.phones[0]}` },
+            { icon: <Phone className="h-5 w-5 text-white" />, label: 'Call us', value: contactInfo.phones[0], href: telHref(contactInfo.phones[0]) },
             { icon: <Mail className="h-5 w-5 text-white" />, label: 'Write to us', value: contactInfo.email, href: `mailto:${contactInfo.email}` },
             { icon: <MapPin className="h-5 w-5 text-white" />, label: 'Address', value: contactInfo.address.city, href: undefined },
             { icon: <Send className="h-5 w-5 text-white" />, label: 'Telegram bot', value: `@${TELEGRAM_BOT_USERNAME}`, href: TELEGRAM_BOT_URL },
@@ -93,7 +94,7 @@ export default function Footer() {
             © {new Date().getFullYear()} Nod Car Rent. All rights reserved.
           </p>
           <a
-            href="http://localhost:3000/login"
+            href={STAFF_LOGIN_URL}
             target="_blank"
             rel="noreferrer"
             className="text-gray-600 hover:text-gold text-xs transition-colors"
