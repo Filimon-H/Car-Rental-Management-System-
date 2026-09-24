@@ -87,9 +87,9 @@ class Agreement(Base):
     )
     
     # Dates (all in UTC)
-    pickup_datetime: Mapped[datetime] = mapped_column(UtcDateTime(), nullable=False)
-    expected_return_datetime: Mapped[datetime] = mapped_column(UtcDateTime(), nullable=False)
-    actual_return_datetime: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
+    pickup_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expected_return_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    actual_return_datetime: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     
     # Pricing
     agreed_daily_rate: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)

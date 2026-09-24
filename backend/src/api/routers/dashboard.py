@@ -15,6 +15,7 @@ from src.core.rbac import Permission
 from src.models.agreement import Agreement, AgreementStatus, AgreementType
 from src.models.customer import Customer
 from src.models.ledger_entry import LedgerEntry, LedgerEntryType
+from src.services import agreement_service
 from src.models.vehicle import Vehicle, VehicleStatus
 
 router = APIRouter()
@@ -119,10 +120,13 @@ async def get_dashboard_stats(
 
     # Due today — active agreements whose expected_return_datetime falls today (local day)
     # Use naive datetimes to match SQLite's timezone-unaware storage
-    # Timezone-aware: agreement timestamps read back aware from the database,
-    # and comparing those against a naive now() raises TypeError, which took
-    # the whole dashboard down with a 503.
-    now = datetime.now(timezone.utc)
+    # Naive local, matching the business-date columns it is compared against.
+    # pickup_datetime, expected_return_datetime and the expiry dates hold local
+    # wall-clock time and read back naive, so the day boundaries here must be
+    # naive too — mixing the two raises TypeError and took the dashboard down
+    # with a 503. Ledger and audit timestamps are true UTC instants and are
+    # handled separately, via their own aware columns.
+    now = datetime.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
     tomorrow_end = today_end + timedelta(days=1)
@@ -230,7 +234,10 @@ async def get_dashboard_stats(
     total_customers = db.query(func.count(Customer.id)).scalar() or 0
 
     # Revenue — payments (negative amounts) and charges (positive amounts) from ledger
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    # created_at is a true UTC instant, so this window must be aware.
+    month_start = datetime.now(timezone.utc).replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    )
 
     # The ledger is append-only: reversing an entry adds an offsetting row rather
     # than removing the original. Every figure below filters by entry_type, which
@@ -265,32 +272,27 @@ async def get_dashboard_stats(
         LedgerEntryType.DAMAGE_CHARGE,
         LedgerEntryType.LATE_FEE,
     ]
-    active_ids = (
-        db.query(Agreement.id)
-        .filter(Agreement.status.in_([AgreementStatus.ACTIVE, AgreementStatus.OVERDUE, AgreementStatus.RETURNED]))
-        .subquery()
-    )
-    total_charges = (
-        db.query(func.coalesce(func.sum(LedgerEntry.amount), 0))
+    # Sum the same balance_due the agreement page and the ledger endpoint
+    # report, rather than re-deriving it here. The old query added charges and
+    # subtracted payments only, so adjustments and applied deposits were
+    # ignored and the tile read 600 high against the three open agreements.
+    open_agreement_ids = [
+        row[0]
+        for row in db.query(Agreement.id)
         .filter(
-            LedgerEntry.agreement_id.in_(active_ids),
-            LedgerEntry.entry_type.in_(charge_types),
-            not_reversed,
+            Agreement.status.in_(
+                [AgreementStatus.ACTIVE, AgreementStatus.OVERDUE, AgreementStatus.RETURNED]
+            )
         )
-        .scalar()
-        or Decimal("0")
+        .all()
+    ]
+    outstanding = sum(
+        (
+            agreement_service.get_balance_breakdown(db, agreement_id)["balance_due"]
+            for agreement_id in open_agreement_ids
+        ),
+        Decimal("0"),
     )
-    total_paid = (
-        db.query(func.coalesce(func.sum(func.abs(LedgerEntry.amount)), 0))
-        .filter(
-            LedgerEntry.agreement_id.in_(active_ids),
-            LedgerEntry.entry_type == LedgerEntryType.PAYMENT,
-            not_reversed,
-        )
-        .scalar()
-        or Decimal("0")
-    )
-    outstanding = max(Decimal("0"), Decimal(str(total_charges)) - Decimal(str(total_paid)))
 
     # Recent 5 agreements with customer joined
     recent_rows = (

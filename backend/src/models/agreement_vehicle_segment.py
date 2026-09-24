@@ -42,8 +42,8 @@ class AgreementVehicleSegment(Base):
     )
     
     # Segment date range (for vehicle availability blocking)
-    start_datetime: Mapped[datetime] = mapped_column(UtcDateTime(), nullable=False)
-    end_datetime: Mapped[datetime] = mapped_column(UtcDateTime(), nullable=False)
+    start_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    end_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     
     # Rate for this segment (may differ from agreement rate for swaps)
     daily_rate: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)

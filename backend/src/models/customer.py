@@ -35,11 +35,11 @@ class Customer(Base):
     # ID document - only required for individual customers
     id_type: Mapped[str | None] = mapped_column(String(50), nullable=True)  # passport, national_id, kebele_id
     id_number: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
-    id_expiry: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
+    id_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     
     # Driver license - only required for individual customers
     license_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    license_expiry: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
+    license_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     
     # Address - Ethiopian format
     house_number: Mapped[str | None] = mapped_column(String(50), nullable=True)

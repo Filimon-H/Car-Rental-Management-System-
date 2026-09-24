@@ -106,3 +106,43 @@ class TestDashboardLoads:
         body = client.get("/api/dashboard", headers=auth_headers).json()
         assert "service_due" in body["vehicles"]
         assert isinstance(body["vehicles"]["service_due"], int)
+
+
+class TestOutstandingTile:
+    def test_it_equals_the_sum_of_balance_due(
+        self, client, db: Session, test_customer, test_vehicle, auth_headers
+    ):
+        """The tile re-summed charges minus payments, ignoring adjustments.
+
+        QA saw 34,150 against 33,550 — exactly the 600 of net adjustments on
+        one agreement.
+        """
+        from src.models.ledger_entry import PaymentMethod
+        from src.services import ledger_service
+
+        pickup = datetime.now(timezone.utc) + timedelta(days=2)
+        ag = agreement_service.create_standard_agreement(
+            db=db,
+            customer_id=test_customer.id,
+            vehicle_id=test_vehicle.id,
+            pickup_datetime=pickup,
+            expected_return_datetime=pickup + timedelta(days=10),
+            daily_rate=Decimal("1500.00"),
+        )
+        agreement_service.activate_agreement(db, ag.id)
+
+        ledger_service.post_payment(
+            db, ag.id, amount=Decimal("3000.00"), payment_method=PaymentMethod.CASH
+        )
+        # The discounts the old query dropped.
+        ledger_service.post_adjustment(
+            db, ag.id, amount=Decimal("-500.00"), description="QA discount"
+        )
+        ledger_service.post_adjustment(
+            db, ag.id, amount=Decimal("200.00"), description="QA extra"
+        )
+
+        expected = agreement_service.get_balance_breakdown(db, ag.id)["balance_due"]
+
+        body = client.get("/api/dashboard", headers=auth_headers).json()
+        assert Decimal(str(body["revenue"]["outstanding_balance"])) == expected

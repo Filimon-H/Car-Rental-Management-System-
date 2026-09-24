@@ -28,7 +28,7 @@ class Driver(Base):
     
     # Driver license (required for drivers)
     license_number: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    license_expiry: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
+    license_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     license_class: Mapped[str | None] = mapped_column(String(20), nullable=True)  # e.g., Class 1, 2, 3, etc.
     
     # Address - Ethiopian format

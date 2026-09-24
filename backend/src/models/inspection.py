@@ -29,7 +29,7 @@ class Inspection(Base):
     inspection_type = Column(String(20), nullable=False)
     
     # Inspection datetime
-    inspection_datetime = Column(UtcDateTime(), nullable=False)
+    inspection_datetime = Column(DateTime(timezone=True), nullable=False)
     
     # Inspector info
     inspector_id = Column(Integer, ForeignKey("staff_users.id"), nullable=True)

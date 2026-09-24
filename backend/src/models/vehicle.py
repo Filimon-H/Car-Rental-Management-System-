@@ -95,7 +95,7 @@ class Vehicle(Base):
     
     # Insurance
     insurance_policy: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    insurance_expiry: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
+    insurance_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     
     # Photos (relative paths)
     photo_front: Mapped[str | None] = mapped_column(String(255), nullable=True)
