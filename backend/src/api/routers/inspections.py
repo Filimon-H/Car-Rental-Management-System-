@@ -90,6 +90,30 @@ class InspectionListResponse(BaseModel):
     page_size: int
 
 
+class TemplateCreateRequest(BaseModel):
+    """Create or replace an inspection template.
+
+    checklist_items is a list of {id, label, category, required} objects;
+    damage_categories a list of area names offered when logging damage.
+    """
+
+    name: str = Field(..., min_length=1, max_length=100)
+    description: Optional[str] = None
+    template_type: str = Field(default="general", max_length=20)
+    checklist_items: list = Field(default_factory=list)
+    damage_categories: list = Field(default_factory=list)
+    is_active: bool = True
+
+
+class TemplateUpdateRequest(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    description: Optional[str] = None
+    template_type: Optional[str] = Field(None, max_length=20)
+    checklist_items: Optional[list] = None
+    damage_categories: Optional[list] = None
+    is_active: Optional[bool] = None
+
+
 class TemplateResponse(BaseModel):
     id: int
     name: str
@@ -130,6 +154,59 @@ async def get_template(
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
     return TemplateResponse.model_validate(template)
+
+
+@router.post("/templates", response_model=TemplateResponse, status_code=201)
+async def create_template(
+    data: TemplateCreateRequest,
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.MANAGE_INSPECTIONS))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Create an inspection template."""
+    template = InspectionTemplate(**data.model_dump())
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+    return TemplateResponse.model_validate(template)
+
+
+@router.put("/templates/{template_id}", response_model=TemplateResponse)
+async def update_template(
+    template_id: int,
+    data: TemplateUpdateRequest,
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.MANAGE_INSPECTIONS))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Update an inspection template."""
+    template = db.query(InspectionTemplate).filter(InspectionTemplate.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(template, field, value)
+    db.commit()
+    db.refresh(template)
+    return TemplateResponse.model_validate(template)
+
+
+@router.delete("/templates/{template_id}", status_code=204)
+async def delete_template(
+    template_id: int,
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.MANAGE_INSPECTIONS))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Retire a template.
+
+    Deactivated rather than deleted: inspections reference the template they
+    were taken from, and removing the row would orphan that history.
+    """
+    template = db.query(InspectionTemplate).filter(InspectionTemplate.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    template.is_active = False
+    db.commit()
+    return None
 
 
 # Inspection endpoints

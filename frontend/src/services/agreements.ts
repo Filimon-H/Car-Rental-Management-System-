@@ -333,7 +333,28 @@ export interface AvailableVehicle {
   daily_rate: number
 }
 
+export interface VehicleBooking {
+  agreement_id: number
+  agreement_number: string
+  start: string
+  end: string
+  status: string
+  customer_name: string
+}
+
 export const availabilityService = {
+  /** Bookings touching a window — used to offer the agreements a vehicle has. */
+  async getVehicleBookings(
+    vehicleId: number,
+    startDate: string,
+    endDate: string
+  ): Promise<{ vehicle_id: number; plate_number: string; bookings: VehicleBooking[] }> {
+    return apiClient.get(`/availability/bookings/${vehicleId}`, {
+      start_date: startDate,
+      end_date: endDate,
+    })
+  },
+
   async getAvailableVehicles(
     startDatetime: string,
     endDatetime: string,

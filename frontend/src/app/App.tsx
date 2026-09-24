@@ -33,6 +33,7 @@ const VendorWeddingAgreementsPage = lazy(() => import('@/pages/VendorWeddingAgre
 const LedgerPage = lazy(() => import('@/pages/LedgerPage'))
 const InspectionTemplatesPage = lazy(() => import('@/pages/InspectionTemplatesPage'))
 const InspectionCreatePage = lazy(() => import('@/pages/InspectionCreatePage'))
+const InspectionDetailPage = lazy(() => import('@/pages/InspectionDetailPage'))
 const AdminLookupsPage = lazy(() => import('@/pages/AdminLookupsPage'))
 const UsersPage = lazy(() => import('@/pages/UsersPage'))
 
@@ -103,6 +104,7 @@ function App() {
           {/* Inspections */}
           <Route path="/inspections" element={<InspectionTemplatesPage />} />
           <Route path="/inspections/new" element={<InspectionCreatePage />} />
+          <Route path="/inspections/:id" element={<InspectionDetailPage />} />
 
           {/* Ledger */}
           <Route path="/ledger" element={<LedgerPage />} />

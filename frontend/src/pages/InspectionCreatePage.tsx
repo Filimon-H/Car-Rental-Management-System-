@@ -8,6 +8,7 @@ import { VehicleLookupModal } from '@/components/lookup/LookupModal'
 import { VehicleSearchResult } from '@/services/vehicles'
 import { toast } from '@/hooks/use-toast'
 import { localNowWallClockIso } from '@/lib/utils'
+import { availabilityService } from '@/services/agreements'
 
 interface ChecklistItem {
   id: string
@@ -48,6 +49,9 @@ export default function InspectionCreatePage() {
   // Form state
   const [templateId, setTemplateId] = useState<number | null>(null)
   const [vehicleId, setVehicleId] = useState<number | null>(null)
+  const [linkedAgreementId, setLinkedAgreementId] = useState<number | null>(
+    agreementId ? Number.parseInt(agreementId, 10) : null
+  )
   const [vehicleInfo, setVehicleInfo] = useState('')
   const [inspectionType, setInspectionType] = useState<string>('pickup')
   const [mileage, setMileage] = useState('')
@@ -62,6 +66,25 @@ export default function InspectionCreatePage() {
   const { data: templates } = useQuery({
     queryKey: ['inspectionTemplates'],
     queryFn: () => apiClient.get<InspectionTemplate[]>('/inspections/templates'),
+  })
+
+  // Bookings around now for the chosen vehicle, so the inspection can be
+  // attached to the rental it belongs to. The API supports agreement_id; the
+  // form simply never offered a way to set it.
+  const { data: vehicleBookings } = useQuery({
+    queryKey: ['vehicle-bookings', vehicleId],
+    queryFn: () => {
+      const from = new Date()
+      from.setMonth(from.getMonth() - 3)
+      const to = new Date()
+      to.setMonth(to.getMonth() + 3)
+      return availabilityService.getVehicleBookings(
+        vehicleId as number,
+        from.toISOString(),
+        to.toISOString()
+      )
+    },
+    enabled: vehicleId !== null,
   })
 
   const selectedTemplate = templates?.find(t => t.id === templateId)
@@ -132,7 +155,7 @@ export default function InspectionCreatePage() {
 
     createMutation.mutate({
       template_id: templateId,
-      agreement_id: agreementId ? parseInt(agreementId) : null,
+      agreement_id: linkedAgreementId,
       vehicle_id: vehicleId,
       inspection_type: inspectionType,
       inspection_datetime: localNowWallClockIso(),
@@ -206,6 +229,33 @@ export default function InspectionCreatePage() {
                 >
                   Select vehicle...
                 </button>
+              )}
+            </div>
+            <div>
+              <label htmlFor="linked-agreement" className="mb-1 block text-sm font-medium">
+                {t('inspection.linkedAgreement')}
+              </label>
+              <select
+                id="linked-agreement"
+                value={linkedAgreementId ?? ''}
+                onChange={(e) => {
+                  const parsed = Number.parseInt(e.target.value, 10)
+                  setLinkedAgreementId(Number.isFinite(parsed) ? parsed : null)
+                }}
+                disabled={!vehicleId}
+                className="w-full rounded-lg border px-3 py-2"
+              >
+                <option value="">{t('inspection.noAgreement')}</option>
+                {vehicleBookings?.bookings.map((booking) => (
+                  <option key={booking.agreement_id} value={booking.agreement_id}>
+                    {booking.agreement_number} — {booking.customer_name}
+                  </option>
+                ))}
+              </select>
+              {vehicleId && vehicleBookings?.bookings.length === 0 && (
+                <p className="mt-1 text-sm text-gray-500">
+                  {t('inspection.noAgreementForVehicle')}
+                </p>
               )}
             </div>
             <div>
