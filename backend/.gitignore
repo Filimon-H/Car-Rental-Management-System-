@@ -1,0 +1,4 @@
+
+# Local CA bundle including the corporate TLS-interception root.
+# Machine-specific: regenerate with security find-certificate, do not commit.
+ca-bundle.pem

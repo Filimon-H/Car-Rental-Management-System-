@@ -78,6 +78,17 @@ def consume_link_code(
     )
     for row in existing:
         db.delete(row)
+
+    # A chat must hold one role, not both. Each side used to clear only its
+    # own kind of link, so a staff member who had previously linked as a
+    # customer kept both: dispatch checks staff first, so their customer
+    # commands went dead with nothing explaining why.
+    from src.models.telegram import TelegramCustomerLink
+
+    db.query(TelegramCustomerLink).filter(
+        (TelegramCustomerLink.telegram_user_id == telegram_user_id)
+        | (TelegramCustomerLink.chat_id == chat_id)
+    ).delete(synchronize_session=False)
     db.flush()
 
     link = TelegramStaffLink(

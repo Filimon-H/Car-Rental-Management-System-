@@ -477,6 +477,30 @@ class TelegramBotService:
         try:
             link = telegram_link_service.get_link_for_chat(db, chat_id)
             if not link:
+                # A linked customer has no staff link, and this treated that
+                # as "not linked at all": they were offered /start, /link and
+                # /help while /book, /mybookings, /extend and /cancelbook --
+                # the only commands they can actually run -- went unlisted.
+                customer_link = (
+                    db.query(TelegramCustomerLink)
+                    .filter(
+                        TelegramCustomerLink.chat_id == chat_id,
+                        TelegramCustomerLink.is_active.is_(True),
+                    )
+                    .first()
+                )
+                if customer_link:
+                    await self._send_message(
+                        chat_id,
+                        "Available commands:\n"
+                        "/book — Browse cars and book one\n"
+                        "/mybookings — View your bookings\n"
+                        "/extend — Extend your active rental\n"
+                        "/cancelbook ID — Cancel a booking by agreement number\n"
+                        "/cancel — Cancel current action\n"
+                        "/help",
+                    )
+                    return
                 await self._send_message(
                     chat_id,
                     "Available commands:\n"
@@ -558,6 +582,14 @@ class TelegramBotService:
                 (TelegramCustomerLink.customer_user_id == customer_code.customer_user_id)
                 | (TelegramCustomerLink.telegram_user_id == telegram_user_id)
                 | (TelegramCustomerLink.chat_id == chat_id)
+            ).delete(synchronize_session=False)
+
+            # And any staff link, so the chat holds exactly one role. Staff
+            # links are checked first in dispatch, so leaving one in place
+            # would make this customer link unreachable.
+            db.query(TelegramStaffLink).filter(
+                (TelegramStaffLink.telegram_user_id == telegram_user_id)
+                | (TelegramStaffLink.chat_id == chat_id)
             ).delete(synchronize_session=False)
             db.flush()
 
