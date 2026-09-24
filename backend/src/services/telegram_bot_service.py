@@ -26,7 +26,7 @@ from src.models.staff_user import StaffUser
 from src.models.telegram import TelegramCustomerLink, TelegramCustomerLinkCode, TelegramStaffLink
 from src.models.vehicle import Vehicle, VehicleStatus
 from src.schemas.fields import normalize_ethiopian_phone
-from src.services import agreement_service, telegram_link_service
+from src.services import agreement_service, billing_service, telegram_link_service
 
 logger = get_logger(__name__)
 
@@ -889,20 +889,30 @@ class TelegramBotService:
             await self._send_message(chat_id, "No cars are available for booking right now. Check back soon!")
             return
 
-        lines = ["Available cars — reply with the number to select:\n"]
-        for i, v in enumerate(vehicles, 1):
-            lines.append(
-                f"{i}. {escape(v.make)} {escape(v.model)} {v.year} | "
-                f"{v.vehicle_type} | {v.seats} seats | "
-                f"ETB {v.daily_rate}/day"
+        # A whole fleet in one message crosses Telegram's 4096-character cap,
+        # which fails as silence. Offer a page of them and say there are more.
+        shown = vehicles[:MAX_LIST_ROWS]
+        rows = [
+            f"{i}. {escape(v.make)} {escape(v.model)} {v.year} | "
+            f"{v.vehicle_type} | {v.seats} seats | "
+            f"ETB {v.daily_rate}/day"
+            for i, v in enumerate(shown, 1)
+        ]
+        if len(vehicles) > len(shown):
+            rows.append(
+                f"…and {len(vehicles) - len(shown)} more — "
+                "browse the full fleet on the website."
             )
-        lines.append("\nOr /cancel to stop.")
+        rows.append("Or /cancel to stop.")
 
         self._booking_states[chat_id] = BookingState(
             step="pick_car",
-            data={"vehicles": [{"id": v.id, "label": f"{v.make} {v.model} {v.year}", "rate": str(v.daily_rate)} for v in vehicles]},
+            data={"vehicles": [{"id": v.id, "label": f"{v.make} {v.model} {v.year}", "rate": str(v.daily_rate), "weekly": str(v.weekly_rate or ""), "monthly": str(v.monthly_rate or "")} for v in shown]},
         )
-        await self._send_message(chat_id, "\n".join(lines))
+        await self._send_message(
+            chat_id,
+            truncate_rows(rows, "Available cars — reply with the number to select:", limit=len(rows)),
+        )
 
     async def _handle_booking_message(self, chat_id: int, text: str) -> None:
         """Advance the guided booking conversation."""
@@ -940,6 +950,8 @@ class TelegramBotService:
                 state.data["vehicle_id"] = chosen["id"]
                 state.data["vehicle_label"] = chosen["label"]
                 state.data["daily_rate"] = chosen["rate"]
+                state.data["weekly"] = chosen.get("weekly") or ""
+                state.data["monthly"] = chosen.get("monthly") or ""
 
                 # Check if customer already has ID on file
                 if customer.id_number and customer.license_number:
@@ -950,7 +962,7 @@ class TelegramBotService:
                     await self._send_message(
                         chat_id,
                         f"Selected: {escape(chosen['label'])}\n\n"
-                        f"ID and license on file ({escape(customer.id_number)}, license {escape(customer.license_number)}).\n\n"
+                        f"ID and license on file (ID {escape(mask_id_number(customer.id_number))}).\n\n"
                         "Send pickup date (DD/MM/YYYY), or /cancel.",
                     )
                 else:
@@ -1018,8 +1030,19 @@ class TelegramBotService:
                 state.data["return_datetime"] = ret.isoformat()
                 days = (ret - pickup).days
 
+                # Was rate x days, so the bot quoted 7,700 for a week the web
+                # page quotes 6,500 and the agreement charges 6,500. Price it
+                # with the same engine so the three cannot disagree.
                 rate = Decimal(state.data["daily_rate"])
-                total = rate * days
+                weekly = state.data.get("weekly") or None
+                monthly = state.data.get("monthly") or None
+                days, total = billing_service.calculate_rental_charge(
+                    pickup,
+                    ret,
+                    rate,
+                    Decimal(weekly) if weekly else None,
+                    Decimal(monthly) if monthly else None,
+                )
 
                 state.step = "confirm"
                 await self._send_message(
@@ -1029,8 +1052,7 @@ class TelegramBotService:
                     f"Pickup: {pickup.strftime('%d %b %Y')}\n"
                     f"Return: {ret.strftime('%d %b %Y')} ({days} day{'s' if days != 1 else ''})\n"
                     f"Estimated total: ETB {total:,.2f}\n"
-                    f"ID: {escape(state.data['id_number'])} ({escape(state.data['id_type'].replace('_', ' '))})\n"
-                    f"License: {escape(state.data['license_number'])}\n\n"
+                    f"ID: {escape(mask_id_number(state.data['id_number']))} ({escape(state.data['id_type'].replace('_', ' '))})\n"
                     "Reply CONFIRM to submit, or /cancel.",
                 )
 
@@ -1038,6 +1060,24 @@ class TelegramBotService:
                 if text.strip().upper() != "CONFIRM":
                     await self._send_message(chat_id, "Send CONFIRM to submit the booking, or /cancel.")
                     return
+
+                # A licence that expires before the car comes back means the
+                # customer cannot legally drive it. The web booking endpoint
+                # refuses this; the bot booked anyway.
+                ret_at = datetime.fromisoformat(state.data["return_datetime"])
+                expiry = customer.license_expiry
+                if expiry is not None:
+                    if expiry.tzinfo is None:
+                        expiry = expiry.replace(tzinfo=timezone.utc)
+                    if expiry < ret_at:
+                        self._booking_states.pop(chat_id, None)
+                        await self._send_message(
+                            chat_id,
+                            f"Your driving licence expires on "
+                            f"{expiry.date().isoformat()}, before this rental ends. "
+                            "Please renew it or contact us before booking.",
+                        )
+                        return
 
                 # Save ID and license to customer profile
                 customer.id_type = state.data["id_type"]
