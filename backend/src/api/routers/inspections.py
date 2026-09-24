@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
 from src.api.deps.auth import CurrentUser, require_permission
@@ -90,6 +90,33 @@ class InspectionListResponse(BaseModel):
     page_size: int
 
 
+class ChecklistItem(BaseModel):
+    """One line of a template's checklist.
+
+    Typed rather than a bare dict: the API accepted any JSON, so a list of
+    plain strings could be stored and the UI — which groups by category —
+    rendered the heading as "UNDEFINED".
+    """
+
+    id: str = Field(..., min_length=1, max_length=60)
+    label: str = Field(..., min_length=1, max_length=120)
+    category: str = Field(default="general", max_length=60)
+    required: bool = True
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_plain_string(cls, value: object) -> object:
+        """Read rows stored before this shape was enforced.
+
+        Templates created while checklist_items was untyped hold plain
+        strings. Rejecting them would make those rows unreadable, so promote
+        a string to a labelled item instead.
+        """
+        if isinstance(value, str):
+            return {"id": value.strip().lower().replace(" ", "_"), "label": value}
+        return value
+
+
 class TemplateCreateRequest(BaseModel):
     """Create or replace an inspection template.
 
@@ -100,8 +127,8 @@ class TemplateCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
     template_type: str = Field(default="general", max_length=20)
-    checklist_items: list = Field(default_factory=list)
-    damage_categories: list = Field(default_factory=list)
+    checklist_items: list[ChecklistItem] = Field(default_factory=list)
+    damage_categories: list[str] = Field(default_factory=list)
     is_active: bool = True
 
 
@@ -109,8 +136,8 @@ class TemplateUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
     template_type: Optional[str] = Field(None, max_length=20)
-    checklist_items: Optional[list] = None
-    damage_categories: Optional[list] = None
+    checklist_items: Optional[list[ChecklistItem]] = None
+    damage_categories: Optional[list[str]] = None
     is_active: Optional[bool] = None
 
 
@@ -119,8 +146,8 @@ class TemplateResponse(BaseModel):
     name: str
     description: Optional[str]
     template_type: str
-    checklist_items: list
-    damage_categories: list
+    checklist_items: list[ChecklistItem]
+    damage_categories: list[str]
     is_active: bool
     created_at: datetime
 

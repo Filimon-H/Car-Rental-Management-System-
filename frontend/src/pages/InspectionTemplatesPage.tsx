@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ClipboardList, ChevronRight, CheckSquare } from 'lucide-react'
-import apiClient from '@/services/apiClient'
+import apiClient, { getErrorMessage } from '@/services/apiClient'
+import { templatesService, type TemplateInput } from '@/services/inspections'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
 interface ChecklistItem {
   id: string
@@ -25,6 +27,37 @@ interface InspectionTemplate {
 export default function InspectionTemplatesPage() {
   const { t } = useTranslation()
   const [selectedTemplate, setSelectedTemplate] = useState<InspectionTemplate | null>(null)
+  const [editing, setEditing] = useState<InspectionTemplate | 'new' | null>(null)
+  const [retiring, setRetiring] = useState<InspectionTemplate | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+
+  const refreshTemplates = () => {
+    queryClient.invalidateQueries({ queryKey: ['inspectionTemplates'] })
+    setEditing(null)
+    setRetiring(null)
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: (data: TemplateInput & { id?: number }) =>
+      data.id ? templatesService.update(data.id, data) : templatesService.create(data),
+    onSuccess: (saved) => {
+      refreshTemplates()
+      setSelectedTemplate(saved)
+    },
+    onError: (error: unknown) =>
+      setSaveError(getErrorMessage(error, t('inspection.templateSaveFailed'))),
+  })
+
+  const retireMutation = useMutation({
+    mutationFn: (id: number) => templatesService.retire(id),
+    onSuccess: () => {
+      refreshTemplates()
+      setSelectedTemplate(null)
+    },
+    onError: (error: unknown) =>
+      setSaveError(getErrorMessage(error, t('inspection.templateSaveFailed'))),
+  })
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ['inspectionTemplates'],
@@ -46,7 +79,23 @@ export default function InspectionTemplatesPage() {
         <h1 className="text-2xl font-bold text-gray-800">
           {t('inspections.templates.title', 'Inspection Templates')}
         </h1>
+        <button
+          type="button"
+          onClick={() => {
+            setSaveError(null)
+            setEditing('new')
+          }}
+          className="ml-auto rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+        >
+          + {t('inspection.newTemplate')}
+        </button>
       </div>
+
+      {saveError && (
+        <div role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-700">
+          {saveError}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Templates List */}
@@ -93,7 +142,30 @@ export default function InspectionTemplatesPage() {
           {selectedTemplate ? (
             <div className="rounded-lg bg-white shadow">
               <div className="border-b px-6 py-4">
-                <h2 className="text-xl font-semibold text-gray-800">{selectedTemplate.name}</h2>
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="text-xl font-semibold text-gray-800">{selectedTemplate.name}</h2>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSaveError(null)
+                        setEditing(selectedTemplate)
+                      }}
+                      className="rounded-md border px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      {t('common.edit')}
+                    </button>
+                    {selectedTemplate.is_active && (
+                      <button
+                        type="button"
+                        onClick={() => setRetiring(selectedTemplate)}
+                        className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+                      >
+                        {t('inspection.retireTemplate')}
+                      </button>
+                    )}
+                  </div>
+                </div>
                 {selectedTemplate.description && (
                   <p className="mt-1 text-sm text-gray-500">{selectedTemplate.description}</p>
                 )}
@@ -164,6 +236,214 @@ export default function InspectionTemplatesPage() {
           )}
         </div>
       </div>
+
+      {editing && (
+        <TemplateEditorModal
+          template={editing === 'new' ? null : editing}
+          isLoading={saveMutation.isPending}
+          onClose={() => setEditing(null)}
+          onSave={(data) =>
+            saveMutation.mutate(editing === 'new' ? data : { ...data, id: editing.id })
+          }
+        />
+      )}
+
+      {retiring && (
+        <ConfirmModal
+          title={t('inspection.confirmRetireTitle')}
+          message={t('inspection.confirmRetireBody')}
+          confirmLabel={t('inspection.retireTemplate')}
+          destructive
+          isLoading={retireMutation.isPending}
+          onClose={() => setRetiring(null)}
+          onConfirm={() => retireMutation.mutate(retiring.id)}
+        />
+      )}
+    </div>
+  )
+}
+
+
+/** Create or edit a template, including its checklist rows. */
+function TemplateEditorModal({
+  template,
+  onClose,
+  onSave,
+  isLoading,
+}: {
+  template: InspectionTemplate | null
+  onClose: () => void
+  onSave: (data: TemplateInput) => void
+  isLoading: boolean
+}) {
+  const { t } = useTranslation()
+  const [name, setName] = useState(template?.name ?? '')
+  const [description, setDescription] = useState(template?.description ?? '')
+  const [templateType, setTemplateType] = useState(template?.template_type ?? 'pickup')
+  const [items, setItems] = useState<ChecklistItem[]>(template?.checklist_items ?? [])
+  const [damage, setDamage] = useState((template?.damage_categories ?? []).join(', '))
+
+  const slug = (label: string) =>
+    label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+
+  const updateItem = (index: number, patch: Partial<ChecklistItem>) =>
+    setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)))
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          onSave({
+            name: name.trim(),
+            description: description.trim() || null,
+            template_type: templateType,
+            // The id is derived from the label so callers never have to
+            // invent one, but an edited row keeps whatever id it had.
+            checklist_items: items
+              .filter((item) => item.label.trim())
+              .map((item) => ({ ...item, id: item.id || slug(item.label) })),
+            damage_categories: damage
+              .split(',')
+              .map((value) => value.trim())
+              .filter(Boolean),
+          })
+        }}
+        className="my-8 w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl"
+      >
+        <h2 className="mb-4 text-lg font-bold text-gray-900">
+          {template ? t('inspection.editTemplate') : t('inspection.newTemplate')}
+        </h2>
+
+        <div className="mb-4 grid gap-4 md:grid-cols-2">
+          <div>
+            <label htmlFor="tpl-name" className="mb-1 block text-sm font-medium text-gray-700">
+              {t('inspection.templateName')}
+            </label>
+            <input
+              id="tpl-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="tpl-type" className="mb-1 block text-sm font-medium text-gray-700">
+              {t('sections.type')}
+            </label>
+            <select
+              id="tpl-type"
+              value={templateType}
+              onChange={(e) => setTemplateType(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="pickup">{t('agreementActions.pickup')}</option>
+              <option value="return">{t('agreementActions.return')}</option>
+              <option value="periodic">{t('inspection.periodic')}</option>
+              <option value="general">{t('options.other')}</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="tpl-desc" className="mb-1 block text-sm font-medium text-gray-700">
+            {t('sections.description')}
+          </label>
+          <input
+            id="tpl-desc"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div className="mb-4">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700">
+              {t('inspection.checklistItems')}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setItems((prev) => [
+                  ...prev,
+                  { id: '', label: '', category: 'general', required: true },
+                ])
+              }
+              className="rounded-md border px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              + {t('inspection.addItem')}
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {items.map((item, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <input
+                  aria-label={t('inspection.itemLabel')}
+                  value={item.label}
+                  onChange={(e) => updateItem(index, { label: e.target.value })}
+                  placeholder={t('inspection.itemLabel')}
+                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+                <input
+                  aria-label={t('inspection.itemCategory')}
+                  value={item.category}
+                  onChange={(e) => updateItem(index, { category: e.target.value })}
+                  placeholder={t('inspection.itemCategory')}
+                  className="w-36 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+                <label className="flex items-center gap-1 text-xs text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={item.required}
+                    onChange={(e) => updateItem(index, { required: e.target.checked })}
+                  />
+                  {t('inspection.itemRequired')}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setItems((prev) => prev.filter((_, i) => i !== index))}
+                  className="rounded-md px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                >
+                  {t('common.delete')}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="tpl-damage" className="mb-1 block text-sm font-medium text-gray-700">
+            {t('inspection.damageCategories')}
+          </label>
+          <input
+            id="tpl-damage"
+            value={damage}
+            onChange={(e) => setDamage(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+          <p className="mt-1 text-sm text-gray-500">{t('inspection.damageCategoriesHint')}</p>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading || !name.trim()}
+            className="rounded-lg bg-primary px-4 py-2 text-sm text-white hover:bg-primary-700 disabled:opacity-50"
+          >
+            {isLoading ? t('common.loading') : t('common.save')}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }

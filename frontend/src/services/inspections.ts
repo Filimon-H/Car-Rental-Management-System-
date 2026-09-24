@@ -35,6 +35,52 @@ export interface InspectionListResponse {
   page_size: number
 }
 
+export interface ChecklistItem {
+  id: string
+  label: string
+  category: string
+  required: boolean
+}
+
+export interface InspectionTemplate {
+  id: number
+  name: string
+  description: string | null
+  template_type: string
+  checklist_items: ChecklistItem[]
+  damage_categories: string[]
+  is_active: boolean
+  created_at: string
+}
+
+export interface TemplateInput {
+  name: string
+  description?: string | null
+  template_type: string
+  checklist_items: ChecklistItem[]
+  damage_categories: string[]
+  is_active?: boolean
+}
+
+export const templatesService = {
+  async list(): Promise<InspectionTemplate[]> {
+    return apiClient.get('/inspections/templates')
+  },
+
+  async create(data: TemplateInput): Promise<InspectionTemplate> {
+    return apiClient.post('/inspections/templates', data)
+  },
+
+  async update(id: number, data: Partial<TemplateInput>): Promise<InspectionTemplate> {
+    return apiClient.put(`/inspections/templates/${id}`, data)
+  },
+
+  /** Deactivates the template; past inspections keep their reference. */
+  async retire(id: number): Promise<void> {
+    return apiClient.delete(`/inspections/templates/${id}`)
+  },
+}
+
 export const inspectionsService = {
   async list(params?: {
     vehicle_id?: number

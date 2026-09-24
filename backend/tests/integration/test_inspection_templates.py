@@ -127,3 +127,52 @@ class TestDelete:
 
         listed = client.get("/api/inspections/templates", headers=auth_headers).json()
         assert created["id"] not in [t["id"] for t in listed]
+
+
+class TestChecklistShape:
+    def test_structured_items_round_trip(self, client, auth_headers):
+        r = client.post("/api/inspections/templates", headers=auth_headers, json=PAYLOAD)
+        item = r.json()["checklist_items"][0]
+        assert item == {
+            "id": "exterior_front",
+            "label": "Front exterior",
+            "category": "exterior",
+            "required": True,
+        }
+
+    def test_a_plain_string_list_is_promoted_on_read(self, client, db: Session, auth_headers):
+        """Rows stored before the shape was enforced must stay readable."""
+        legacy = InspectionTemplate(
+            name="Legacy",
+            template_type="pickup",
+            checklist_items=["Exterior body", "Spare wheel"],
+            damage_categories=["Scratch"],
+            is_active=True,
+        )
+        db.add(legacy)
+        db.commit()
+        db.refresh(legacy)
+
+        r = client.get(f"/api/inspections/templates/{legacy.id}", headers=auth_headers)
+        assert r.status_code == 200, r.text
+
+        items = r.json()["checklist_items"]
+        assert items[0]["label"] == "Exterior body"
+        assert items[0]["id"] == "exterior_body"
+        assert items[0]["category"] == "general"
+
+    def test_an_item_without_a_label_is_rejected(self, client, auth_headers):
+        r = client.post(
+            "/api/inspections/templates",
+            headers=auth_headers,
+            json={**PAYLOAD, "checklist_items": [{"id": "x"}]},
+        )
+        assert r.status_code == 422
+
+    def test_category_defaults_when_omitted(self, client, auth_headers):
+        r = client.post(
+            "/api/inspections/templates",
+            headers=auth_headers,
+            json={**PAYLOAD, "checklist_items": [{"id": "lights", "label": "Lights"}]},
+        )
+        assert r.json()["checklist_items"][0]["category"] == "general"
