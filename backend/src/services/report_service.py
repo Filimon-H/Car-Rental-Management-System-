@@ -263,7 +263,18 @@ def vendor_payables_csv(db: Session) -> tuple[str, str]:
 
 
 def fleet_utilization_csv(db: Session, start: datetime, end: datetime) -> tuple[str, str]:
-    """Per-vehicle rented days and revenue over a window.
+    """Per-vehicle rented days and rental value over a window.
+
+    The value column is the segment's daily rate multiplied by the days it
+    overlaps the window. That is deliberately a *list* figure, not money
+    charged: it ignores tiered pricing, discounts, damage and late fees, and
+    reversals, so it will not equal the revenue report.
+
+    It cannot be taken from the ledger because entries attach to an
+    agreement, not to a vehicle segment — a wedding agreement holding three
+    cars has one charge row, and splitting it per vehicle would need an
+    apportionment rule the business has not defined. The column is named for
+    what it measures so nobody reconciles it against the revenue report.
 
     Rented days count the overlap between each booked segment and the window, so a
     rental that starts before or ends after the window contributes only the portion
@@ -325,7 +336,7 @@ def fleet_utilization_csv(db: Session, start: datetime, end: datetime) -> tuple[
     csv_text = _csv_response(
         [
             "Plate", "Vehicle", "Vendor", "Status", "Days Rented",
-            "Days In Period", "Utilization %", "Agreements", "Revenue",
+            "Days In Period", "Utilization %", "Agreements", "Rental Value At Daily Rate",
         ],
         rows,
     )

@@ -134,3 +134,34 @@ class TestFleetUtilisation:
         )
         row = csv_text.strip().split("\n")[1].split(",")
         assert Decimal(row[4]) == Decimal("0.0")
+
+    def test_the_value_column_is_named_for_what_it_measures(
+        self, db: Session, test_customer, test_vehicle
+    ):
+        """It is rate x days, not money charged, so it must not say "Revenue".
+
+        Ledger entries attach to an agreement rather than a vehicle segment,
+        so a per-vehicle charge figure would need an apportionment rule that
+        does not exist. Naming the column honestly stops anyone reconciling
+        it against the revenue report.
+        """
+        pickup = datetime.now(timezone.utc) + timedelta(days=2)
+        agreement_service.create_standard_agreement(
+            db=db,
+            customer_id=test_customer.id,
+            vehicle_id=test_vehicle.id,
+            pickup_datetime=pickup,
+            expected_return_datetime=pickup + timedelta(days=4),
+            daily_rate=Decimal("1500.00"),
+        )
+
+        _, csv_text = report_service.fleet_utilization_csv(
+            db, pickup - timedelta(days=1), pickup + timedelta(days=10)
+        )
+        header = csv_text.strip().split("\n")[0]
+        assert "Rental Value At Daily Rate" in header
+        assert "Revenue" not in header
+
+        # 4 days x 1,500 — the list value, regardless of what was billed.
+        row = csv_text.strip().split("\n")[1].split(",")
+        assert Decimal(row[8]) == Decimal("6000.00")
