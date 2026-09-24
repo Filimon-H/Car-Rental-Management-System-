@@ -19,7 +19,13 @@
     "title2": "አነዳዱን ይለማመዱ",
     "subtitle": "ለቀጣይ ጉዞዎ ከእኛ ሰፊ የቅንጦት እና የምቾት ተሽከርካሪዎች ስብስብ ይምረጡ።",
     "bookNow": "አሁን ይያዙ",
-    "viewFleet": "መኪኖችን ይመልከቱ"
+    "viewFleet": "መኪኖችን ይመልከቱ",
+    "insured": "ኢንሹራንስ",
+    "insuredValue": "ሙሉ ሽፋን",
+    "support": "ድጋፍ",
+    "supportValue": "24/7",
+    "delivery": "አቅርቦት",
+    "deliveryValue": "አዲስ አበባ"
   },
   "login": {
     "customer": "ደንበኛ",

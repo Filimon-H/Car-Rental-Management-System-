@@ -1,8 +1,19 @@
 import { useState, useEffect } from 'react'
-import { Calendar, Shield, MapPin } from 'lucide-react'
+import { Clock, Shield, MapPin } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cars } from '../data/cars'
 
+/**
+ * Slides supply the backdrop only.
+ *
+ * The spec card here used to read seats/transmission/A-C off these entries,
+ * which are demo data: it advertised a 7-seat Mercedes and a 12-seat minivan
+ * that are not in the fleet, and every real vehicle is a 5-seat Toyota. A
+ * visitor was shown a capacity the company cannot supply. Driving it from
+ * /api/public/vehicles is the better answer, but not yet — no vehicle has a
+ * photo and the names are still placeholders ("New Car2"), so the card would
+ * be accurate and unusable. Until then it makes no per-vehicle claim.
+ */
 const heroSlides = cars.filter((c) => c.featured).slice(0, 3)
 
 export default function Hero() {
@@ -61,9 +72,9 @@ export default function Hero() {
             <div className="bg-dark-200/80 backdrop-blur-sm rounded-2xl p-8 w-72">
               <div className="space-y-5">
                 {[
-                  { icon: <Calendar className="h-4 w-4 text-gold" />, label: 'Passengers', value: `${current.seats} seats` },
-                  { icon: <Shield className="h-4 w-4 text-gold" />, label: 'Transmission', value: current.transmission },
-                  { icon: <MapPin className="h-4 w-4 text-gold" />, label: 'A/C', value: current.ac ? 'Yes' : 'No' },
+                  { icon: <Shield className="h-4 w-4 text-gold" />, label: t('hero.insured'), value: t('hero.insuredValue') },
+                  { icon: <Clock className="h-4 w-4 text-gold" />, label: t('hero.support'), value: t('hero.supportValue') },
+                  { icon: <MapPin className="h-4 w-4 text-gold" />, label: t('hero.delivery'), value: t('hero.deliveryValue') },
                 ].map(({ icon, label, value }) => (
                   <div key={label} className="flex items-center justify-between border-b border-gray-700 pb-4 last:border-0 last:pb-0">
                     <div className="flex items-center gap-3">

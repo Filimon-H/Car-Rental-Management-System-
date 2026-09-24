@@ -19,7 +19,13 @@
     "title2": "Experience the Drive",
     "subtitle": "Choose from our extensive fleet of luxury and comfort vehicles for your next journey.",
     "bookNow": "Book Now",
-    "viewFleet": "View Fleet"
+    "viewFleet": "View Fleet",
+    "insured": "Insured",
+    "insuredValue": "Fully covered",
+    "support": "Support",
+    "supportValue": "24/7",
+    "delivery": "Delivery",
+    "deliveryValue": "Addis Ababa"
   },
   "login": {
     "customer": "Customer",

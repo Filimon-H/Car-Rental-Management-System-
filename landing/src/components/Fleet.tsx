@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Users, Settings, Wind, Car as CarIcon, X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { bookingService, PublicVehicle } from '../services/booking'
-import { cars, categories, type Car } from '../data/cars'
+import { contactInfo } from '../data/cars'
 
 import { uploadsUrl } from '../services/apiClient'
 
@@ -302,80 +302,32 @@ function ApiCarCard({ car, onInspect }: { car: PublicVehicle; onInspect: () => v
 }
 
 // ---------------------------------------------------------------------------
-// Static car card (fallback)
-// ---------------------------------------------------------------------------
-function StaticCarCard({ car }: { car: Car }) {
-  return (
-    <div className="group bg-dark-200 rounded-2xl overflow-hidden card-hover">
-      <div className="relative h-48 overflow-hidden">
-        <img
-          src={car.image}
-          alt={car.name}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-        />
-        <div className="absolute top-4 right-4 bg-gold text-white text-xs font-bold px-3 py-1 rounded-full capitalize">
-          {car.category}
-        </div>
-      </div>
-      <div className="p-6">
-        <h3 className="text-xl font-semibold text-white mb-4">{car.name}</h3>
-        <div className="flex items-center justify-between text-sm text-gray-400 mb-6">
-          <div className="flex items-center gap-1.5">
-            <Users className="h-4 w-4 text-gold" />
-            <span>{car.seats} seats</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Settings className="h-4 w-4 text-gold" />
-            <span>{car.transmission}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Wind className="h-4 w-4 text-gold" />
-            <span>A/C</span>
-          </div>
-        </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-gold text-2xl font-bold">{car.price.toLocaleString()}</span>
-            <span className="text-gray-400 text-sm ml-1">ETB / day</span>
-          </div>
-          <a
-            href={`https://wa.me/251911669414?text=I'm interested in renting the ${car.name}`}
-            target="_blank"
-            rel="noreferrer"
-            className="btn-gold px-5 py-2 rounded-full text-sm font-medium"
-          >
-            Book Now
-          </a>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Fleet section
 // ---------------------------------------------------------------------------
 export default function Fleet() {
-  const [activeCategory, setActiveCategory] = useState('all')
+  const [activeCategory] = useState('all')
   const [inspecting, setInspecting] = useState<PublicVehicle | null>(null)
 
-  const { data: apiVehicles } = useQuery({
+  /**
+   * The real fleet, or an honest empty state.
+   *
+   * This used to fall back to the demo `cars` array whenever the API failed
+   * or returned nothing, silently advertising six vehicles the company does
+   * not own — a Land Cruiser, a 12-seat Hiace, a Hyundai Accent — at invented
+   * prices, with no hint to the visitor that the list was fiction. Showing
+   * nothing is better than showing a fleet that cannot be rented.
+   */
+  const { data: apiVehicles, isLoading, isError, refetch } = useQuery({
     queryKey: ['public-vehicles'],
     queryFn: bookingService.getVehicles,
     staleTime: 60_000,
   })
 
-  const useApi = apiVehicles && apiVehicles.length > 0
-
-  const filteredStatic = activeCategory === 'all'
-    ? cars
-    : cars.filter((c) => c.category === activeCategory)
-
-  const filteredApi = apiVehicles
-    ? activeCategory === 'all'
-      ? apiVehicles
-      : apiVehicles.filter((v) => v.vehicle_type.toLowerCase().includes(activeCategory))
-    : []
+  const vehicles = apiVehicles ?? []
+  const filteredApi =
+    activeCategory === 'all'
+      ? vehicles
+      : vehicles.filter((v) => v.vehicle_type.toLowerCase().includes(activeCategory))
 
   return (
     <>
@@ -387,36 +339,45 @@ export default function Fleet() {
               <span className="text-white">Choose Your </span>
               <span className="text-gold">Vehicle</span>
             </h2>
-            {useApi && (
+            {filteredApi.length > 0 && (
               <p className="text-gray-400 text-sm mt-3">Click any car to inspect it</p>
             )}
           </div>
 
-          {!useApi && (
-            <div className="flex flex-wrap justify-center gap-3 mb-10">
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setActiveCategory(cat.id)}
-                  className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                    activeCategory === cat.id
-                      ? 'bg-gold text-white'
-                      : 'border border-gray-600 text-gray-300 hover:border-gold hover:text-gold'
-                  }`}
-                >
-                  {cat.name}
-                </button>
+          {isLoading ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6" aria-busy="true">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="bg-dark-200 rounded-2xl h-80 animate-pulse" />
+              ))}
+            </div>
+          ) : isError ? (
+            <div role="alert" className="bg-dark-200 rounded-2xl p-10 text-center">
+              <p className="text-white font-semibold mb-2">We couldn't load the fleet</p>
+              <p className="text-gray-400 text-sm mb-6">
+                Please try again, or call us on {contactInfo.phones[0]} and we'll check
+                availability for you.
+              </p>
+              <button
+                onClick={() => refetch()}
+                className="border border-gold text-gold hover:bg-gold hover:text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+              >
+                Try again
+              </button>
+            </div>
+          ) : filteredApi.length === 0 ? (
+            <div className="bg-dark-200 rounded-2xl p-10 text-center">
+              <p className="text-white font-semibold mb-2">No vehicles listed right now</p>
+              <p className="text-gray-400 text-sm">
+                Call us on {contactInfo.phones[0]} and we'll find you a car.
+              </p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredApi.map((car) => (
+                <ApiCarCard key={car.id} car={car} onInspect={() => setInspecting(car)} />
               ))}
             </div>
           )}
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {useApi
-              ? filteredApi.map((car) => (
-                  <ApiCarCard key={car.id} car={car} onInspect={() => setInspecting(car)} />
-                ))
-              : filteredStatic.map((car) => <StaticCarCard key={car.name} car={car} />)}
-          </div>
         </div>
       </section>
 

@@ -4,8 +4,7 @@ import { Shield } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../services/auth'
 import { useAdminAuthStore } from '../services/adminAuth'
-
-const ADMIN_PAGE_URL = 'http://localhost:3000'
+import { ADMIN_BASE_URL } from '../services/apiClient'
 
 export default function LoginPage() {
   const { t } = useTranslation()
@@ -51,7 +50,7 @@ export default function LoginPage() {
       const at = localStorage.getItem('admin_access_token') || ''
       const rt = localStorage.getItem('admin_refresh_token') || ''
       const params = new URLSearchParams({ at, rt })
-      window.location.href = `${ADMIN_PAGE_URL}/login?${params.toString()}`
+      window.location.href = `${ADMIN_BASE_URL}/login?${params.toString()}`
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('login.invalidCredentials'))
       setLoading(false)

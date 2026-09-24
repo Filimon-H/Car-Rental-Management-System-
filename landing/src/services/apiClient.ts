@@ -9,11 +9,13 @@ export const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
 /**
  * Where the staff app lives.
  *
- * This was hardcoded to http://localhost:3000/login, which is dead for every
- * visitor once deployed and advertises the admin app's location publicly.
+ * This was hardcoded to http://localhost:3000, which is dead for every visitor
+ * once deployed and advertises the admin app's location publicly. The default
+ * is a same-origin path so a deployment can proxy /admin at the edge, the way
+ * API_BASE_URL defaults to /api; set VITE_ADMIN_URL to point elsewhere.
  */
-export const STAFF_LOGIN_URL =
-  import.meta.env.VITE_STAFF_LOGIN_URL || 'http://localhost:3000/login'
+export const ADMIN_BASE_URL = (import.meta.env.VITE_ADMIN_URL || '/admin').replace(/\/$/, '')
+export const STAFF_LOGIN_URL = `${ADMIN_BASE_URL}/login`
 
 export const uploadsUrl = (path: string | null) =>
   path ? `${API_BASE_URL}/uploads/${path}` : null
