@@ -396,6 +396,7 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
         <div className="flex gap-3">
           <button
             type="button"
+            aria-label="Back to your details"
             onClick={onBack}
             className="px-5 py-3 rounded-lg border border-gray-600 text-gray-300 text-sm hover:border-gold hover:text-gold transition-colors"
           >

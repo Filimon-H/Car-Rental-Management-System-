@@ -15,14 +15,6 @@ export interface Category {
   name: string
 }
 
-export interface Testimonial {
-  id: number
-  name: string
-  role: string
-  text: string
-  rating: number
-}
-
 export interface ContactInfo {
   phones: string[]
   office: string
@@ -108,29 +100,14 @@ export const categories: Category[] = [
   { id: 'minivan', name: 'Minivan' },
 ]
 
-export const testimonials: Testimonial[] = [
-  {
-    id: 1,
-    name: 'Michael T.',
-    role: 'Business Traveler',
-    text: 'Excellent service! The car was clean and well-maintained. Airport pickup was on time. Highly recommend Nod Car Rent for visitors to Addis Ababa.',
-    rating: 5,
-  },
-  {
-    id: 2,
-    name: 'Sarah K.',
-    role: 'Tourist from USA',
-    text: 'Very professional and responsive on WhatsApp. Got a great SUV for our family trip. The pricing was fair and transparent. Will use again!',
-    rating: 5,
-  },
-  {
-    id: 3,
-    name: 'Dawit A.',
-    role: 'Local Customer',
-    text: "I've been renting from Nod Car Rent for over a year now. Always reliable, always fair prices. The best car rental service in Addis Ababa!",
-    rating: 5,
-  },
-]
+/*
+  The `testimonials` array lived here: three invented reviews rendered with
+  five-star ratings as if real customers had written them. Nobody had.
+  Publishing reviews that were never given is deceptive advertising, so they
+  are gone rather than relabelled -- a "sample" caption still reads as real
+  on a live site. The Reviews section now shows facts that can be checked.
+  Real ones belong in the backend with permission and a source.
+*/
 
 export const contactInfo: ContactInfo = {
   phones: ['+251 911 669414', '+251 911 257351'],

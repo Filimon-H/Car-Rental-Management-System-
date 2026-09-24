@@ -16,18 +16,36 @@ import MyBookingsPage from './pages/MyBookingsPage'
 import { useAuthStore } from './services/auth'
 
 function LandingPage() {
+  /*
+    Header and Footer used to sit inside <main>, so the banner and
+    contentinfo landmarks were nested in the main landmark and a skip link
+    would have had nothing to skip. #top stays on the wrapper because the
+    logo links point at it.
+  */
   return (
-    <main id="top" className="min-h-screen bg-dark">
+    <div id="top" className="min-h-screen bg-dark">
+      {/*
+        20+ header and nav links come before the content, so keyboard users
+        had to tab through all of them on every visit. Visible on focus only.
+      */}
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:bg-gold focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:font-semibold"
+      >
+        Skip to main content
+      </a>
       <Header />
-      <Hero />
-      <About />
-      <Services />
-      <Fleet />
-      <HowItWorks />
-      <Testimonials />
-      <Contact />
+      <main id="main">
+        <Hero />
+        <About />
+        <Services />
+        <Fleet />
+        <HowItWorks />
+        <Testimonials />
+        <Contact />
+      </main>
       <Footer />
-    </main>
+    </div>
   )
 }
 

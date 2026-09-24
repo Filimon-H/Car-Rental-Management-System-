@@ -44,5 +44,18 @@
     "createOne": "Create one",
     "loginFailed": "Login failed",
     "invalidCredentials": "Invalid credentials"
+  },
+  "proof": {
+    "eyebrow": "Why Nod",
+    "title1": "What You Can",
+    "title2": "Count On",
+    "fleetLabel": "Vehicles in our fleet",
+    "deliveryValue": "Addis Ababa",
+    "deliveryLabel": "Delivery and airport pickup",
+    "supportValue": "24/7",
+    "supportLabel": "Phone and WhatsApp support",
+    "insuredValue": "Insured",
+    "insuredLabel": "Every vehicle, fully covered",
+    "footnote": "Fleet size is read live from our booking system."
   }
 }

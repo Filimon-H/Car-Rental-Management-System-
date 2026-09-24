@@ -44,5 +44,18 @@
     "createOne": "አዲስ ይፍጠሩ",
     "loginFailed": "መግባት አልተሳካም",
     "invalidCredentials": "የተሳሳተ መረጃ"
+  },
+  "proof": {
+    "eyebrow": "ኖድን ለምን",
+    "title1": "በእኛ ላይ",
+    "title2": "መተማመን ይችላሉ",
+    "fleetLabel": "በእኛ መርከብ ውስጥ ያሉ ተሽከርካሪዎች",
+    "deliveryValue": "አዲስ አበባ",
+    "deliveryLabel": "አቅርቦት እና የአየር መንገድ መቀበል",
+    "supportValue": "24/7",
+    "supportLabel": "የስልክ እና WhatsApp ድጋፍ",
+    "insuredValue": "ኢንሹራንስ",
+    "insuredLabel": "ሁሉም ተሽከርካሪ ሙሉ ሽፋን አለው",
+    "footnote": "የመርከቡ መጠን በቀጥታ ከቦታ ማስያዣ ሥርዓታችን ይነበባል።"
   }
 }

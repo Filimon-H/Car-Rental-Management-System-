@@ -17,7 +17,7 @@ import amLocale from '../i18n/locales/am.json'
 import enLocale from '../i18n/locales/en.json'
 
 const sources = import.meta.glob<string>(
-  ['../components/*.tsx', '../pages/*.tsx'],
+  ['../components/*.tsx', '../pages/*.tsx', '../App.tsx', '../data/cars.ts'],
   { query: '?raw', import: 'default', eager: true }
 )
 
@@ -25,6 +25,18 @@ function source(name: string): string {
   const key = Object.keys(sources).find((k) => k.endsWith(`/${name}`))
   if (!key) throw new Error(`no source loaded for ${name} (have ${Object.keys(sources)})`)
   return sources[key]
+}
+
+/**
+ * Source with comments stripped.
+ *
+ * The comments explaining these removals quote the old data by name, so an
+ * assertion against the raw text would match its own documentation.
+ */
+function code(name: string): string {
+  return source(name)
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
 }
 
 describe('URLs default to same-origin paths', () => {
@@ -83,5 +95,110 @@ describe('hero copy is translated', () => {
     // Ethiopic block; "24/7" stays numeric in both locales.
     expect(amLocale.hero.insured).toMatch(/[ሀ-፿]/)
     expect(amLocale.hero.delivery).toMatch(/[ሀ-፿]/)
+  })
+})
+
+describe('no invented customer reviews are published', () => {
+  it('the fabricated testimonials are gone from the data file', () => {
+    // Three reviews nobody wrote, shown with five-star ratings as if real.
+    const data = code('cars.ts')
+    for (const name of ['Michael T.', 'Sarah K.', 'Dawit A.']) {
+      expect(data).not.toContain(name)
+    }
+    expect(data).not.toMatch(/export const testimonials/)
+  })
+
+  it('the reviews section makes no attributed claim', () => {
+    const section = code('Testimonials.tsx')
+    expect(section).not.toContain("from '../data/cars'")
+    expect(section).not.toContain('rating')
+  })
+
+  it('the fleet count it shows comes from the API, not a literal', () => {
+    const section = source('Testimonials.tsx')
+    expect(section).toContain('bookingService.getVehicles')
+    // Omitted rather than guessed when the call fails.
+    expect(section).toContain('vehicles?.length ?? null')
+  })
+})
+
+describe('keyboard and screen-reader access', () => {
+  it('every button has an accessible name', () => {
+    // 26 of 34 buttons announced as just "button": the fleet cards' photo
+    // arrows and dots had no text, no aria-label and no title.
+    const offenders: string[] = []
+    for (const [path, code] of Object.entries(sources)) {
+      if (!path.endsWith('.tsx')) continue
+      for (const m of code.matchAll(/<button\b/g)) {
+        let i = m.index! + m[0].length
+        let depth = 0
+        while (i < code.length) {
+          const c = code[i]
+          if (c === '{') depth++
+          else if (c === '}') depth--
+          else if (c === '>' && depth === 0) break
+          i++
+        }
+        const tag = code.slice(m.index!, i + 1)
+        const close = code.indexOf('</button>', i)
+        const inner = close === -1 ? '' : code.slice(i + 1, close)
+        const text = inner.replace(/<[^>]*>/g, '')
+        const named =
+          /aria-label|aria-labelledby|title=/.test(tag) || /[A-Za-z]/.test(text)
+        if (!named) offenders.push(`${path}:${code.slice(0, m.index!).split('\n').length}`)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it('the carousel controls name the vehicle they belong to', () => {
+    const fleet = source('Fleet.tsx')
+    expect(fleet).toContain('Previous photo of ${label}')
+    expect(fleet).toContain('Next photo of ${label}')
+    expect(fleet).toContain('aria-current')
+  })
+
+  it('a skip link precedes the 20+ header links', () => {
+    const app = source('App.tsx')
+    expect(app).toContain('Skip to main content')
+    expect(app).toContain('href="#main"')
+    // Header/Footer must sit outside main, or there is nothing to skip.
+    expect(app).toMatch(/<main id="main">/)
+  })
+})
+
+describe('every translation key a component uses exists', () => {
+  /*
+    A section can lose its i18n block and still build, still pass a
+    key-parity check between locales, and still render raw "proof.eyebrow"
+    strings to the visitor. This walks the other direction: from the t()
+    calls in the source to the locale files.
+  */
+  function lookup(locale: Record<string, unknown>, key: string): unknown {
+    return key.split('.').reduce<unknown>(
+      (node, part) =>
+        node && typeof node === 'object' ? (node as Record<string, unknown>)[part] : undefined,
+      locale
+    )
+  }
+
+  const used = new Set<string>()
+  for (const [path, src] of Object.entries(sources)) {
+    if (!path.endsWith('.tsx')) continue
+    for (const m of src.matchAll(/\bt\(\s*'([A-Za-z0-9_.]+)'/g)) used.add(m[1])
+  }
+
+  it('finds t() calls to check', () => {
+    expect(used.size).toBeGreaterThan(10)
+  })
+
+  it.each([
+    ['en', enLocale],
+    ['am', amLocale],
+  ])('%s defines them all', (_name, locale) => {
+    const missing = [...used]
+      .filter((key) => typeof lookup(locale as Record<string, unknown>, key) !== 'string')
+      .sort()
+    expect(missing).toEqual([])
   })
 })

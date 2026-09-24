@@ -37,6 +37,11 @@ const UNKNOWN_STATUS_BADGE = {
   cls: 'bg-gray-500/20 text-gray-400 border border-gray-500/30',
 }
 
+/** The visible name of a vehicle, reused for alt text and control labels. */
+function carName(car: PublicVehicle): string {
+  return `${car.year} ${car.make} ${car.model}`
+}
+
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
@@ -46,11 +51,14 @@ function formatDate(dateStr: string): string {
 // ---------------------------------------------------------------------------
 function PhotoCarousel({
   photos,
+  label,
   autoplay = true,
   height = 'h-48',
   grayscale = false,
 }: {
   photos: string[]
+  /** The vehicle these photos belong to, for alt text and control labels. */
+  label: string
   autoplay?: boolean
   height?: string
   grayscale?: boolean
@@ -99,22 +107,33 @@ function PhotoCarousel({
         <img
           key={src}
           src={src}
-          alt={`photo ${i + 1}`}
+          alt={`${label} — photo ${i + 1} of ${photos.length}`}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${grayscale ? 'grayscale' : ''} ${i === index ? 'opacity-100' : 'opacity-0'}`}
         />
       ))}
 
       {photos.length > 1 && (
         <>
+          {/*
+            These had no text, no aria-label and no title, so a screen reader
+            announced 26 of the page's 34 buttons as just "button". The hero
+            slider already labelled its dots; the pattern simply was not
+            applied here. focus-visible also keeps them reachable by keyboard,
+            since they are otherwise revealed only on hover.
+          */}
           <button
+            type="button"
+            aria-label={`Previous photo of ${label}`}
             onClick={(e) => { e.stopPropagation(); prev(); resetTimer() }}
-            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white rounded-full p-1 transition-opacity opacity-0 group-hover:opacity-100"
+            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white rounded-full p-1 transition-opacity opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
+            type="button"
+            aria-label={`Next photo of ${label}`}
             onClick={(e) => { e.stopPropagation(); next(); resetTimer() }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white rounded-full p-1 transition-opacity opacity-0 group-hover:opacity-100"
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white rounded-full p-1 transition-opacity opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -122,6 +141,9 @@ function PhotoCarousel({
             {photos.map((_, i) => (
               <button
                 key={i}
+                type="button"
+                aria-label={`Show photo ${i + 1} of ${photos.length} of ${label}`}
+                aria-current={i === index}
                 onClick={(e) => { e.stopPropagation(); setIndex(i); resetTimer() }}
                 className={`w-1.5 h-1.5 rounded-full transition-all ${i === index ? 'bg-gold w-3' : 'bg-white/50'}`}
               />
@@ -154,13 +176,18 @@ function CarModal({ car, onClose }: { car: PublicVehicle; onClose: () => void })
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={carName(car)}
         className="bg-dark-200 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal carousel */}
         <div className="group relative rounded-t-2xl overflow-hidden">
-          <PhotoCarousel photos={photos} height="h-64" autoplay grayscale={!isAvailable} />
+          <PhotoCarousel photos={photos} label={carName(car)} height="h-64" autoplay grayscale={!isAvailable} />
           <button
+            type="button"
+            aria-label={`Close details for ${carName(car)}`}
             onClick={onClose}
             className="absolute top-3 right-3 bg-black/60 hover:bg-black/90 text-white rounded-full p-1.5 z-10"
           >
@@ -246,7 +273,7 @@ function ApiCarCard({ car, onInspect }: { car: PublicVehicle; onInspect: () => v
       onClick={onInspect}
     >
       <div className="relative overflow-hidden">
-        <PhotoCarousel photos={photos} height="h-48" autoplay grayscale={!isAvailable} />
+        <PhotoCarousel photos={photos} label={carName(car)} height="h-48" autoplay grayscale={!isAvailable} />
         <div className="absolute top-4 left-4 z-10">
           <span className={`text-xs font-semibold px-3 py-1 rounded-full ${badge.cls}`}>
             {badge.label}
@@ -257,7 +284,7 @@ function ApiCarCard({ car, onInspect }: { car: PublicVehicle; onInspect: () => v
         </div>
       </div>
       <div className="p-6">
-        <h3 className="text-xl font-semibold text-white mb-4">{car.year} {car.make} {car.model}</h3>
+        <h3 className="text-xl font-semibold text-white mb-4">{carName(car)}</h3>
         <div className="flex items-center justify-between text-sm text-gray-400 mb-4">
           <div className="flex items-center gap-1.5">
             <Users className="h-4 w-4 text-gold" />
