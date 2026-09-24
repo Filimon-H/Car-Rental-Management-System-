@@ -24,6 +24,19 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   rented:    { label: 'Rented',    cls: 'bg-red-500/20 text-red-400 border border-red-500/30' },
 }
 
+/**
+ * Badge for a status the map does not know.
+ *
+ * This fell back to the "Available" badge, so a vehicle the API reported as
+ * inactive showed a green Available badge beside a disabled "Unavailable"
+ * button — the card contradicted itself. Anything unrecognised is now
+ * presented as not bookable, which is what isAvailable already decides.
+ */
+const UNKNOWN_STATUS_BADGE = {
+  label: 'Unavailable',
+  cls: 'bg-gray-500/20 text-gray-400 border border-gray-500/30',
+}
+
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
@@ -126,7 +139,7 @@ function PhotoCarousel({
 function CarModal({ car, onClose }: { car: PublicVehicle; onClose: () => void }) {
   const photos = getPhotos(car)
   const isAvailable = car.status === 'available'
-  const badge = STATUS_BADGE[car.status] ?? STATUS_BADGE.available
+  const badge = STATUS_BADGE[car.status] ?? UNKNOWN_STATUS_BADGE
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -225,7 +238,7 @@ function CarModal({ car, onClose }: { car: PublicVehicle; onClose: () => void })
 function ApiCarCard({ car, onInspect }: { car: PublicVehicle; onInspect: () => void }) {
   const photos = getPhotos(car)
   const isAvailable = car.status === 'available'
-  const badge = STATUS_BADGE[car.status] ?? STATUS_BADGE.available
+  const badge = STATUS_BADGE[car.status] ?? UNKNOWN_STATUS_BADGE
 
   return (
     <div

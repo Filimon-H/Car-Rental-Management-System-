@@ -208,13 +208,28 @@ def update_me(
 
 
 def _vehicle_available_from(db: Session, vehicle_id: int) -> datetime | None:
-    """Return the soonest expected_return_datetime for active/reserved segments on this vehicle."""
+    """Soonest future return for a booking that still holds this vehicle.
+
+    Only segments ending in the future count. Taking the earliest segment
+    outright surfaced dates that had already passed — "Available from 3 Jun
+    2026" on a browse page in September — because a stale booking whose
+    return date went by without the agreement being closed still matched.
+    OVERDUE is included: the car is genuinely still out.
+    """
+    now = _as_business_wall_clock(datetime.now(timezone.utc))
     seg = (
         db.query(AgreementVehicleSegment)
         .join(Agreement, Agreement.id == AgreementVehicleSegment.agreement_id)
         .filter(
             AgreementVehicleSegment.vehicle_id == vehicle_id,
-            Agreement.status.in_([AgreementStatus.ACTIVE, AgreementStatus.PENDING_PAYMENT]),
+            Agreement.status.in_(
+                [
+                    AgreementStatus.ACTIVE,
+                    AgreementStatus.PENDING_PAYMENT,
+                    AgreementStatus.OVERDUE,
+                ]
+            ),
+            AgreementVehicleSegment.end_datetime > now,
         )
         .order_by(AgreementVehicleSegment.end_datetime.asc())
         .first()
@@ -252,7 +267,12 @@ def _to_public_vehicle(v: Vehicle, db: Session) -> PublicVehicleResponse:
 def list_vehicles(db: Annotated[Session, Depends(get_db)]):
     vehicles = (
         db.query(Vehicle)
-        .filter(Vehicle.is_active.is_(True))
+        .filter(
+            Vehicle.is_active.is_(True),
+            # "Retired" is stored as status INACTIVE while is_active stays
+            # True, so filtering on is_active alone advertised a retired car.
+            Vehicle.status.notin_([VehicleStatus.INACTIVE, VehicleStatus.MAINTENANCE]),
+        )
         .order_by(Vehicle.status.asc(), Vehicle.id.asc())
         .all()
     )
@@ -261,7 +281,15 @@ def list_vehicles(db: Annotated[Session, Depends(get_db)]):
 
 @router.get("/vehicles/{vehicle_id}", response_model=PublicVehicleResponse)
 def get_vehicle(vehicle_id: int, db: Annotated[Session, Depends(get_db)]):
-    v = db.query(Vehicle).filter(Vehicle.id == vehicle_id, Vehicle.is_active.is_(True)).first()
+    v = (
+        db.query(Vehicle)
+        .filter(
+            Vehicle.id == vehicle_id,
+            Vehicle.is_active.is_(True),
+            Vehicle.status.notin_([VehicleStatus.INACTIVE, VehicleStatus.MAINTENANCE]),
+        )
+        .first()
+    )
     if not v:
         raise NotFoundError("Vehicle", vehicle_id)
     return _to_public_vehicle(v, db)
