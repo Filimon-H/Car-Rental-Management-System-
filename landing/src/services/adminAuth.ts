@@ -4,16 +4,28 @@ import { API_BASE_URL } from './apiClient'
 const STAFF_API_URL = API_BASE_URL
 
 interface AdminAuthState {
-  adminToken: string | null
   isAdminLoading: boolean
-  adminLogin: (username: string, password: string) => Promise<void>
-  adminLogout: () => void
+  /** Authenticates staff and returns the tokens; nothing is persisted here. */
+  adminLogin: (username: string, password: string) => Promise<AdminTokens>
 }
 
-const storedAdminToken = localStorage.getItem('admin_access_token')
+export interface AdminTokens {
+  accessToken: string
+  refreshToken: string
+}
 
+/**
+ * Staff tokens are never stored on the public origin.
+ *
+ * This used to write admin_access_token and admin_refresh_token into the
+ * landing site's localStorage, where they sat indefinitely. The landing page
+ * renders customer-supplied notes and vehicle data, so any XSS here would
+ * have handed over a staff session — and a refresh token outlives the access
+ * token it sits beside, so expiry was no protection. The tokens exist only to
+ * hand off to the admin app, which owns them, so they are returned to the
+ * caller and never persisted.
+ */
 export const useAdminAuthStore = create<AdminAuthState>((set) => ({
-  adminToken: storedAdminToken || null,
   isAdminLoading: false,
 
   adminLogin: async (username: string, password: string) => {
@@ -29,17 +41,24 @@ export const useAdminAuthStore = create<AdminAuthState>((set) => ({
         throw new Error(body.detail || 'Invalid admin credentials')
       }
       const data = await res.json()
-      localStorage.setItem('admin_access_token', data.access_token)
-      localStorage.setItem('admin_refresh_token', data.refresh_token)
-      set({ adminToken: data.access_token })
+      return { accessToken: data.access_token, refreshToken: data.refresh_token }
     } finally {
       set({ isAdminLoading: false })
     }
   },
+}))
 
-  adminLogout: () => {
+/**
+ * Removes staff tokens an older build left behind.
+ *
+ * Without this, anyone who used the staff login before this change keeps a
+ * refresh token on the public origin forever.
+ */
+export function purgeLegacyAdminTokens(): void {
+  try {
     localStorage.removeItem('admin_access_token')
     localStorage.removeItem('admin_refresh_token')
-    set({ adminToken: null })
-  },
-}))
+  } catch {
+    // Private mode or blocked storage: nothing to purge.
+  }
+}

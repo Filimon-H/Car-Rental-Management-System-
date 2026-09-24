@@ -348,6 +348,14 @@ def create_booking(
     # Load the linked customer
     db.refresh(current_user)
     customer = current_user.customer
+
+    # A rental cannot run on a licence that expires before the car comes
+    # back: the customer would not legally be able to drive it. This was
+    # accepted silently, with no warning to the customer and no flag for
+    # staff. An absent expiry is not treated as expired -- the record simply
+    # has not been captured, and staff verify documents at pickup.
+    _require_valid_documents(customer, return_at)
+
     agreement_number = agreement_service.generate_agreement_number(db)
 
     agreement = Agreement(
@@ -424,6 +432,24 @@ def cancel_booking(
 
     agreement_service.cancel_agreement(db, booking_id)
     return {"detail": "Booking cancelled"}
+
+
+def _require_valid_documents(customer, return_at: datetime) -> None:
+    """Refuse a booking whose driving licence or ID expires before it ends."""
+    checks = (
+        ("driving licence", customer.license_expiry),
+        ("ID", customer.id_expiry),
+    )
+    for label, expiry in checks:
+        if expiry is None:
+            continue
+        if _as_business_wall_clock(expiry) < return_at:
+            raise BusinessError(
+                ErrorCode.INVALID_INPUT,
+                f"Your {label} expires on "
+                f"{_as_business_wall_clock(expiry).date().isoformat()}, before this "
+                f"rental ends. Please renew it or contact us before booking.",
+            )
 
 
 #: Statuses in which an agreement genuinely holds a vehicle. A booking that

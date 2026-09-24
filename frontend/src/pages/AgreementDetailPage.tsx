@@ -436,7 +436,9 @@ export default function AgreementDetailPage() {
                   disabled={approveRequestMutation.isPending}
                   className="rounded-lg bg-yellow-600 px-4 py-2 text-white hover:bg-yellow-700 disabled:opacity-60"
                 >
-                  {approveRequestMutation.isPending ? 'Approving…' : 'Approve Booking'}
+                  {approveRequestMutation.isPending
+                    ? t('agreementActions.approvingBooking')
+                    : t('agreementActions.approveBooking')}
                 </button>
                 <button
                   onClick={() => setShowCancelConfirm(true)}

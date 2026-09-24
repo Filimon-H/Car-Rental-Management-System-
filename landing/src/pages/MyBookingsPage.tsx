@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import ConfirmModal from '../components/ui/ConfirmModal'
 import { Link, useNavigate } from 'react-router-dom'
 import { Car, Calendar, X, ArrowLeft, Send, Copy, Check, ExternalLink, Clock, AlertTriangle } from 'lucide-react'
 import { useAuthStore } from '../services/auth'
@@ -6,6 +7,37 @@ import { bookingService, ExtensionQuote, MyBooking, TelegramLinkCode, TelegramLi
 
 function getDaysLeft(returnDateIso: string): number {
   return Math.floor((new Date(returnDateIso).getTime() - Date.now()) / 86400000)
+}
+
+/**
+ * The day after a return date, as YYYY-MM-DD.
+ *
+ * The extend picker's min was the current return date itself, which the
+ * helper text beside it said was not selectable and which the server refused
+ * with "must be later than the current return date".
+ */
+function dayAfter(isoDatetime: string): string {
+  const d = new Date(isoDatetime)
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().slice(0, 10)
+}
+
+/**
+ * What a pending request is expected to cost, from its own agreed rate.
+ *
+ * Untiered, and labelled as an estimate: staff confirm the final price on
+ * approval, and tiered pricing can only bring it down.
+ */
+function estimatedTotal(booking: MyBooking): string {
+  const days = Math.max(
+    1,
+    Math.ceil(
+      (new Date(booking.expected_return_datetime).getTime() -
+        new Date(booking.pickup_datetime).getTime()) /
+        86400000
+    )
+  )
+  return (days * Number(booking.agreed_daily_rate ?? 0)).toLocaleString()
 }
 
 function formatDate(iso: string) {
@@ -28,6 +60,8 @@ export default function MyBookingsPage() {
   const [bookings, setBookings] = useState<MyBooking[]>([])
   const [loading, setLoading] = useState(true)
   const [cancelling, setCancelling] = useState<number | null>(null)
+  const [pendingCancel, setPendingCancel] = useState<MyBooking | null>(null)
+  const [actionError, setActionError] = useState('')
 
   const [telegramStatus, setTelegramStatus] = useState<TelegramLinkStatus | null>(null)
   const [linkCode, setLinkCode] = useState<TelegramLinkCode | null>(null)
@@ -64,7 +98,8 @@ export default function MyBookingsPage() {
       const code = await bookingService.generateTelegramLinkCode()
       setLinkCode(code)
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to generate code')
+      // Was a native alert, which blocks the page the same way confirm did.
+      setActionError(err instanceof Error ? err.message : 'Failed to generate code')
     } finally {
       setGeneratingCode(false)
     }
@@ -127,16 +162,24 @@ export default function MyBookingsPage() {
     }
   }
 
-  async function handleCancel(id: number) {
-    if (!confirm('Cancel this booking?')) return
-    setCancelling(id)
+  /*
+    Cancelling is irreversible and, on an approved booking, releases a
+    reserved vehicle. It used to go through window.confirm, which blocks the
+    browser's main thread, froze the page under automation, and named no
+    booking — with "Cancel this booking?" alone, there was nothing to check
+    against the card you meant to act on.
+  */
+  async function handleCancel(booking: MyBooking) {
+    setCancelling(booking.id)
+    setActionError('')
     try {
-      await bookingService.cancelBooking(id)
+      await bookingService.cancelBooking(booking.id)
       setBookings((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, status: 'cancelled' } : b))
+        prev.map((b) => (b.id === booking.id ? { ...b, status: 'cancelled' } : b))
       )
+      setPendingCancel(null)
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to cancel')
+      setActionError(err instanceof Error ? err.message : 'Failed to cancel')
     } finally {
       setCancelling(null)
     }
@@ -232,8 +275,23 @@ export default function MyBookingsPage() {
                   )
                 })()}
 
-                {/* Payment summary */}
-                {b.total_charge !== null && (
+                {/*
+                  Nothing is posted to the ledger until staff approve, so a
+                  pending request showed the customer 0/0/0 right after they
+                  had agreed to an estimate — it read as if the booking were
+                  free, and the figure they accepted was nowhere on screen.
+                */}
+                {b.status === 'booking_requested' ? (
+                  <div className="mt-3 border-t border-gray-700/50 pt-3 text-xs">
+                    <p className="text-gray-500">Estimated total</p>
+                    <p className="text-white font-medium">
+                      {estimatedTotal(b)} ETB{' '}
+                      <span className="text-gray-500 font-normal">
+                        — confirmed by staff on approval
+                      </span>
+                    </p>
+                  </div>
+                ) : b.total_charge !== null && (
                   <div className="mt-3 border-t border-gray-700/50 pt-3 grid grid-cols-3 gap-2 text-xs">
                     <div>
                       <p className="text-gray-500">Total charge</p>
@@ -282,7 +340,7 @@ export default function MyBookingsPage() {
                     )}
                     {(b.status === 'booking_requested' || b.status === 'pending_payment') && (
                       <button
-                        onClick={() => handleCancel(b.id)}
+                        onClick={() => { setActionError(''); setPendingCancel(b) }}
                         disabled={cancelling === b.id}
                         className="flex items-center gap-1.5 text-red-400 hover:text-red-300 text-xs border border-red-400/30 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50"
                       >
@@ -306,7 +364,7 @@ export default function MyBookingsPage() {
                         <input
                           type="date"
                           value={extendDate}
-                          min={b.expected_return_datetime.slice(0, 10)}
+                          min={dayAfter(b.expected_return_datetime)}
                           onChange={e => { setExtendDate(e.target.value); setExtendError('') }}
                           className="w-full bg-dark border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm mb-3 focus:outline-none focus:border-gold [color-scheme:dark]"
                         />
@@ -320,11 +378,15 @@ export default function MyBookingsPage() {
                           >
                             Next →
                           </button>
+                          {/*
+                            This said "Cancel" a few lines from the card's
+                            Cancel, which cancels the booking itself.
+                          */}
                           <button
                             onClick={() => { setExtendingId(null); setExtendDate(''); setExtendError('') }}
                             className="text-gray-400 hover:text-white text-xs px-3 py-2 transition-colors"
                           >
-                            Cancel
+                            Close
                           </button>
                         </div>
                       </>
@@ -480,6 +542,34 @@ export default function MyBookingsPage() {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        open={pendingCancel !== null}
+        title="Cancel this booking?"
+        message={
+          pendingCancel
+            ? `${pendingCancel.agreement_number} will be cancelled. This can't be undone${
+                pendingCancel.status !== 'booking_requested'
+                  ? ', and the vehicle will be released'
+                  : ''
+              }.`
+            : ''
+        }
+        confirmLabel="Cancel booking"
+        cancelLabel="Keep it"
+        busy={cancelling !== null}
+        onConfirm={() => pendingCancel && handleCancel(pendingCancel)}
+        onCancel={() => { setPendingCancel(null); setActionError('') }}
+      />
+
+      {actionError && (
+        <div
+          role="alert"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[70] bg-red-500/15 border border-red-500/40 text-red-300 text-sm px-4 py-3 rounded-lg"
+        >
+          {actionError}
+        </div>
+      )}
     </div>
   )
 }

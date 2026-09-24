@@ -781,7 +781,8 @@
     "returnMileageOptional": "የመመለሻ ኪሎሜትር (አማራጭ)",
     "returnMustBeLater": "አዲሱ የመመለሻ ቀን ከአሁኑ የመመለሻ ቀን በኋላ መሆን አለበት።",
     "settlementActions": "የማወራረድ እርምጃዎች",
-    "settlementClose": "ማወራረድና ውል መዝጋት"
+    "settlementClose": "ማወራረድና ውል መዝጋት",
+    "approvingBooking": "በማጽደቅ ላይ…"
   },
   "sections": {
     "bankInformation": "የባንክ መረጃ",

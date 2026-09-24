@@ -46,10 +46,12 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      await adminLogin(username, password)
-      const at = localStorage.getItem('admin_access_token') || ''
-      const rt = localStorage.getItem('admin_refresh_token') || ''
-      const params = new URLSearchParams({ at, rt })
+      // Hand the tokens straight to the admin app; the public origin keeps
+      // no copy. They travel in the URL as before, which the admin app reads
+      // and clears -- see B10 in the QA report for why storing them here was
+      // the worse of the two.
+      const { accessToken, refreshToken } = await adminLogin(username, password)
+      const params = new URLSearchParams({ at: accessToken, rt: refreshToken })
       window.location.href = `${ADMIN_BASE_URL}/login?${params.toString()}`
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('login.invalidCredentials'))

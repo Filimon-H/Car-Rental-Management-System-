@@ -13,6 +13,29 @@ import { apiClient, uploadsUrl as photoUrl } from '../services/apiClient'
  * UTC, so a customer picking 09:00 in Addis Ababa had 06:00 stored and every
  * screen afterwards showed the booking three hours early.
  */
+/**
+ * Whether a recorded expiry date has already passed.
+ *
+ * The expiry inputs accepted any past date with no feedback: a customer
+ * whose licence expired months ago could book with nothing on screen saying
+ * so. The server refuses a licence that expires before the return date; this
+ * says so at the point of entry, where it can still be corrected.
+ */
+function isExpired(value: string): boolean {
+  if (!value) return false
+  const when = new Date(value)
+  if (Number.isNaN(when.getTime())) return false
+  return when < new Date(new Date().toDateString())
+}
+
+function formatExpiry(value: string): string {
+  return new Date(value).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
 function toWallClockIso(value: string): string {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(value)) return value
   return value.length === 16 ? `${value}:00` : value
@@ -150,6 +173,11 @@ function PersonalInfoStep({ profile, onNext }: PersonalInfoProps) {
             onChange={set('id_expiry')}
             className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
           />
+          {isExpired(form.id_expiry) && (
+            <p className="text-amber-400 text-xs mt-1.5">
+              This ID expired on {formatExpiry(form.id_expiry)}.
+            </p>
+          )}
         </div>
       </div>
 
@@ -177,6 +205,12 @@ function PersonalInfoStep({ profile, onNext }: PersonalInfoProps) {
             onChange={set('license_expiry')}
             className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
           />
+          {isExpired(form.license_expiry) && (
+            <p role="alert" className="text-amber-400 text-xs mt-1.5">
+              This licence expired on {formatExpiry(form.license_expiry)}. You'll
+              need a valid licence covering the whole rental.
+            </p>
+          )}
         </div>
       </div>
 
@@ -231,9 +265,11 @@ interface BookingDatesProps {
   onSubmit: (pickup: string, returnDate: string, pickupLocation: string, returnLocation: string, notes: string) => Promise<void>
   submitting: boolean
   error: string
+  /** Clears the parent's submission error once the customer edits the dates. */
+  onClearError: () => void
 }
 
-function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, error }: BookingDatesProps) {
+function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, error, onClearError }: BookingDatesProps) {
   const tomorrow = new Date()
   tomorrow.setDate(tomorrow.getDate() + 1)
   tomorrow.setHours(9, 0, 0, 0)
@@ -252,8 +288,31 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
   const days = daysBetween(pickup, returnDate)
   const total = quote ? Number(quote.total) : days * parseFloat(vehicle.daily_rate)
 
+  /*
+    The pickup input had no min, so a date three weeks past was selectable,
+    priced, and only rejected after a round-trip. The return input had none
+    either, so return-before-pickup silently hid the whole price summary and
+    disabled Confirm with nothing on screen explaining why.
+  */
+  const minPickup = toLocalDatetimeValue(new Date())
+  const pickupInPast = pickup !== '' && new Date(pickup) <= new Date()
+  const returnBeforePickup = pickup !== '' && returnDate !== '' && days <= 0
+  const blockedReason = pickupInPast
+    ? 'Pickup must be in the future.'
+    : returnBeforePickup
+      ? 'Return must be after pickup.'
+      : ''
+
+  /** Editing either date invalidates any previous complaint about them. */
+  const changeDates = (next: () => void) => {
+    next()
+    setLocalError('')
+    onClearError()
+  }
+
   useEffect(() => {
-    if (days <= 0) {
+    // No point pricing a range the server will reject.
+    if (days <= 0 || pickupInPast) {
       setQuote(null)
       return
     }
@@ -276,7 +335,7 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [days, pickup, returnDate, vehicle.id])
+  }, [days, pickup, returnDate, pickupInPast, vehicle.id])
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (new Date(returnDate) <= new Date(pickup)) {
@@ -318,8 +377,9 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
             <input
               type="datetime-local"
               required
+              min={minPickup}
               value={pickup}
-              onChange={(e) => setPickup(e.target.value)}
+              onChange={(e) => changeDates(() => setPickup(e.target.value))}
               className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
             />
           </div>
@@ -328,8 +388,9 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
             <input
               type="datetime-local"
               required
+              min={pickup || minPickup}
               value={returnDate}
-              onChange={(e) => setReturnDate(e.target.value)}
+              onChange={(e) => changeDates(() => setReturnDate(e.target.value))}
               className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
             />
           </div>
@@ -370,7 +431,13 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
           />
         </div>
 
-        {days > 0 && (
+        {blockedReason && (
+          <p role="alert" className="text-amber-400 text-sm">
+            {blockedReason}
+          </p>
+        )}
+
+        {days > 0 && !blockedReason && (
           <div className="bg-dark-300 rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-400 text-sm">{quote?.days ?? days} day{(quote?.days ?? days) !== 1 ? 's' : ''}</span>
@@ -404,7 +471,7 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
           </button>
           <button
             type="submit"
-            disabled={submitting || quoteLoading || days <= 0}
+            disabled={submitting || quoteLoading || days <= 0 || blockedReason !== ''}
             className="flex-1 bg-gold hover:bg-gold-light text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-60"
           >
             {submitting ? 'Submitting…' : 'Confirm Booking Request'}
@@ -567,6 +634,7 @@ export default function BookingPage() {
             onSubmit={handleBooking}
             submitting={submitting}
             error={error}
+            onClearError={() => setError('')}
           />
         )}
       </div>

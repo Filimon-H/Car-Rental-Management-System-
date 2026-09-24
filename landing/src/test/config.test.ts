@@ -17,7 +17,15 @@ import amLocale from '../i18n/locales/am.json'
 import enLocale from '../i18n/locales/en.json'
 
 const sources = import.meta.glob<string>(
-  ['../components/*.tsx', '../pages/*.tsx', '../App.tsx', '../data/cars.ts'],
+  [
+    '../components/*.tsx',
+    '../components/ui/*.tsx',
+    '../pages/*.tsx',
+    '../App.tsx',
+    '../main.tsx',
+    '../data/cars.ts',
+    '../services/adminAuth.ts',
+  ],
   { query: '?raw', import: 'default', eager: true }
 )
 
@@ -200,5 +208,89 @@ describe('every translation key a component uses exists', () => {
       .filter((key) => typeof lookup(locale as Record<string, unknown>, key) !== 'string')
       .sort()
     expect(missing).toEqual([])
+  })
+})
+
+describe('staff tokens never rest on the public origin', () => {
+  it('the admin auth store writes no admin_* key', () => {
+    // The public marketing origin held admin_access_token and, worse, a
+    // refresh token that outlives it. Any XSS here would hand over a staff
+    // session.
+    const store = code('adminAuth.ts')
+    expect(store).not.toMatch(/setItem\(\s*['"`]admin_/)
+  })
+
+  it('it still clears tokens an older build left behind', () => {
+    const store = source('adminAuth.ts')
+    expect(store).toContain('purgeLegacyAdminTokens')
+    expect(store).toMatch(/removeItem\(\s*['"`]admin_access_token/)
+  })
+
+  it('the purge runs on boot', () => {
+    expect(code('main.tsx')).toContain('purgeLegacyAdminTokens()')
+  })
+
+  it('the login handoff reads the tokens from the response, not storage', () => {
+    const login = code('LoginPage.tsx')
+    expect(login).not.toMatch(/getItem\(\s*['"`]admin_/)
+    expect(login).toContain('await adminLogin(')
+  })
+})
+
+describe('the booking form guards its own inputs', () => {
+  it('past pickups and backwards ranges cannot be submitted', () => {
+    const page = code('BookingPage.tsx')
+    // Neither input had a min, so a three-week-old pickup was selectable,
+    // priced, and only refused after a round-trip.
+    expect(page).toContain('min={minPickup}')
+    expect(page).toContain('min={pickup || minPickup}')
+    expect(page).toContain('blockedReason')
+  })
+
+  it('editing a date clears the previous submission error', () => {
+    const page = code('BookingPage.tsx')
+    expect(page).toContain('onClearError')
+    expect(page).toContain('changeDates')
+  })
+
+  it('an expired document is called out where it is entered', () => {
+    const page = code('BookingPage.tsx')
+    expect(page).toContain('isExpired(form.license_expiry)')
+    expect(page).toContain('isExpired(form.id_expiry)')
+  })
+})
+
+describe('cancelling a booking is deliberate', () => {
+  it('no native confirm or alert remains', () => {
+    // window.confirm blocks the main thread and froze the page under
+    // automation; it also named no booking.
+    for (const [path, src] of Object.entries(sources)) {
+      if (!path.endsWith('MyBookingsPage.tsx')) continue
+      const body = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+      expect(body).not.toMatch(/\bconfirm\(/)
+      expect(body).not.toMatch(/\balert\(/)
+    }
+  })
+
+  it('the dialog names the booking being cancelled', () => {
+    const page = code('MyBookingsPage.tsx')
+    expect(page).toContain('ConfirmModal')
+    expect(page).toContain('pendingCancel.agreement_number')
+  })
+
+  it('the extend panel no longer says Cancel too', () => {
+    const page = code('MyBookingsPage.tsx')
+    expect(page).toContain('Close')
+  })
+
+  it('the extend picker excludes the current return date', () => {
+    // min was the current return date, which the server then refused.
+    const page = code('MyBookingsPage.tsx')
+    expect(page).toContain('min={dayAfter(b.expected_return_datetime)}')
+  })
+
+  it('a pending booking shows its estimate, not a zero ledger', () => {
+    const page = code('MyBookingsPage.tsx')
+    expect(page).toContain('estimatedTotal(b)')
   })
 })
