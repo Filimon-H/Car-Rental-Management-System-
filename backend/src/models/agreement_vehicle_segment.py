@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, Numeric, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.db import Base
+from src.core.db import Base, UtcDateTime
 
 if TYPE_CHECKING:
     from src.models.agreement import Agreement
@@ -42,8 +42,8 @@ class AgreementVehicleSegment(Base):
     )
     
     # Segment date range (for vehicle availability blocking)
-    start_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    end_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    start_datetime: Mapped[datetime] = mapped_column(UtcDateTime(), nullable=False)
+    end_datetime: Mapped[datetime] = mapped_column(UtcDateTime(), nullable=False)
     
     # Rate for this segment (may differ from agreement rate for swaps)
     daily_rate: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
@@ -53,7 +53,7 @@ class AgreementVehicleSegment(Base):
     end_mileage: Mapped[int | None] = mapped_column(Integer, nullable=True)
     
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), nullable=False
     )
 
     # Relationships

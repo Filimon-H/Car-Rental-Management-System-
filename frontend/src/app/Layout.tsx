@@ -4,6 +4,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useTranslation } from 'react-i18next'
 import { useMutation } from '@tanstack/react-query'
 import {
+  BarChart2,
   Building2,
   Car,
   ChevronDown,
@@ -149,6 +150,7 @@ const navGroups = [
     label: 'nav.financeAndOps',
     items: [
       { path: '/ledger', icon: DollarSign, label: 'nav.ledger', adminOnly: false },
+      { path: '/reports', icon: BarChart2, label: 'nav.reports', adminOnly: false },
       { path: '/inspections', icon: ClipboardList, label: 'nav.inspections', adminOnly: false },
       { path: '/admin/users', icon: UserCog, label: 'nav.userManagement', adminOnly: true },
       { path: '/admin/lookups', icon: Settings, label: 'nav.adminSettings', adminOnly: true },

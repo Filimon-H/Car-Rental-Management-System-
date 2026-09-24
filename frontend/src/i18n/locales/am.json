@@ -993,5 +993,17 @@
   },
   "customerEdit": {
     "errorUpdatingTitle": "ደንበኛውን ማዘመን አልተቻለም"
+  },
+  "reports": {
+    "csvForRange": "ለተመረጠው ክልል በCSV አውርድ።",
+    "downloadFailed": "ሪፖርቱን ማውረድ አልተቻለም።",
+    "endDate": "የመጨረሻ ቀን",
+    "fleetUtilization": "የተሽከርካሪ አጠቃቀም",
+    "ledgerCsvHint": "የአንድ ውል መዝገብ ከመዝገብ ትር ማውረድ ይቻላል።",
+    "rangeInvalid": "የመጨረሻ ቀን ከመጀመሪያ ቀን በኋላ መሆን አለበት።",
+    "revenue": "ገቢ በጊዜ",
+    "startDate": "የመጀመሪያ ቀን",
+    "title": "ሪፖርቶች",
+    "vendorPayables": "ለአቅራቢዎች የሚከፈል"
   }
 }

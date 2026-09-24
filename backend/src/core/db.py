@@ -4,7 +4,9 @@ from collections.abc import Generator
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import create_engine, event
+from datetime import timezone
+
+from sqlalchemy import DateTime, TypeDecorator, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker, declarative_base
 
 from src.core.config import settings
@@ -54,6 +56,32 @@ if settings.database_url.startswith("sqlite"):
 
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+class UtcDateTime(TypeDecorator):
+    """A DateTime that always reads back timezone-aware, in UTC.
+
+    SQLite has no native timestamp type, so DateTime(timezone=True) columns
+    return naive values even though they were written in UTC. Pydantic then
+    serialises them without an offset ("2026-09-24T08:38:00") and a browser
+    reads that as local time — a payment taken at 11:38 in Africa/Addis_Ababa
+    displayed as 08:38 in the ledger, while an inspection, whose timestamp is
+    set in application code and stays aware, displayed correctly.
+
+    Tagging on read fixes every response at once and changes no stored data.
+    """
+
+    impl = DateTime
+    cache_ok = True
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("timezone", True)
+        super().__init__(*args, **kwargs)
+
+    def process_result_value(self, value, dialect):  # noqa: ANN001
+        if value is not None and value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
+
 
 Base = declarative_base()
 

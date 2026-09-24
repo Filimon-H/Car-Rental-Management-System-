@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.db import Base
+from src.core.db import Base, UtcDateTime
 
 
 class Driver(Base):
@@ -28,7 +28,7 @@ class Driver(Base):
     
     # Driver license (required for drivers)
     license_number: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    license_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    license_expiry: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
     license_class: Mapped[str | None] = mapped_column(String(20), nullable=True)  # e.g., Class 1, 2, 3, etc.
     
     # Address - Ethiopian format
@@ -47,12 +47,12 @@ class Driver(Base):
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UtcDateTime(),
         default=datetime.utcnow,
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UtcDateTime(),
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
         nullable=False,

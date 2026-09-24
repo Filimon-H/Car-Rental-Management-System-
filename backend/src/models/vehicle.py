@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import CheckConstraint, Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.db import Base
+from src.core.db import Base, UtcDateTime
 
 if TYPE_CHECKING:
     from src.models.maintenance_record import MaintenanceRecord
@@ -95,7 +95,7 @@ class Vehicle(Base):
     
     # Insurance
     insurance_policy: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    insurance_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    insurance_expiry: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
     
     # Photos (relative paths)
     photo_front: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -108,10 +108,10 @@ class Vehicle(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
     # Relationships

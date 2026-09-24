@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.db import Base
+from src.core.db import Base, UtcDateTime
 
 if TYPE_CHECKING:
     from src.models.staff_user import StaffUser
@@ -27,9 +27,9 @@ class TelegramStaffLink(Base):
     telegram_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     linked_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), nullable=False
     )
-    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
 
     staff_user: Mapped["StaffUser"] = relationship("StaffUser", back_populates="telegram_link")
 
@@ -44,10 +44,10 @@ class TelegramLinkCode(Base):
         ForeignKey("staff_users.id"), nullable=False, index=True
     )
     code: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
-    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(UtcDateTime(), nullable=False, index=True)
+    used_at: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), nullable=False
     )
 
     staff_user: Mapped["StaffUser"] = relationship("StaffUser", back_populates="telegram_link_codes")
@@ -67,9 +67,9 @@ class TelegramCustomerLink(Base):
     telegram_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     linked_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), nullable=False
     )
-    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
 
     customer_user: Mapped["CustomerUser"] = relationship("CustomerUser", back_populates="telegram_link")
 
@@ -84,10 +84,10 @@ class TelegramCustomerLinkCode(Base):
         ForeignKey("customer_users.id"), nullable=False, index=True
     )
     code: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(UtcDateTime(), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), nullable=False
     )
 
     customer_user: Mapped["CustomerUser"] = relationship("CustomerUser", back_populates="telegram_link_codes")

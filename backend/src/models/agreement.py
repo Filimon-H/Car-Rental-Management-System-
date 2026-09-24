@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.db import Base
+from src.core.db import Base, UtcDateTime
 
 if TYPE_CHECKING:
     from src.models.customer import Customer
@@ -87,9 +87,9 @@ class Agreement(Base):
     )
     
     # Dates (all in UTC)
-    pickup_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    expected_return_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    actual_return_datetime: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    pickup_datetime: Mapped[datetime] = mapped_column(UtcDateTime(), nullable=False)
+    expected_return_datetime: Mapped[datetime] = mapped_column(UtcDateTime(), nullable=False)
+    actual_return_datetime: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
     
     # Pricing
     agreed_daily_rate: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
@@ -128,16 +128,16 @@ class Agreement(Base):
     )
     
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False
     )
-    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    closed_at: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
 
     # Return reminders
     return_reminder_sent_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    overdue_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    overdue_notified_at: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
 
     # Relationships
     customer: Mapped["Customer"] = relationship("Customer", back_populates="agreements")

@@ -6,7 +6,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from src.core.db import Base
+from src.core.db import Base, UtcDateTime
 
 
 class Inspection(Base):
@@ -29,7 +29,7 @@ class Inspection(Base):
     inspection_type = Column(String(20), nullable=False)
     
     # Inspection datetime
-    inspection_datetime = Column(DateTime(timezone=True), nullable=False)
+    inspection_datetime = Column(UtcDateTime(), nullable=False)
     
     # Inspector info
     inspector_id = Column(Integer, ForeignKey("staff_users.id"), nullable=True)
@@ -66,8 +66,8 @@ class Inspection(Base):
     status = Column(String(20), nullable=False, default="draft")
     
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    completed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(UtcDateTime(), server_default=func.now(), nullable=False)
+    completed_at = Column(UtcDateTime(), nullable=True)
     
     # Relationships
     template = relationship("InspectionTemplate", back_populates="inspections")
@@ -103,7 +103,7 @@ class InspectionPhoto(Base):
     damage_record_id = Column(String(50), nullable=True)
     
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(UtcDateTime(), server_default=func.now(), nullable=False)
 
     # Relationships
     inspection = relationship("Inspection")

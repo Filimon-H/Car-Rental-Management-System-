@@ -993,5 +993,17 @@
   },
   "customerEdit": {
     "errorUpdatingTitle": "Could not update the customer"
+  },
+  "reports": {
+    "csvForRange": "Download as CSV for the selected range.",
+    "downloadFailed": "Could not download the report.",
+    "endDate": "End Date",
+    "fleetUtilization": "Fleet Utilization",
+    "ledgerCsvHint": "A single agreement's ledger can be exported from its Ledger tab.",
+    "rangeInvalid": "The end date must be on or after the start date.",
+    "revenue": "Revenue by Period",
+    "startDate": "Start Date",
+    "title": "Reports",
+    "vendorPayables": "Vendor Payables"
   }
 }

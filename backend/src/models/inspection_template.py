@@ -3,7 +3,7 @@
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, JSON, func
 from sqlalchemy.orm import relationship
 
-from src.core.db import Base
+from src.core.db import Base, UtcDateTime
 
 
 class InspectionTemplate(Base):
@@ -32,8 +32,8 @@ class InspectionTemplate(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at = Column(UtcDateTime(), server_default=func.now(), nullable=False)
+    updated_at = Column(UtcDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     # Relationships
     inspections = relationship("Inspection", back_populates="template")

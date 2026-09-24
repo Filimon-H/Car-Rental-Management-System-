@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Boolean, DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.db import Base
+from src.core.db import Base, UtcDateTime
 
 if TYPE_CHECKING:
     from src.models.agreement import Agreement
@@ -35,11 +35,11 @@ class Customer(Base):
     # ID document - only required for individual customers
     id_type: Mapped[str | None] = mapped_column(String(50), nullable=True)  # passport, national_id, kebele_id
     id_number: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
-    id_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    id_expiry: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
     
     # Driver license - only required for individual customers
     license_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    license_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    license_expiry: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
     
     # Address - Ethiopian format
     house_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -57,10 +57,10 @@ class Customer(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
     # Relationships

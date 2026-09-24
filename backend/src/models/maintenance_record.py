@@ -18,7 +18,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.db import Base
+from src.core.db import Base, UtcDateTime
 
 if TYPE_CHECKING:
     from src.models.vehicle import Vehicle
@@ -62,7 +62,7 @@ class MaintenanceRecord(Base):
         Enum(MaintenanceType), nullable=False, index=True
     )
     performed_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, index=True
+        UtcDateTime(), nullable=False, index=True
     )
     odometer: Mapped[int | None] = mapped_column(Integer, nullable=True)
     cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0"), nullable=False)
@@ -72,7 +72,7 @@ class MaintenanceRecord(Base):
 
     # Next service due — by date, by mileage, or both.
     next_due_date: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True
+        UtcDateTime(), nullable=True, index=True
     )
     next_due_mileage: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
@@ -80,7 +80,7 @@ class MaintenanceRecord(Base):
         Integer, ForeignKey("staff_users.id"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), nullable=False
     )
 
     vehicle: Mapped["Vehicle"] = relationship("Vehicle", back_populates="maintenance_records")

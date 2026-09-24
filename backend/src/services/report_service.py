@@ -95,10 +95,17 @@ def agreement_ledger_csv(db: Session, agreement_id: int) -> tuple[str, str]:
         )
     } if entries else {}
 
+    # A received deposit is held, not revenue: it only reduces what is owed
+    # once applied. Summing every row subtracted it immediately, so the CSV's
+    # final balance read 5,000 below the ledger screen. DEPOSIT_APPLIED still
+    # counts, because that is the moment the money is used.
+    held_deposit_types = {LedgerEntryType.DEPOSIT, LedgerEntryType.DEPOSIT_RETURN}
+
     rows = []
     running = Decimal("0")
     for entry in entries:
-        running += entry.amount
+        if entry.entry_type not in held_deposit_types:
+            running += entry.amount
         rows.append([
             _fmt(entry.created_at),
             entry.entry_type.value,
@@ -130,13 +137,27 @@ def agreement_ledger_csv(db: Session, agreement_id: int) -> tuple[str, str]:
 
 def revenue_summary(db: Session, start: datetime, end: datetime) -> dict:
     """Aggregate money movement in a date range, grouped by ledger entry type."""
+    # An entry that has been reversed no longer stands, so it must not appear
+    # in any revenue figure — a reversed 3,000 payment was still being
+    # reported as collected. The ledger is append-only, so exclusion is by
+    # the reversed_entry_id link rather than deletion.
+    reversed_ids = (
+        db.query(LedgerEntry.reversed_entry_id)
+        .filter(LedgerEntry.reversed_entry_id.isnot(None))
+        .subquery()
+    )
+
     rows = (
         db.query(
             LedgerEntry.entry_type,
             func.coalesce(func.sum(LedgerEntry.amount), 0).label("total"),
             func.count(LedgerEntry.id).label("count"),
         )
-        .filter(LedgerEntry.created_at >= start, LedgerEntry.created_at < end)
+        .filter(
+            LedgerEntry.created_at >= start,
+            LedgerEntry.created_at < end,
+            LedgerEntry.id.not_in(reversed_ids),
+        )
         .group_by(LedgerEntry.entry_type)
         .all()
     )
@@ -160,7 +181,9 @@ def revenue_summary(db: Session, start: datetime, end: datetime) -> dict:
         "end": end,
         "gross_charges": charges,
         "adjustments": adjustments,
-        "net_revenue": charges + adjustments + reversals,
+        # The reversal and the entry it undid are both excluded above, so
+        # adding reversals here would count the undo as revenue.
+        "net_revenue": charges + adjustments,
         "payments_collected": payments_collected,
         "deposits_received": deposits_received,
         "deposits_returned": deposits_returned,

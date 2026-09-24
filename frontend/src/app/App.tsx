@@ -34,6 +34,7 @@ const LedgerPage = lazy(() => import('@/pages/LedgerPage'))
 const InspectionTemplatesPage = lazy(() => import('@/pages/InspectionTemplatesPage'))
 const InspectionCreatePage = lazy(() => import('@/pages/InspectionCreatePage'))
 const InspectionDetailPage = lazy(() => import('@/pages/InspectionDetailPage'))
+const ReportsPage = lazy(() => import('@/pages/ReportsPage'))
 const AdminLookupsPage = lazy(() => import('@/pages/AdminLookupsPage'))
 const UsersPage = lazy(() => import('@/pages/UsersPage'))
 
@@ -108,6 +109,17 @@ function App() {
 
           {/* Ledger */}
           <Route path="/ledger" element={<LedgerPage />} />
+
+          {/* Reports — VIEW_REPORTS is admin and accountant only, so the
+              route guard mirrors what the API already enforces. */}
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute requiredRoles={['admin', 'accountant']}>
+                <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Admin — role-guarded */}
           <Route
