@@ -290,7 +290,7 @@ def generate_receipt(
                           PAYMENT RECEIPT
 ================================================================================
 
-Receipt Date: {format_datetime(datetime.now())}
+Receipt Date: {format_datetime(datetime.now(timezone.utc))}
 Agreement: {agreement.agreement_number}
 
 Customer: {customer.full_name}

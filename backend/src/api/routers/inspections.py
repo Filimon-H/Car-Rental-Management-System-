@@ -1,6 +1,6 @@
 """Inspections API router."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -387,7 +387,8 @@ async def complete_inspection(
         raise HTTPException(status_code=400, detail="Inspection already completed")
     
     inspection.status = "completed"
-    inspection.completed_at = datetime.now()
+    # Stored in UTC like every other timestamp, so it reads back aware.
+    inspection.completed_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(inspection)
     

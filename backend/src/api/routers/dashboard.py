@@ -119,7 +119,10 @@ async def get_dashboard_stats(
 
     # Due today — active agreements whose expected_return_datetime falls today (local day)
     # Use naive datetimes to match SQLite's timezone-unaware storage
-    now = datetime.now()
+    # Timezone-aware: agreement timestamps read back aware from the database,
+    # and comparing those against a naive now() raises TypeError, which took
+    # the whole dashboard down with a 503.
+    now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
     tomorrow_end = today_end + timedelta(days=1)
