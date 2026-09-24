@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Car, ClipboardList } from 'lucide-react'
@@ -68,6 +68,17 @@ export default function InspectionDetailPage() {
   }
 
   const isLocked = inspection.status === 'completed' || inspection.status === 'signed'
+
+  // checklist_results is keyed by the template item id; the label is not
+  // stored alongside it, so fall back to humanising the key.
+  const checklistEntries = Object.entries(
+    (inspection.checklist_results ?? {}) as Record<
+      string,
+      { status?: string; notes?: string; photos?: string[] }
+    >
+  )
+  const humanize = (key: string) =>
+    key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
   const formatDate = (value: string | null) =>
     value ? new Date(value).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '—'
 
@@ -147,9 +158,63 @@ export default function InspectionDetailPage() {
           <dl className="space-y-2 text-sm">
             <Row label={t('ledger.dateTime')} value={formatDate(inspection.inspection_datetime)} />
             <Row label={t('inspection.inspector')} value={inspection.inspector_name ?? '—'} />
-            <Row label={t('nav.customers')} value={inspection.customer_name ?? '—'} />
+            <Row
+              label={t('nav.customers')}
+              value={inspection.agreement_customer_name ?? inspection.customer_name ?? '—'}
+            />
+            <Row label={t('inspection.template')} value={inspection.template_name ?? '—'} />
+            <div className="flex justify-between">
+              <dt className="text-gray-500">{t('nav.agreements')}</dt>
+              <dd className="font-medium text-gray-900">
+                {inspection.agreement_id ? (
+                  <Link
+                    to={`/agreements/${inspection.agreement_id}`}
+                    className="text-primary hover:underline"
+                  >
+                    {inspection.agreement_number ?? `#${inspection.agreement_id}`}
+                  </Link>
+                ) : (
+                  '—'
+                )}
+              </dd>
+            </div>
             <Row label={t('inspection.completedAt')} value={formatDate(inspection.completed_at)} />
           </dl>
+        </section>
+
+        <section className="rounded-lg border bg-white p-4 md:col-span-2">
+          <h2 className="mb-3 text-sm font-semibold text-gray-800">
+            {t('inspection.checklistResults')}
+          </h2>
+          {checklistEntries.length === 0 ? (
+            <p className="text-sm text-gray-500">{t('inspection.noChecklistResults')}</p>
+          ) : (
+            <ul className="divide-y divide-gray-100 text-sm">
+              {checklistEntries.map(([key, result]) => (
+                <li key={key} className="flex items-start justify-between gap-4 py-2">
+                  <div>
+                    <span className="font-medium text-gray-900">{humanize(key)}</span>
+                    {result.notes && <p className="mt-0.5 text-gray-600">{result.notes}</p>}
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                      result.status === 'ok'
+                        ? 'bg-green-100 text-green-700'
+                        : result.status === 'damage'
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {result.status === 'ok'
+                      ? t('inspection.statusOk')
+                      : result.status === 'damage'
+                        ? t('inspection.statusDamage')
+                        : t('inspection.statusNa')}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section className="rounded-lg border bg-white p-4 md:col-span-2">

@@ -9,6 +9,10 @@ export interface DamageRecord {
 
 export interface Inspection {
   id: number
+  template_name: string | null
+  agreement_number: string | null
+  agreement_customer_name: string | null
+  vehicle_plate: string | null
   template_id: number | null
   agreement_id: number | null
   vehicle_id: number

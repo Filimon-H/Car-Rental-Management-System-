@@ -5,6 +5,7 @@ import { ClipboardList, ChevronRight, CheckSquare } from 'lucide-react'
 import apiClient, { getErrorMessage } from '@/services/apiClient'
 import { templatesService, type TemplateInput } from '@/services/inspections'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
+import InspectionsListPage from '@/pages/InspectionsListPage'
 
 interface ChecklistItem {
   id: string
@@ -26,6 +27,7 @@ interface InspectionTemplate {
 
 export default function InspectionTemplatesPage() {
   const { t } = useTranslation()
+  const [tab, setTab] = useState<'inspections' | 'templates'>('inspections')
   const [selectedTemplate, setSelectedTemplate] = useState<InspectionTemplate | null>(null)
   const [editing, setEditing] = useState<InspectionTemplate | 'new' | null>(null)
   const [retiring, setRetiring] = useState<InspectionTemplate | null>(null)
@@ -79,16 +81,18 @@ export default function InspectionTemplatesPage() {
         <h1 className="text-2xl font-bold text-gray-800">
           {t('inspections.templates.title', 'Inspection Templates')}
         </h1>
-        <button
-          type="button"
-          onClick={() => {
-            setSaveError(null)
-            setEditing('new')
-          }}
-          className="ml-auto rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
-        >
-          + {t('inspection.newTemplate')}
-        </button>
+        {tab === 'templates' && (
+          <button
+            type="button"
+            onClick={() => {
+              setSaveError(null)
+              setEditing('new')
+            }}
+            className="ml-auto rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+          >
+            + {t('inspection.newTemplate')}
+          </button>
+        )}
       </div>
 
       {saveError && (
@@ -97,6 +101,26 @@ export default function InspectionTemplatesPage() {
         </div>
       )}
 
+      <div className="mb-6 flex gap-1 border-b">
+        {(['inspections', 'templates'] as const).map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
+              tab === key
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {key === 'inspections' ? t('inspection.historyTab') : t('inspection.templatesTab')}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'inspections' && <InspectionsListPage />}
+
+      {tab === 'templates' && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Templates List */}
         <div className="lg:col-span-1">
@@ -236,6 +260,8 @@ export default function InspectionTemplatesPage() {
           )}
         </div>
       </div>
+
+      )}
 
       {editing && (
         <TemplateEditorModal

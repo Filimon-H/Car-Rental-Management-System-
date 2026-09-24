@@ -69,6 +69,13 @@ class InspectionResponse(BaseModel):
     inspector_id: Optional[int]
     inspector_name: Optional[str]
     customer_name: Optional[str]
+    # Context the detail page needs. customer_name is only set when an
+    # inspection is signed, so without these a linked inspection showed a
+    # dash where the agreement and its customer should be.
+    template_name: Optional[str] = None
+    agreement_number: Optional[str] = None
+    agreement_customer_name: Optional[str] = None
+    vehicle_plate: Optional[str] = None
     mileage: Optional[int]
     fuel_level: Optional[float]
     checklist_results: dict
@@ -81,6 +88,18 @@ class InspectionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @classmethod
+    def from_inspection(cls, inspection) -> "InspectionResponse":
+        """Build a response with the related names resolved."""
+        model = cls.model_validate(inspection)
+        model.template_name = inspection.template.name if inspection.template else None
+        if inspection.agreement:
+            model.agreement_number = inspection.agreement.agreement_number
+            customer = getattr(inspection.agreement, "customer", None)
+            model.agreement_customer_name = customer.full_name if customer else None
+        model.vehicle_plate = inspection.vehicle.plate_number if inspection.vehicle else None
+        return model
 
 
 class InspectionListResponse(BaseModel):
@@ -265,7 +284,7 @@ async def list_inspections(
     inspections = query.order_by(Inspection.created_at.desc()).offset(offset).limit(page_size).all()
     
     return InspectionListResponse(
-        items=[InspectionResponse.model_validate(i) for i in inspections],
+        items=[InspectionResponse.from_inspection(i) for i in inspections],
         total=total,
         page=page,
         page_size=page_size,
@@ -282,7 +301,7 @@ async def get_inspection(
     inspection = db.query(Inspection).filter(Inspection.id == inspection_id).first()
     if not inspection:
         raise HTTPException(status_code=404, detail="Inspection not found")
-    return InspectionResponse.model_validate(inspection)
+    return InspectionResponse.from_inspection(inspection)
 
 
 @router.post("", response_model=InspectionResponse, status_code=201)
@@ -312,7 +331,7 @@ async def create_inspection(
     db.commit()
     db.refresh(inspection)
     
-    return InspectionResponse.model_validate(inspection)
+    return InspectionResponse.from_inspection(inspection)
 
 
 @router.put("/{inspection_id}", response_model=InspectionResponse)
@@ -350,7 +369,7 @@ async def update_inspection(
     db.commit()
     db.refresh(inspection)
     
-    return InspectionResponse.model_validate(inspection)
+    return InspectionResponse.from_inspection(inspection)
 
 
 @router.post("/{inspection_id}/complete", response_model=InspectionResponse)
@@ -372,7 +391,7 @@ async def complete_inspection(
     db.commit()
     db.refresh(inspection)
     
-    return InspectionResponse.model_validate(inspection)
+    return InspectionResponse.from_inspection(inspection)
 
 
 class SignInspectionRequest(BaseModel):
@@ -398,4 +417,4 @@ async def sign_inspection(
         customer_name=data.customer_name,
         customer_signature=data.customer_signature,
     )
-    return InspectionResponse.model_validate(inspection)
+    return InspectionResponse.from_inspection(inspection)
