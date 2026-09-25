@@ -349,3 +349,46 @@ class TestAChatCannotHoldBothRolesAtOnce:
         assert remaining == 0, (
             "chat kept its staff link after linking as a customer"
         )
+
+
+class TestTheMenuMatchesWhatTheChatCanDo:
+    """Telegram's menu listed 13 commands; /help listed 9.
+
+    The four extras are customer commands, and tapping one in a staff chat
+    answered "Unknown command. Use /help." — which reads as a typo rather
+    than what it is, a command meant for the other role.
+    """
+
+    @pytest.mark.parametrize("command", ["/book", "/mybookings", "/extend", "/cancelbook"])
+    def test_staff_are_told_who_the_command_is_for(
+        self, db: Session, service, staff_chat, command
+    ):
+        send(service, STAFF_CHAT, 9101, command)
+
+        out = text(service).lower()
+        assert "unknown command" not in out, (
+            f"{command} reported a role mismatch as a typo: {out}"
+        )
+        assert "customer" in out, out
+
+    def test_a_typo_is_still_reported_as_one(self, db: Session, service, staff_chat):
+        send(service, STAFF_CHAT, 9101, "/foobar")
+
+        out = text(service).lower()
+        assert "unknown command" in out, out
+
+    def test_each_role_gets_its_own_menu(self, db: Session, service):
+        """Scoped command lists, so a chat only sees what it can run."""
+        staff = service._commands_for_role("staff")
+        customer = service._commands_for_role("customer")
+
+        staff_names = {c["command"] for c in staff}
+        customer_names = {c["command"] for c in customer}
+
+        assert "overdue" in staff_names
+        assert "book" not in staff_names, "staff menu offers the customer booking flow"
+        assert "book" in customer_names
+        assert "overdue" not in customer_names, "customer menu offers staff tooling"
+        # Both keep the universal ones.
+        for shared in ("start", "help", "cancel"):
+            assert shared in staff_names and shared in customer_names

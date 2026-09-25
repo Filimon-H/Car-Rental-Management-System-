@@ -24,6 +24,31 @@ def _blank_to_none(value: object) -> object:
 OptionalEmail = Annotated[Optional[EmailStr], BeforeValidator(_blank_to_none)]
 
 
+def _require_ethiopian_phone(value: object) -> object:
+    """Normalise a phone number, rejecting anything that is not one.
+
+    Length was the only check, so "notaphone" (nine characters) was stored
+    in phone_primary. Phone is the identity key here — the customer search
+    and the duplicate guard both key on it — so a malformed value leaves a
+    record nobody can find and the guard cannot see.
+    """
+    value = normalize_ethiopian_phone(value)
+    if isinstance(value, str) and not re.fullmatch(r"\+2519\d{8}", value):
+        raise ValueError(
+            "must be an Ethiopian mobile number, e.g. 0912345678 or +251912345678"
+        )
+    return value
+
+
+#: A required phone number, stored canonically as +2519XXXXXXXX.
+EthiopianPhone = Annotated[str, BeforeValidator(_require_ethiopian_phone)]
+
+#: The same, optional: blank becomes None.
+OptionalEthiopianPhone = Annotated[
+    Optional[str], BeforeValidator(_require_ethiopian_phone)
+]
+
+
 def normalize_ethiopian_phone(value: object) -> object:
     """Normalize common Ethiopian mobile formats to ``+2519XXXXXXXX``.
 

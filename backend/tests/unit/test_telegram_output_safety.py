@@ -431,3 +431,183 @@ class TestRegistrationDoesNotCreateDuplicates:
         )
         # Stored canonically, so the next search finds it either way.
         assert created.phone_primary == "+251911445566", created.phone_primary
+
+
+class TestPhoneNumbersAreValidated:
+    """Phone is the de-facto identity key, so junk in it is corrosive.
+
+    "notaphone" was accepted at the prompt, echoed on the confirmation card
+    and written to phone_primary. Such a record is unreachable by /customer
+    search and invisible to the duplicate guard, which keys on the phone —
+    so it quietly reintroduces the duplicates that guard exists to prevent.
+    """
+
+    @pytest.fixture
+    def linked(self, db: Session, service, monkeypatch, admin):
+        from src.models.telegram import TelegramStaffLink
+        from src.services import telegram_bot_service as mod
+
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+        db.add(
+            TelegramStaffLink(
+                staff_user_id=admin.id, telegram_user_id=6262, chat_id=910, is_active=True
+            )
+        )
+        db.commit()
+        return service
+
+    def _send(self, linked, body: str) -> None:
+        asyncio.run(
+            linked._process_update({
+                "message": {
+                    "chat": {"id": 910},
+                    "from": {"id": 6262, "username": "admin"},
+                    "text": body,
+                }
+            })
+        )
+
+    @pytest.mark.parametrize(
+        "junk", ["notaphone", "12", "abcdefghij", "+1 555 0100", "09123"]
+    )
+    def test_a_non_phone_is_refused_at_the_prompt(self, db: Session, linked, junk):
+        before = db.query(Customer).count()
+
+        asyncio.run(linked._handle_command(910, 6262, "admin", "/register_customer"))
+        for value in ("Junk", "Entry", junk):
+            self._send(linked, value)
+
+        out = text(linked)
+        assert "doesn't look like a phone number" in out.lower(), out
+        # And the flow must not have advanced past the phone step.
+        assert db.query(Customer).count() == before
+
+    @pytest.mark.parametrize(
+        "good,stored",
+        [
+            ("0923677823", "+251923677823"),
+            ("+251923677823", "+251923677823"),
+            ("923677823", "+251923677823"),
+            ("0911 22 33 44", "+251911223344"),
+        ],
+    )
+    def test_accepted_formats_are_stored_canonically(
+        self, db: Session, linked, good, stored
+    ):
+        asyncio.run(linked._handle_command(910, 6262, "admin", "/register_customer"))
+        for value in ("Valid", "Person", good, "skip", "skip"):
+            self._send(linked, value)
+        self._send(linked, "CONFIRM")
+
+        created = db.query(Customer).order_by(Customer.id.desc()).first()
+        assert created.phone_primary == stored, created.phone_primary
+
+
+class TestPendingStatesDoNotLieInWait:
+    """A stale prompt swallowed a message sent minutes and commands later.
+
+    A bare /car set an "awaiting search term" state. Running other commands
+    superseded the reply but never cleared that state, so the next plain
+    message — a phone number the customer was told to re-send — was
+    captured as a vehicle search: "No matching vehicles found."
+    """
+
+    @pytest.fixture
+    def linked(self, db: Session, service, monkeypatch, admin):
+        from src.models.telegram import TelegramStaffLink
+        from src.services import telegram_bot_service as mod
+
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+        db.add(
+            TelegramStaffLink(
+                staff_user_id=admin.id, telegram_user_id=6363, chat_id=920, is_active=True
+            )
+        )
+        db.commit()
+        return service
+
+    def _send(self, linked, body: str) -> None:
+        asyncio.run(
+            linked._process_update({
+                "message": {
+                    "chat": {"id": 920},
+                    "from": {"id": 6363, "username": "admin"},
+                    "text": body,
+                }
+            })
+        )
+
+    def test_a_new_command_clears_a_pending_search(self, db: Session, linked):
+        self._send(linked, "/car")
+        assert 920 in linked._pending_search_states
+
+        # Any other command supersedes it.
+        self._send(linked, "/due_today")
+        assert 920 not in linked._pending_search_states, (
+            "a stale prompt survived a new command and will swallow the next message"
+        )
+
+    def test_a_later_message_is_not_captured_as_a_search(self, db: Session, linked):
+        self._send(linked, "/car")
+        self._send(linked, "/due_today")
+        linked._send_message.reset_mock()
+
+        self._send(linked, "+251911223344")
+
+        assert "no matching vehicles" not in text(linked).lower(), text(linked)
+
+    def test_a_duplicate_rejection_does_not_promise_a_retry(
+        self, db: Session, linked
+    ):
+        """The state is gone, so "try again" had nothing to try again into."""
+        db.add(
+            Customer(
+                first_name="Already",
+                last_name="Here",
+                phone_primary="+251923677823",
+                id_type="national_id",
+                id_number="DUP-RETRY",
+                is_active=True,
+            )
+        )
+        db.commit()
+
+        asyncio.run(linked._handle_command(920, 6363, "admin", "/register_customer"))
+        for value in ("Dup", "Attempt", "0923677823"):
+            self._send(linked, value)
+
+        out = text(linked)
+        assert "already belongs to" in out
+        assert "/register_customer" in out, (
+            f"told the user to retry with no way to do so: {out}"
+        )
+        assert 920 not in linked._registration_states
+
+
+class TestCancelIsHonestAboutWhatItCancelled:
+    @pytest.fixture
+    def linked(self, db: Session, service, monkeypatch, admin):
+        from src.models.telegram import TelegramStaffLink
+        from src.services import telegram_bot_service as mod
+
+        monkeypatch.setattr(mod, "SessionLocal", lambda: db)
+        db.add(
+            TelegramStaffLink(
+                staff_user_id=admin.id, telegram_user_id=6464, chat_id=930, is_active=True
+            )
+        )
+        db.commit()
+        return service
+
+    def test_with_nothing_in_progress_it_says_so(self, db: Session, linked):
+        asyncio.run(linked._handle_command(930, 6464, "admin", "/cancel"))
+
+        out = text(linked).lower()
+        assert "nothing" in out, f"implied something was aborted: {out}"
+
+    def test_with_a_flow_running_it_confirms_the_cancel(self, db: Session, linked):
+        asyncio.run(linked._handle_command(930, 6464, "admin", "/register_customer"))
+        linked._send_message.reset_mock()
+        asyncio.run(linked._handle_command(930, 6464, "admin", "/cancel"))
+
+        assert "cancelled" in text(linked).lower()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -38,6 +39,20 @@ TELEGRAM_MESSAGE_LIMIT = 4096
 MAX_LIST_ROWS = 10
 
 
+#: Customer-side command names, so a staff chat can name the mismatch
+#: rather than reporting it as a typo.
+_CUSTOMER_COMMAND_NAMES = {"/book", "/mybookings", "/extend", "/cancelbook"}
+
+
+def _is_valid_phone(value: str) -> bool:
+    """Whether a normalised value is a real Ethiopian mobile number.
+
+    normalize_ethiopian_phone passes unrecognised input through unchanged so
+    a field validator can report it, so its output still has to be checked.
+    """
+    return bool(re.fullmatch(r"\+2519\d{8}", value))
+
+
 def _looks_like_link_code(text: str) -> bool:
     """A bare token shaped like the codes the web app issues."""
     candidate = text.strip()
@@ -69,10 +84,37 @@ def mask_id_number(id_number: str | None) -> str:
 
 
 def _business_time(value: datetime) -> datetime:
-    """A stored timestamp as Addis wall time."""
+    """A stored timestamp as Addis wall time.
+
+    Two kinds of timestamp live in this system. Business dates — pickup,
+    expected return — are stored as local wall-clock with no offset, so they
+    are already Addis time and must be printed unchanged. Only a value that
+    carries a timezone is a true instant that needs converting.
+
+    Tagging the naive value as UTC and converting it added three hours, and
+    the date rolled with it: a rental due 8 January at 23:59 was shown as
+    due 9 January, sending staff after the wrong day.
+    """
     if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
+        return value
     return value.astimezone(ZoneInfo(settings.scheduler_timezone))
+
+
+def business_now() -> datetime:
+    """Now, as a naive Addis wall-clock value.
+
+    Business dates are stored as naive local time, so comparing them against
+    datetime.now(timezone.utc) was three hours out — enough to move a
+    "days left" count onto the wrong day near a boundary.
+    """
+    return datetime.now(ZoneInfo(settings.scheduler_timezone)).replace(tzinfo=None)
+
+
+def as_business_naive(value: datetime) -> datetime:
+    """A stored value as naive Addis wall-clock, for comparisons."""
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(ZoneInfo(settings.scheduler_timezone)).replace(tzinfo=None)
 
 
 def format_business_datetime(value: datetime, fmt: str = "%Y-%m-%d %H:%M") -> str:
@@ -258,26 +300,62 @@ class TelegramBotService:
                     last_error = message
                 await asyncio.sleep(delay)
 
+    #: Commands every chat can run, whatever its role.
+    _UNIVERSAL_COMMANDS = [
+        {"command": "start", "description": "Start the bot"},
+        {"command": "help", "description": "Show available commands"},
+        {"command": "link", "description": "Link your account"},
+        {"command": "cancel", "description": "Cancel current action"},
+    ]
+
+    _STAFF_COMMANDS = [
+        {"command": "customer", "description": "Search customers"},
+        {"command": "car", "description": "Search vehicles"},
+        {"command": "due_today", "description": "Agreements due today"},
+        {"command": "overdue", "description": "Overdue agreements"},
+        {"command": "register_customer", "description": "Create a customer"},
+    ]
+
+    _CUSTOMER_COMMANDS = [
+        {"command": "book", "description": "Browse available cars and book one"},
+        {"command": "mybookings", "description": "View your bookings"},
+        {"command": "extend", "description": "Extend your active rental"},
+        {"command": "cancelbook", "description": "Cancel a booking"},
+    ]
+
+    def _commands_for_role(self, role: str) -> list[dict[str, str]]:
+        """The menu a chat in this role should see.
+
+        One global list meant a staff member's menu offered /book and a
+        customer's offered /overdue, and tapping either answered "Unknown
+        command". It also advertised a half-built customer surface to
+        anyone who opened the bot.
+        """
+        extra = self._STAFF_COMMANDS if role == "staff" else self._CUSTOMER_COMMANDS
+        return [*self._UNIVERSAL_COMMANDS, *extra]
+
+    async def set_commands_for_chat(self, chat_id: int, role: str) -> None:
+        """Scope a chat's menu to its role. Called when a chat links."""
+        if not self.enabled:
+            return
+        try:
+            await self._api(
+                "setMyCommands",
+                {
+                    "commands": self._commands_for_role(role),
+                    "scope": {"type": "chat", "chat_id": chat_id},
+                },
+            )
+        except Exception as exc:
+            logger.warning("Unable to scope commands for chat %s: %s", chat_id, exc)
+
     async def _set_commands(self) -> None:
-        """Register the bot command menu."""
+        """Register the default command menu for unlinked chats."""
         if not self.enabled:
             return
 
-        commands = [
-            {"command": "start", "description": "Start the bot"},
-            {"command": "help", "description": "Show available commands"},
-            {"command": "link", "description": "Link your account (staff or customer)"},
-            {"command": "book", "description": "Browse available cars and book one (customers)"},
-            {"command": "mybookings", "description": "View your bookings (customers)"},
-            {"command": "extend", "description": "Extend your active rental (customers)"},
-            {"command": "cancelbook", "description": "Cancel a booking (customers)"},
-            {"command": "customer", "description": "Search customers (staff)"},
-            {"command": "car", "description": "Search vehicles (staff)"},
-            {"command": "due_today", "description": "Agreements due today (staff)"},
-            {"command": "overdue", "description": "Overdue agreements (staff)"},
-            {"command": "register_customer", "description": "Create a customer (staff)"},
-            {"command": "cancel", "description": "Cancel current action"},
-        ]
+        # An unlinked chat can only link, so that is all it is offered.
+        commands = list(self._UNIVERSAL_COMMANDS)
         try:
             await self._api("setMyCommands", {"commands": commands})
         except Exception as exc:
@@ -341,6 +419,26 @@ class TelegramBotService:
 
         await self._send_message(chat_id, "Use /help to see available commands.")
 
+    def _clear_conversation_state(self, chat_id: int) -> bool:
+        """Drop any half-finished conversation for this chat.
+
+        Returns whether there was one, so callers can say what happened.
+        """
+        had = any(
+            chat_id in store
+            for store in (
+                self._registration_states,
+                self._booking_states,
+                self._extend_states,
+                self._pending_search_states,
+            )
+        )
+        self._registration_states.pop(chat_id, None)
+        self._booking_states.pop(chat_id, None)
+        self._extend_states.pop(chat_id, None)
+        self._pending_search_states.pop(chat_id, None)
+        return had
+
     async def _handle_command(
         self,
         chat_id: int,
@@ -363,12 +461,22 @@ class TelegramBotService:
             await self._handle_link(chat_id, telegram_user_id, telegram_username, arg)
             return
         if command == "/cancel":
-            self._registration_states.pop(chat_id, None)
-            self._booking_states.pop(chat_id, None)
-            self._extend_states.pop(chat_id, None)
-            self._pending_search_states.pop(chat_id, None)
-            await self._send_message(chat_id, "Current action cancelled.")
+            # "Current action cancelled." implied something was aborted even
+            # when nothing was running.
+            had_something = self._clear_conversation_state(chat_id)
+            await self._send_message(
+                chat_id,
+                "Current action cancelled."
+                if had_something
+                else "Nothing in progress. Use /help to see what you can do.",
+            )
             return
+
+        # Any other command supersedes whatever prompt was pending. Without
+        # this a bare /car left an "awaiting search term" state that lay in
+        # wait through several commands and silently swallowed the next
+        # plain message — a phone number came back "No matching vehicles".
+        self._clear_conversation_state(chat_id)
 
         db = SessionLocal()
         try:
@@ -394,6 +502,12 @@ class TelegramBotService:
                     await self._handle_overdue(db, staff_user, chat_id)
                 elif command == "/register_customer":
                     await self._start_customer_registration(staff_user, chat_id)
+                elif command in _CUSTOMER_COMMAND_NAMES:
+                    await self._send_message(
+                        chat_id,
+                        "That command is for customers booking a car. "
+                        "Use /help to see your staff commands.",
+                    )
                 else:
                     await self._send_message(chat_id, "Unknown command. Use /help.")
                 return
@@ -555,6 +669,8 @@ class TelegramBotService:
                     telegram_username=telegram_username,
                 )
                 staff_user = db.query(StaffUser).filter(StaffUser.id == link.staff_user_id).first()
+                # Give this chat the menu for the role it just took on.
+                await self.set_commands_for_chat(chat_id, "staff")
                 await self._send_message(
                     chat_id,
                     f"Linked successfully to staff account {escape(staff_user.username)}.\nUse /help to see commands.",
@@ -613,9 +729,11 @@ class TelegramBotService:
             customer_user = db.query(CustomerUser).filter(CustomerUser.id == customer_code.customer_user_id).first()
             db.refresh(customer_user)
             name = customer_user.customer.full_name if customer_user else "Customer"
+            await self.set_commands_for_chat(chat_id, "customer")
             await self._send_message(
                 chat_id,
-                f"Linked to customer account {escape(name)}.\nUse /mybookings to see your bookings.",
+                f"Linked to customer account {escape(name)}.\n"
+                "Use /book to rent a car, or /mybookings to see your bookings.",
             )
         except Exception as exc:
             logger.exception("Link error: %s", exc)
@@ -832,9 +950,43 @@ class TelegramBotService:
                 state.step = "phone_primary"
                 await self._send_message(chat_id, "Send the primary phone number.")
             elif state.step == "phone_primary":
-                state.data["phone_primary"] = text
+                # Phone is the identity key: /customer searches it and the
+                # duplicate guard keys on it. "notaphone" was accepted here,
+                # echoed on the confirmation card and written to the record,
+                # leaving a customer unreachable by search and invisible to
+                # the guard — quietly recreating the duplicates it prevents.
+                candidate = normalize_ethiopian_phone(text)
+                if not isinstance(candidate, str) or not _is_valid_phone(candidate):
+                    await self._send_message(
+                        chat_id,
+                        "That doesn't look like a phone number — send it as "
+                        "09… or +2519…, or /cancel to stop.",
+                    )
+                    return
+                state.data["phone_primary"] = candidate
+
+                # Catch a duplicate now rather than after four more fields.
+                existing = (
+                    db.query(Customer)
+                    .filter(Customer.phone_primary == candidate)
+                    .first()
+                )
+                if existing:
+                    self._registration_states.pop(chat_id, None)
+                    await self._send_message(
+                        chat_id,
+                        f"That phone number already belongs to "
+                        f"{escape(existing.full_name)} (customer {existing.id}).\n"
+                        f"Use /customer {escape(candidate)} to open the record, "
+                        "or /register_customer to start again with a different "
+                        "number.",
+                    )
+                    return
+
                 state.step = "id_number"
-                await self._send_message(chat_id, "Send ID number, or /skip by sending SKIP.")
+                # "/skip" was rendered by Telegram as a tappable command that
+                # does not exist; write it without the slash.
+                await self._send_message(chat_id, "Send ID number, or send SKIP.")
             elif state.step == "id_number":
                 state.data["id_number"] = None if text.upper() == "SKIP" else text
                 state.step = "license_number"
@@ -1310,12 +1462,10 @@ class TelegramBotService:
         for a in agreements:
             status = status_labels.get(a.status.value if hasattr(a.status, 'value') else a.status, str(a.status))
             pickup = a.pickup_datetime.strftime("%d %b %Y") if a.pickup_datetime else "—"
-            return_dt = a.expected_return_datetime
-            if return_dt.tzinfo is None:
-                return_dt = return_dt.replace(tzinfo=timezone.utc)
+            return_dt = as_business_naive(a.expected_return_datetime)
             days_left_str = ""
             if a.status.value == "active":
-                diff = (return_dt - now).total_seconds()
+                diff = (return_dt - business_now()).total_seconds()
                 if diff < 0:
                     days_left_str = "\n  ⚠️ OVERDUE"
                 else:
@@ -1387,10 +1537,8 @@ class TelegramBotService:
         now = datetime.now(timezone.utc)
         lines = ["Which booking would you like to extend?\n"]
         for i, a in enumerate(agreements, 1):
-            return_dt = a.expected_return_datetime
-            if return_dt.tzinfo is None:
-                return_dt = return_dt.replace(tzinfo=timezone.utc)
-            diff = (return_dt - now).total_seconds()
+            return_dt = as_business_naive(a.expected_return_datetime)
+            diff = (return_dt - business_now()).total_seconds()
             days_left = max(0, int(diff // 86400))
             lines.append(f"{i}. {escape(a.agreement_number)} — due {return_dt.strftime('%d %b %Y')} ({days_left}d left)")
 
@@ -1431,7 +1579,7 @@ class TelegramBotService:
                 await self._send_message(
                     chat_id,
                     f"Extending {escape(agreement_number)}.\n"
-                    f"Current return date: {current.strftime('%d %b %Y %H:%M')} UTC\n\n"
+                    f"Current return date: {format_business_datetime(current, '%d %b %Y %H:%M')}\n\n"
                     f"Enter new return date (DD/MM/YYYY HH:MM or DD/MM/YYYY):"
                 )
 
@@ -1511,7 +1659,7 @@ class TelegramBotService:
                 self._extend_states.pop(chat_id, None)
                 await self._send_message(
                     chat_id,
-                    f"Done! {escape(state['agreement_number'])} extended to {new_dt.strftime('%d %b %Y %H:%M')} UTC.{ext_charge_msg}\n"
+                    f"Done! {escape(state['agreement_number'])} extended to {format_business_datetime(new_dt, '%d %b %Y %H:%M')}.{ext_charge_msg}\n"
                     f"Use /mybookings to see your updated bookings."
                 )
         except Exception as exc:
@@ -1574,7 +1722,7 @@ class TelegramBotService:
                             await self._send_message(
                                 chat_id,
                                 f"{emoji} Reminder — {escape(agreement.agreement_number)}\n"
-                                f"Your car is due in {days_left} day(s) on {return_dt.strftime('%d %b %Y %H:%M')} UTC.\n"
+                                f"Your car is due in {days_left} day(s) on {format_business_datetime(return_dt, '%d %b %Y %H:%M')}.\n"
                                 f"Need more time? Send /extend to request an extension."
                             )
                         agreement.return_reminder_sent_days = days_left

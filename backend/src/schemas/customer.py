@@ -5,7 +5,11 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
-from src.schemas.fields import OptionalEmail
+from src.schemas.fields import (
+    EthiopianPhone,
+    OptionalEmail,
+    OptionalEthiopianPhone,
+)
 
 
 class CustomerBase(BaseModel):
@@ -15,8 +19,8 @@ class CustomerBase(BaseModel):
     tin_number: Optional[str] = Field(None, max_length=50)  # Tax ID
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
-    phone_primary: str = Field(..., min_length=9, max_length=20)
-    phone_secondary: Optional[str] = Field(None, max_length=20)
+    phone_primary: EthiopianPhone
+    phone_secondary: OptionalEthiopianPhone = None
     email: OptionalEmail = None
     id_type: Optional[str] = Field(None, max_length=50)  # passport, national_id, kebele_id - only for individual
     id_number: Optional[str] = Field(None, max_length=50)  # Only for individual
@@ -53,7 +57,7 @@ class CustomerUpdate(BaseModel):
     tin_number: Optional[str] = Field(None, max_length=50)
     first_name: Optional[str] = Field(None, min_length=1, max_length=100)
     last_name: Optional[str] = Field(None, min_length=1, max_length=100)
-    phone_primary: Optional[str] = Field(None, min_length=9, max_length=20)
+    phone_primary: OptionalEthiopianPhone = None
     phone_secondary: Optional[str] = Field(None, max_length=20)
     email: OptionalEmail = None
     id_type: Optional[str] = Field(None, max_length=50)
