@@ -25,6 +25,7 @@ const sources = import.meta.glob<string>(
     '../main.tsx',
     '../data/cars.ts',
     '../services/adminAuth.ts',
+    '../services/booking.ts',
   ],
   { query: '?raw', import: 'default', eager: true }
 )
@@ -328,5 +329,45 @@ describe('the pending estimate comes from the server', () => {
 
   it('the tier note is shown alongside it', () => {
     expect(code('MyBookingsPage.tsx')).toContain('b.pricing_note')
+  })
+})
+
+describe('the fleet page filters by date like the bot does', () => {
+  it('the browse asks for dates before offering cars', () => {
+    // The page listed the whole fleet, so a customer picked a car and only
+    // learned at submit that it was not free for their dates.
+    const fleet = code('Fleet.tsx')
+    expect(fleet).toContain('Show available cars')
+    expect(fleet).toContain('applied')
+  })
+
+  it('the query refetches when the dates change', () => {
+    // A queryKey that ignores the dates would serve the unfiltered list.
+    const fleet = code('Fleet.tsx')
+    expect(fleet).toMatch(/queryKey: \['public-vehicles', applied/)
+  })
+
+  it('the service sends both dates or neither', () => {
+    const svc = code('booking.ts')
+    expect(svc).toContain('pickup_datetime=')
+    expect(svc).toContain('expected_return_datetime=')
+  })
+
+  it('a filtered card shows the whole-rental price', () => {
+    const fleet = code('Fleet.tsx')
+    expect(fleet).toContain('car.quoted_total')
+    expect(fleet).toContain('quoted_days')
+  })
+
+  it('the empty state says the dates are the problem', () => {
+    const fleet = code('Fleet.tsx')
+    expect(fleet).toContain('No cars are free for those dates')
+  })
+
+  it('the chosen dates carry into the booking page', () => {
+    // Asking for the same dates twice is the kind of thing that makes a
+    // booking flow feel broken.
+    expect(code('Fleet.tsx')).toContain('state={dates ?? undefined}')
+    expect(code('BookingPage.tsx')).toContain('carried')
   })
 })

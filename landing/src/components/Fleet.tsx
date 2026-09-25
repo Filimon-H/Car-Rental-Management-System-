@@ -262,7 +262,16 @@ function CarModal({ car, onClose }: { car: PublicVehicle; onClose: () => void })
 // ---------------------------------------------------------------------------
 // API car card
 // ---------------------------------------------------------------------------
-function ApiCarCard({ car, onInspect }: { car: PublicVehicle; onInspect: () => void }) {
+function ApiCarCard({
+  car,
+  onInspect,
+  dates,
+}: {
+  car: PublicVehicle
+  onInspect: () => void
+  /** Dates the visitor already chose, so the booking page opens with them. */
+  dates?: { pickup: string; returnDate: string } | null
+}) {
   const photos = getPhotos(car)
   const isAvailable = car.status === 'available'
   const badge = STATUS_BADGE[car.status] ?? UNKNOWN_STATUS_BADGE
@@ -305,13 +314,33 @@ function ApiCarCard({ car, onInspect }: { car: PublicVehicle; onInspect: () => v
           </p>
         )}
         <div className="flex items-center justify-between">
-          <div>
-            <span className="text-gold text-2xl font-bold">{Number(car.daily_rate).toLocaleString()}</span>
-            <span className="text-gray-400 text-sm ml-1">ETB / day</span>
-          </div>
+          {/*
+            On a date-filtered search the card shows what the whole rental
+            costs, with any weekly or monthly tier already applied — the
+            same figure the booking page quotes and the agreement charges.
+          */}
+          {car.quoted_total ? (
+            <div>
+              <span className="text-gold text-2xl font-bold">
+                {Number(car.quoted_total).toLocaleString()}
+              </span>
+              <span className="text-gray-400 text-sm ml-1">
+                ETB for {car.quoted_days} day{car.quoted_days === 1 ? '' : 's'}
+              </span>
+              {car.pricing_note === 'Best weekly/monthly tier applied' && (
+                <p className="text-gray-500 text-xs mt-0.5">{car.pricing_note}</p>
+              )}
+            </div>
+          ) : (
+            <div>
+              <span className="text-gold text-2xl font-bold">{Number(car.daily_rate).toLocaleString()}</span>
+              <span className="text-gray-400 text-sm ml-1">ETB / day</span>
+            </div>
+          )}
           {isAvailable ? (
             <Link
               to={`/book/${car.id}`}
+              state={dates ?? undefined}
               onClick={(e) => e.stopPropagation()}
               className="btn-gold px-5 py-2 rounded-full text-sm font-medium"
             >
@@ -331,9 +360,55 @@ function ApiCarCard({ car, onInspect }: { car: PublicVehicle; onInspect: () => v
 // ---------------------------------------------------------------------------
 // Fleet section
 // ---------------------------------------------------------------------------
+/** Tomorrow at 09:00, as a date input value. */
+function defaultPickup(): string {
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().slice(0, 10)
+}
+
 export default function Fleet() {
   const [activeCategory] = useState('all')
   const [inspecting, setInspecting] = useState<PublicVehicle | null>(null)
+
+  /*
+    Dates before cars.
+    
+    The browse page listed the whole fleet, so a customer chose a car and
+    only discovered at submit that it was not free for their dates. The
+    Telegram bot already asks when before what; this brings the website into
+    line. Dates are optional: with none set this is the plain browse.
+  */
+  const [pickup, setPickup] = useState('')
+  const [returnDate, setReturnDate] = useState('')
+  const [applied, setApplied] = useState<{ pickup: string; returnDate: string } | null>(null)
+  const [dateError, setDateError] = useState('')
+
+  const minPickup = defaultPickup()
+
+  function applyDates(e: React.FormEvent) {
+    e.preventDefault()
+    if (!pickup || !returnDate) {
+      setDateError('Pick both a start and an end date.')
+      return
+    }
+    if (new Date(returnDate) <= new Date(pickup)) {
+      setDateError('The return date must be after the pickup date.')
+      return
+    }
+    setDateError('')
+    setApplied({
+      pickup: `${pickup}T09:00:00`,
+      returnDate: `${returnDate}T09:00:00`,
+    })
+  }
+
+  function clearDates() {
+    setPickup('')
+    setReturnDate('')
+    setApplied(null)
+    setDateError('')
+  }
 
   /**
    * The real fleet, or an honest empty state.
@@ -345,8 +420,8 @@ export default function Fleet() {
    * nothing is better than showing a fleet that cannot be rented.
    */
   const { data: apiVehicles, isLoading, isError, refetch } = useQuery({
-    queryKey: ['public-vehicles'],
-    queryFn: bookingService.getVehicles,
+    queryKey: ['public-vehicles', applied?.pickup ?? '', applied?.returnDate ?? ''],
+    queryFn: () => bookingService.getVehicles(applied ?? undefined),
     staleTime: 60_000,
   })
 
@@ -367,9 +442,70 @@ export default function Fleet() {
               <span className="text-gold">Vehicle</span>
             </h2>
             {filteredApi.length > 0 && (
-              <p className="text-gray-400 text-sm mt-3">Click any car to inspect it</p>
+              <p className="text-gray-400 text-sm mt-3">
+                {applied
+                  ? 'Every car below is free for your dates'
+                  : 'Click any car to inspect it'}
+              </p>
             )}
           </div>
+
+          {/*
+            Choosing dates here filters the list to cars that can actually
+            be booked, and prices each one for that rental.
+          */}
+          <form
+            onSubmit={applyDates}
+            className="bg-dark-200 rounded-2xl p-5 mb-10 flex flex-col sm:flex-row gap-4 sm:items-end justify-center"
+          >
+            <div>
+              <label htmlFor="fleet-pickup" className="block text-gray-400 text-xs mb-1.5">
+                Pickup date
+              </label>
+              <input
+                id="fleet-pickup"
+                type="date"
+                min={minPickup}
+                value={pickup}
+                onChange={(e) => { setPickup(e.target.value); setDateError('') }}
+                className="bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold [color-scheme:dark]"
+              />
+            </div>
+            <div>
+              <label htmlFor="fleet-return" className="block text-gray-400 text-xs mb-1.5">
+                Return date
+              </label>
+              <input
+                id="fleet-return"
+                type="date"
+                min={pickup || minPickup}
+                value={returnDate}
+                onChange={(e) => { setReturnDate(e.target.value); setDateError('') }}
+                className="bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold [color-scheme:dark]"
+              />
+            </div>
+            <button
+              type="submit"
+              className="btn-gold-filled px-6 py-2.5 rounded-lg text-sm font-semibold"
+            >
+              Show available cars
+            </button>
+            {applied && (
+              <button
+                type="button"
+                onClick={clearDates}
+                className="text-gray-400 hover:text-white text-sm px-3 py-2.5 transition-colors"
+              >
+                Clear dates
+              </button>
+            )}
+          </form>
+
+          {dateError && (
+            <p role="alert" className="text-amber-400 text-sm text-center -mt-6 mb-8">
+              {dateError}
+            </p>
+          )}
 
           {isLoading ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6" aria-busy="true">
@@ -393,15 +529,26 @@ export default function Fleet() {
             </div>
           ) : filteredApi.length === 0 ? (
             <div className="bg-dark-200 rounded-2xl p-10 text-center">
-              <p className="text-white font-semibold mb-2">No vehicles listed right now</p>
+              <p className="text-white font-semibold mb-2">
+                {applied
+                  ? 'No cars are free for those dates'
+                  : 'No vehicles listed right now'}
+              </p>
               <p className="text-gray-400 text-sm">
-                Call us on {contactInfo.phones[0]} and we'll find you a car.
+                {applied
+                  ? `Try different dates, or call us on ${contactInfo.phones[0]} and we'll help.`
+                  : `Call us on ${contactInfo.phones[0]} and we'll find you a car.`}
               </p>
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredApi.map((car) => (
-                <ApiCarCard key={car.id} car={car} onInspect={() => setInspecting(car)} />
+                <ApiCarCard
+                  key={car.id}
+                  car={car}
+                  dates={applied}
+                  onInspect={() => setInspecting(car)}
+                />
               ))}
             </div>
           )}

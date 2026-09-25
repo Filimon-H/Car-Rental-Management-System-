@@ -264,19 +264,71 @@ def _to_public_vehicle(v: Vehicle, db: Session) -> PublicVehicleResponse:
 
 
 @router.get("/vehicles", response_model=list[PublicVehicleResponse])
-def list_vehicles(db: Annotated[Session, Depends(get_db)]):
-    vehicles = (
-        db.query(Vehicle)
-        .filter(
-            Vehicle.is_active.is_(True),
-            # "Retired" is stored as status INACTIVE while is_active stays
-            # True, so filtering on is_active alone advertised a retired car.
-            Vehicle.status.notin_([VehicleStatus.INACTIVE, VehicleStatus.MAINTENANCE]),
+def list_vehicles(
+    db: Annotated[Session, Depends(get_db)],
+    pickup_datetime: datetime | None = None,
+    expected_return_datetime: datetime | None = None,
+):
+    """Browse the fleet, optionally only what is free for a date range.
+
+    Without dates this is the plain browse it has always been. With them it
+    returns only vehicles actually bookable for that span, each carrying the
+    price of the whole rental with tiers applied.
+
+    The Telegram bot has asked when-before-what since it could reach
+    availability_repository directly; the website could not, so a customer
+    picked a car on the browse page and was refused at submit. Dates are
+    optional so existing callers are unaffected.
+    """
+    if (pickup_datetime is None) != (expected_return_datetime is None):
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT,
+            "Send both pickup_datetime and expected_return_datetime, or neither",
         )
-        .order_by(Vehicle.status.asc(), Vehicle.id.asc())
-        .all()
-    )
-    return [_to_public_vehicle(v, db) for v in vehicles]
+
+    if pickup_datetime is None:
+        vehicles = (
+            db.query(Vehicle)
+            .filter(
+                Vehicle.is_active.is_(True),
+                # "Retired" is stored as status INACTIVE while is_active stays
+                # True, so filtering on is_active alone advertised a retired car.
+                Vehicle.status.notin_([VehicleStatus.INACTIVE, VehicleStatus.MAINTENANCE]),
+            )
+            .order_by(Vehicle.status.asc(), Vehicle.id.asc())
+            .all()
+        )
+        return [_to_public_vehicle(v, db) for v in vehicles]
+
+    pickup = _as_business_wall_clock(pickup_datetime)
+    return_at = _as_business_wall_clock(expected_return_datetime)
+    if return_at <= pickup:
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT, "Return date must be after pickup date"
+        )
+    if pickup <= _business_now():
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT, "Pickup date must be in the future"
+        )
+
+    from src.repositories import availability_repository
+
+    available = availability_repository.get_available_vehicles(db, pickup, return_at)
+    rows = []
+    for v in available:
+        days, total = billing_service.calculate_rental_charge(
+            pickup, return_at, v.daily_rate, v.weekly_rate, v.monthly_rate
+        )
+        row = _to_public_vehicle(v, db)
+        row.quoted_days = days
+        row.quoted_total = total
+        row.pricing_note = (
+            "Best weekly/monthly tier applied"
+            if total < v.daily_rate * days
+            else "Daily rate applied"
+        )
+        rows.append(row)
+    return rows
 
 
 @router.get("/vehicles/{vehicle_id}", response_model=PublicVehicleResponse)

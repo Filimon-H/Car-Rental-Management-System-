@@ -75,6 +75,11 @@ class PublicVehicleResponse(BaseModel):
     is_active: bool
     status: str  # available | reserved | rented
     available_from: Optional[datetime] = None  # set when reserved or rented
+    # Set only when the browse was filtered by dates, so a card can show the
+    # price of the actual rental instead of a rate to multiply.
+    quoted_days: Optional[int] = None
+    quoted_total: Optional[Decimal] = None
+    pricing_note: Optional[str] = None
 
     class Config:
         from_attributes = True

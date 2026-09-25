@@ -19,6 +19,10 @@ export interface PublicVehicle {
   is_active: boolean
   status: 'available' | 'reserved' | 'rented'
   available_from: string | null
+  /** Set only on a date-filtered search: the price of that whole rental. */
+  quoted_days?: number | null
+  quoted_total?: string | null
+  pricing_note?: string | null
 }
 
 export interface BookingVehicle {
@@ -94,7 +98,20 @@ export interface TelegramLinkStatus {
 }
 
 export const bookingService = {
-  getVehicles: () => apiClient.get<PublicVehicle[]>('/vehicles'),
+  /**
+   * Browse the fleet, or only what is free for a date range.
+   *
+   * With dates the API returns just the bookable vehicles, each carrying
+   * the tiered price for that rental — so a customer never picks a car and
+   * then learns the dates do not work.
+   */
+  getVehicles: (range?: { pickup: string; returnDate: string }) =>
+    apiClient.get<PublicVehicle[]>(
+      range
+        ? `/vehicles?pickup_datetime=${encodeURIComponent(range.pickup)}` +
+          `&expected_return_datetime=${encodeURIComponent(range.returnDate)}`
+        : '/vehicles'
+    ),
   getVehicle: (id: number) => apiClient.get<PublicVehicle>(`/vehicles/${id}`),
   getMyBookings: () => apiClient.get<MyBooking[]>('/bookings'),
   createBooking: (data: CreateBookingData) => apiClient.post<MyBooking>('/bookings', data),

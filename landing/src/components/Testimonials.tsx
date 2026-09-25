@@ -28,7 +28,7 @@ export default function Testimonials() {
 
   const { data: vehicles } = useQuery({
     queryKey: ['public-vehicles'],
-    queryFn: bookingService.getVehicles,
+    queryFn: () => bookingService.getVehicles(),
     staleTime: 60_000,
   })
 

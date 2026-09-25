@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { Car, Calendar, MapPin, ArrowLeft, User, ChevronRight, Shield } from 'lucide-react'
 import { useAuthStore, CustomerProfile } from '../services/auth'
 import { bookingService, PriceQuote, PublicVehicle } from '../services/booking'
@@ -528,7 +528,21 @@ export default function BookingPage() {
     customer goes back to edit their details, so entering Oct 1 to Oct 11 and
     returning reset the fields to the defaults without saying so.
   */
-  const [dates, setDates] = useState<{ pickup: string; returnDate: string } | null>(null)
+  /*
+    Seeded from the fleet page when the visitor filtered by dates there, so
+    they are not asked for the same thing twice. The values arrive as
+    wall-clock ISO strings; the inputs want datetime-local.
+  */
+  const location = useLocation()
+  const carried = (location.state as { pickup?: string; returnDate?: string } | null) ?? null
+  const [dates, setDates] = useState<{ pickup: string; returnDate: string } | null>(
+    carried?.pickup && carried?.returnDate
+      ? {
+          pickup: carried.pickup.slice(0, 16),
+          returnDate: carried.returnDate.slice(0, 16),
+        }
+      : null
+  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
