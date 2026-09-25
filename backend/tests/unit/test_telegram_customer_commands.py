@@ -116,17 +116,26 @@ def send(service, body: str) -> None:
 
 class TestBookCommand:
     def test_it_lists_available_cars(self, db: Session, linked, tiered_car):
+        """Cars come after the dates, priced for the rental asked for."""
         send(linked, "/book")
+        send(linked, (datetime.now() + timedelta(days=11)).strftime("%d/%m/%Y"))
+        send(linked, "3 days")
+
         out = text(linked)
-        assert "Yaris" in out
-        assert "1100" in out
+        assert "Yaris" in out, out
+        # A total for the chosen dates, not a rate to multiply.
+        assert "3,300" in out, out
 
     def test_it_says_so_when_nothing_is_available(self, db: Session, linked, tiered_car):
+        """Availability is known only once the dates are."""
         tiered_car.status = VehicleStatus.RENTED
         db.commit()
 
         send(linked, "/book")
-        assert "no cars are available" in text(linked).lower()
+        send(linked, (datetime.now() + timedelta(days=11)).strftime("%d/%m/%Y"))
+        send(linked, "3 days")
+
+        assert "no cars are free" in text(linked).lower(), text(linked)
 
     def test_a_long_fleet_does_not_overflow_telegram(
         self, db: Session, linked, vendor: Vendor
@@ -158,11 +167,10 @@ class TestBookCommand:
 
     def test_the_quote_uses_tiered_pricing(self, db: Session, linked, tiered_car):
         """The web booking page applies the weekly tier; this did not."""
-        send(linked, "/book")
-        send(linked, "1")
         pickup = datetime.now() + timedelta(days=11)
+        send(linked, "/book")
         send(linked, pickup.strftime("%d/%m/%Y"))
-        send(linked, (pickup + timedelta(days=7)).strftime("%d/%m/%Y"))
+        send(linked, "7 days")
 
         out = text(linked)
         assert "7,700" not in out, f"quoted the flat daily rate: {out}"
@@ -174,6 +182,8 @@ class TestBookCommand:
         """Same leak as /customer, in the customer flow."""
         secret = customer.id_number  # read before the handler detaches it
         send(linked, "/book")
+        send(linked, (datetime.now() + timedelta(days=11)).strftime("%d/%m/%Y"))
+        send(linked, "3 days")
         send(linked, "1")
 
         assert secret not in text(linked), text(linked)
@@ -186,11 +196,13 @@ class TestBookCommand:
         customer.license_expiry = datetime.now() - timedelta(days=30)
         db.commit()
 
-        send(linked, "/book")
-        send(linked, "1")
         pickup = datetime.now() + timedelta(days=11)
+        send(linked, "/book")
         send(linked, pickup.strftime("%d/%m/%Y"))
-        send(linked, (pickup + timedelta(days=3)).strftime("%d/%m/%Y"))
+        send(linked, "3 days")
+        send(linked, "1")
+        send(linked, "skip")
+        send(linked, "skip")
         send(linked, "CONFIRM")
 
         created = (
@@ -203,15 +215,16 @@ class TestBookCommand:
 
     def test_a_past_pickup_is_refused(self, db: Session, linked, tiered_car):
         send(linked, "/book")
-        send(linked, "1")
         send(linked, (datetime.now() - timedelta(days=5)).strftime("%d/%m/%Y"))
 
         assert "future" in text(linked).lower()
 
     def test_a_bad_car_number_is_refused(self, db: Session, linked, tiered_car):
         send(linked, "/book")
+        send(linked, (datetime.now() + timedelta(days=11)).strftime("%d/%m/%Y"))
+        send(linked, "3 days")
         send(linked, "99")
-        assert "between 1 and" in text(linked)
+        assert "between 1 and" in text(linked), text(linked)
 
     def test_cancel_aborts_the_flow(self, db: Session, linked, tiered_car):
         send(linked, "/book")

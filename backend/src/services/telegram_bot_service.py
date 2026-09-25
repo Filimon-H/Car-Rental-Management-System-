@@ -44,6 +44,60 @@ MAX_LIST_ROWS = 10
 _CUSTOMER_COMMAND_NAMES = {"/book", "/mybookings", "/extend", "/cancelbook"}
 
 
+#: Pickup presets, as (button label, days from today).
+_PICKUP_PRESETS = (("Today", 0), ("Tomorrow", 1), ("In 3 days", 3))
+
+#: Duration presets, as (button label, nights).
+_DURATION_PRESETS = (("1 day", 1), ("3 days", 3), ("1 week", 7), ("1 month", 30))
+
+
+def _pickup_date_keyboard() -> dict:
+    """Common pickup days, so nobody types a date format."""
+    return {
+        "keyboard": [
+            [{"text": label} for label, _ in _PICKUP_PRESETS],
+        ],
+        "resize_keyboard": True,
+        "one_time_keyboard": True,
+    }
+
+
+def _duration_keyboard() -> dict:
+    return {
+        "keyboard": [
+            [{"text": label} for label, _ in _DURATION_PRESETS[:2]],
+            [{"text": label} for label, _ in _DURATION_PRESETS[2:]],
+        ],
+        "resize_keyboard": True,
+        "one_time_keyboard": True,
+    }
+
+
+def parse_pickup_choice(text: str) -> datetime | None:
+    """A preset label or a typed DD/MM/YYYY, as a 09:00 wall-clock date."""
+    cleaned = text.strip()
+    for label, offset in _PICKUP_PRESETS:
+        if cleaned.lower() == label.lower():
+            day = business_now().date() + timedelta(days=offset)
+            return datetime.combine(day, datetime.min.time()).replace(hour=9)
+    try:
+        return datetime.strptime(cleaned, "%d/%m/%Y").replace(hour=9, minute=0)
+    except ValueError:
+        return None
+
+
+def parse_duration_choice(text: str) -> int | None:
+    """A preset label, or a plain number of days."""
+    cleaned = text.strip()
+    for label, days in _DURATION_PRESETS:
+        if cleaned.lower() == label.lower():
+            return days
+    digits = cleaned.split()[0] if cleaned else ""
+    if digits.isdigit() and 0 < int(digits) <= 365:
+        return int(digits)
+    return None
+
+
 def contact_request_keyboard(label: str = "📱 Share my phone number") -> dict:
     """A one-tap keyboard that returns the account's own phone number.
 
@@ -1181,40 +1235,94 @@ class TelegramBotService:
     # ------------------------------------------------------------------
 
     async def _start_customer_booking(self, db, customer_user: CustomerUser, chat_id: int) -> None:
-        """Step 0: show available cars and ask the customer to pick one."""
-        vehicles = (
-            db.query(Vehicle)
-            .filter(Vehicle.is_active.is_(True), Vehicle.status == VehicleStatus.AVAILABLE)
-            .order_by(Vehicle.daily_rate.asc())
-            .all()
+        """Step 1 of 3: when do they need it?
+
+        The flow used to open with the fleet, so a customer chose a car and
+        only then discovered the dates did not work. Asking when first means
+        every car offered afterwards is one they can actually have.
+        """
+        self._booking_states[chat_id] = BookingState(step="pickup_date", data={})
+        await self._send_message(
+            chat_id,
+            "Step 1 of 3 — when do you need the car?\n\n"
+            "Tap a day, or send a date as DD/MM/YYYY.",
+            reply_markup=_pickup_date_keyboard(),
         )
+
+    async def _offer_available_cars(
+        self,
+        db,
+        chat_id: int,
+        state: "BookingState",
+        pickup: datetime,
+        ret: datetime,
+        days: int,
+    ) -> None:
+        """Step 3 of 3: only the cars actually free for those dates.
+
+        Each card carries the price for this rental with tiers applied, so
+        the number the customer accepts is the number they are charged.
+        """
+        from src.repositories import availability_repository
+
+        vehicles = availability_repository.get_available_vehicles(db, pickup, ret)
         if not vehicles:
-            await self._send_message(chat_id, "No cars are available for booking right now. Check back soon!")
+            self._booking_states.pop(chat_id, None)
+            await self._send_message(
+                chat_id,
+                f"No cars are free from {pickup:%d %b} to {ret:%d %b}.\n"
+                "Try different dates with /book, or call us and we'll help.",
+                reply_markup=REMOVE_KEYBOARD,
+            )
             return
 
-        # A whole fleet in one message crosses Telegram's 4096-character cap,
-        # which fails as silence. Offer a page of them and say there are more.
         shown = vehicles[:MAX_LIST_ROWS]
-        rows = [
-            f"{i}. {escape(v.make)} {escape(v.model)} {v.year} | "
-            f"{v.vehicle_type} | {v.seats} seats | "
-            f"ETB {v.daily_rate}/day"
-            for i, v in enumerate(shown, 1)
-        ]
+        rows = []
+        options = []
+        for i, v in enumerate(shown, 1):
+            _, total = billing_service.calculate_rental_charge(
+                pickup, ret, v.daily_rate, v.weekly_rate, v.monthly_rate
+            )
+            # Say the tier applied, the way the web quote does, so the
+            # customer can see why it is less than days x daily rate.
+            tier = " — weekly/monthly tier applied" if total < v.daily_rate * days else ""
+            rows.append(
+                f"{i}. {escape(v.make)} {escape(v.model)} {v.year} — "
+                f"{v.seats} seats, {escape(v.transmission or 'automatic')}\n"
+                f"   {total:,.2f} ETB for {days} day{'s' if days != 1 else ''}{tier}"
+            )
+            options.append(
+                {
+                    "id": v.id,
+                    "label": f"{v.make} {v.model} {v.year}",
+                    "rate": str(v.daily_rate),
+                    "weekly": str(v.weekly_rate or ""),
+                    "monthly": str(v.monthly_rate or ""),
+                    "total": str(total),
+                }
+            )
+
         if len(vehicles) > len(shown):
             rows.append(
                 f"…and {len(vehicles) - len(shown)} more — "
                 "browse the full fleet on the website."
             )
-        rows.append("Or /cancel to stop.")
 
-        self._booking_states[chat_id] = BookingState(
-            step="pick_car",
-            data={"vehicles": [{"id": v.id, "label": f"{v.make} {v.model} {v.year}", "rate": str(v.daily_rate), "weekly": str(v.weekly_rate or ""), "monthly": str(v.monthly_rate or "")} for v in shown]},
-        )
+        state.data["days"] = days
+        state.data["vehicles"] = options
+        state.step = "pick_car"
         await self._send_message(
             chat_id,
-            truncate_rows(rows, "Available cars — reply with the number to select:", limit=len(rows)),
+            f"Step 3 of 3 — {len(shown)} car"
+            f"{'s' if len(shown) != 1 else ''} free from "
+            f"{pickup:%d %b} to {ret:%d %b}:\n\n"
+            + "\n\n".join(rows)
+            + "\n\nReply with the number, or /cancel.",
+            reply_markup={
+                "keyboard": [[{"text": str(i)} for i in range(1, len(shown) + 1)]],
+                "resize_keyboard": True,
+                "one_time_keyboard": True,
+            },
         )
 
     async def _handle_booking_message(self, chat_id: int, text: str) -> None:
@@ -1255,18 +1363,30 @@ class TelegramBotService:
                 state.data["daily_rate"] = chosen["rate"]
                 state.data["weekly"] = chosen.get("weekly") or ""
                 state.data["monthly"] = chosen.get("monthly") or ""
+                state.data["total"] = chosen.get("total") or "0"
+                state.data["tiered"] = (
+                    Decimal(chosen.get("total") or "0")
+                    < Decimal(chosen["rate"]) * state.data.get("days", 1)
+                )
 
-                # Check if customer already has ID on file
+                # Dates are already chosen, so the only thing left is the
+                # ID details -- and only if they are not already on file.
                 if customer.id_number and customer.license_number:
                     state.data["id_type"] = customer.id_type or "national_id"
                     state.data["id_number"] = customer.id_number
                     state.data["license_number"] = customer.license_number
-                    state.step = "pickup_date"
+                    state.step = "pickup_location"
                     await self._send_message(
                         chat_id,
-                        f"Selected: {escape(chosen['label'])}\n\n"
-                        f"ID and license on file (ID {escape(mask_id_number(customer.id_number))}).\n\n"
-                        "Send pickup date (DD/MM/YYYY), or /cancel.",
+                        f"Selected: {escape(chosen['label'])}\n"
+                        f"ID and licence on file (ID {escape(mask_id_number(customer.id_number))}).\n\n"
+                        "Where should we deliver the car? Send a pickup "
+                        "location, or 'skip'.",
+                        reply_markup={
+                            "keyboard": [[{"text": "skip"}]],
+                            "resize_keyboard": True,
+                            "one_time_keyboard": True,
+                        },
                     )
                 else:
                     state.step = "id_type"
@@ -1277,6 +1397,7 @@ class TelegramBotService:
                         "What is your ID type?\n"
                         "1. National ID\n2. Passport\n3. Kebele ID\n4. Driver's License (as ID)\n\n"
                         "Reply with the number, or /cancel.",
+                        reply_markup=REMOVE_KEYBOARD,
                     )
 
             elif state.step == "id_type":
@@ -1300,69 +1421,55 @@ class TelegramBotService:
                     await self._send_message(chat_id, "License number too short. Please try again.")
                     return
                 state.data["license_number"] = text
-                state.step = "pickup_date"
-                await self._send_message(chat_id, "Send pickup date (DD/MM/YYYY), or /cancel:")
-
-            elif state.step == "pickup_date":
-                try:
-                    pickup = datetime.strptime(text.strip(), "%d/%m/%Y").replace(
-                        hour=9, minute=0, tzinfo=timezone.utc
-                    )
-                except ValueError:
-                    await self._send_message(chat_id, "Invalid date. Use DD/MM/YYYY format (e.g. 20/05/2026).")
-                    return
-                if pickup <= datetime.now(timezone.utc):
-                    await self._send_message(chat_id, "Pickup date must be in the future. Try again:")
-                    return
-                state.data["pickup_datetime"] = pickup.isoformat()
-                state.step = "return_date"
-                await self._send_message(chat_id, "Send return date (DD/MM/YYYY):")
-
-            elif state.step == "return_date":
-                try:
-                    ret = datetime.strptime(text.strip(), "%d/%m/%Y").replace(
-                        hour=9, minute=0, tzinfo=timezone.utc
-                    )
-                except ValueError:
-                    await self._send_message(chat_id, "Invalid date. Use DD/MM/YYYY format (e.g. 25/05/2026).")
-                    return
-                pickup = datetime.fromisoformat(state.data["pickup_datetime"])
-                if ret <= pickup:
-                    await self._send_message(chat_id, "Return date must be after pickup date. Try again:")
-                    return
-                state.data["return_datetime"] = ret.isoformat()
-                days = (ret - pickup).days
-
-                # Was rate x days, so the bot quoted 7,700 for a week the web
-                # page quotes 6,500 and the agreement charges 6,500. Price it
-                # with the same engine so the three cannot disagree.
-                rate = Decimal(state.data["daily_rate"])
-                weekly = state.data.get("weekly") or None
-                monthly = state.data.get("monthly") or None
-                days, total = billing_service.calculate_rental_charge(
-                    pickup,
-                    ret,
-                    rate,
-                    Decimal(weekly) if weekly else None,
-                    Decimal(monthly) if monthly else None,
-                )
-
-                state.data["days"] = days
-                state.data["total"] = str(total)
-                state.data["tiered"] = total < rate * days
-
                 state.step = "pickup_location"
                 await self._send_message(
                     chat_id,
-                    f"{days} day{'s' if days != 1 else ''} — ETB {total:,.2f}\n"
-                    + (
-                        "Best weekly/monthly tier applied.\n\n"
-                        if total < rate * days
-                        else "Daily rate applied.\n\n"
-                    )
-                    + "Where should we deliver the car? Send a pickup location, "
+                    "Where should we deliver the car? Send a pickup location, "
                     "or 'skip'.",
                 )
+
+            elif state.step == "pickup_date":
+                pickup = parse_pickup_choice(text)
+                if pickup is None:
+                    await self._send_message(
+                        chat_id,
+                        "I didn't understand that date. Tap a day, or send it "
+                        "as DD/MM/YYYY (e.g. 20/05/2026).",
+                        reply_markup=_pickup_date_keyboard(),
+                    )
+                    return
+                if pickup <= business_now():
+                    await self._send_message(
+                        chat_id,
+                        "Pickup must be in the future. Tap a day, or send a "
+                        "later date.",
+                        reply_markup=_pickup_date_keyboard(),
+                    )
+                    return
+
+                state.data["pickup_datetime"] = pickup.isoformat()
+                state.step = "duration"
+                await self._send_message(
+                    chat_id,
+                    f"Pickup: {pickup:%a %d %b %Y}, 9:00 AM\n\n"
+                    "Step 2 of 3 — how long do you need it?",
+                    reply_markup=_duration_keyboard(),
+                )
+
+            elif state.step == "duration":
+                days = parse_duration_choice(text)
+                if days is None:
+                    await self._send_message(
+                        chat_id,
+                        "Tap how long you need it, or send a number of days.",
+                        reply_markup=_duration_keyboard(),
+                    )
+                    return
+
+                pickup = datetime.fromisoformat(state.data["pickup_datetime"])
+                ret = pickup + timedelta(days=days)
+                state.data["return_datetime"] = ret.isoformat()
+                await self._offer_available_cars(db, chat_id, state, pickup, ret, days)
 
             elif state.step == "pickup_location":
                 # The web form asks for these; the bot never did, so staff got
@@ -1417,11 +1524,15 @@ class TelegramBotService:
                 # A licence that expires before the car comes back means the
                 # customer cannot legally drive it. The web booking endpoint
                 # refuses this; the bot booked anyway.
-                ret_at = datetime.fromisoformat(state.data["return_datetime"])
+                # Both sides as naive wall-clock: licence expiry is a
+                # business date, not an instant, and the return date is now
+                # built from a wall-clock pickup.
+                ret_at = as_business_naive(
+                    datetime.fromisoformat(state.data["return_datetime"])
+                )
                 expiry = customer.license_expiry
                 if expiry is not None:
-                    if expiry.tzinfo is None:
-                        expiry = expiry.replace(tzinfo=timezone.utc)
+                    expiry = as_business_naive(expiry)
                     if expiry < ret_at:
                         self._booking_states.pop(chat_id, None)
                         await self._send_message(

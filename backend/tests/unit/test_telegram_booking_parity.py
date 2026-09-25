@@ -111,12 +111,16 @@ def send(service, body: str) -> None:
 
 
 def book(service, car_index="1", days=7, **steps):
-    """Drive the flow to just before CONFIRM."""
+    """Drive the flow to just before CONFIRM.
+
+    The flow asks when before what: dates, duration, then the cars that are
+    actually free for them.
+    """
     pickup = datetime.now() + timedelta(days=11)
     send(service, "/book")
-    send(service, car_index)
     send(service, pickup.strftime("%d/%m/%Y"))
-    send(service, (pickup + timedelta(days=days)).strftime("%d/%m/%Y"))
+    send(service, f"{days} days")
+    send(service, car_index)
     return pickup
 
 
@@ -216,9 +220,9 @@ class TestMyBookingsShowsTheMoney:
     def _requested(self, db, service, linked, car, days=7):
         pickup = datetime.now() + timedelta(days=11)
         send(service, "/book")
-        send(service, "1")
         send(service, pickup.strftime("%d/%m/%Y"))
-        send(service, (pickup + timedelta(days=days)).strftime("%d/%m/%Y"))
+        send(service, f"{days} days")
+        send(service, "1")
         send(service, "skip")
         send(service, "skip")
         send(service, "CONFIRM")
