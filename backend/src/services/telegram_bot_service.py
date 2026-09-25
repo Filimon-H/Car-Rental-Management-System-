@@ -60,8 +60,12 @@ def mask_id_number(id_number: str | None) -> str:
     """
     if not id_number:
         return "—"
-    tail = id_number[-4:]
-    return f"...{tail}"
+    # Prefer the last four digits: an ID like "PAR-CUST-1" tailed blindly
+    # gives "...ST-1", which identifies nothing and reads like a typo.
+    digits = [c for c in id_number if c.isdigit()]
+    if len(digits) >= 4:
+        return "..." + "".join(digits[-4:])
+    return f"...{id_number[-4:]}"
 
 
 def _business_time(value: datetime) -> datetime:
@@ -1076,15 +1080,65 @@ class TelegramBotService:
                     Decimal(monthly) if monthly else None,
                 )
 
+                state.data["days"] = days
+                state.data["total"] = str(total)
+                state.data["tiered"] = total < rate * days
+
+                state.step = "pickup_location"
+                await self._send_message(
+                    chat_id,
+                    f"{days} day{'s' if days != 1 else ''} — ETB {total:,.2f}\n"
+                    + (
+                        "Best weekly/monthly tier applied.\n\n"
+                        if total < rate * days
+                        else "Daily rate applied.\n\n"
+                    )
+                    + "Where should we deliver the car? Send a pickup location, "
+                    "or 'skip'.",
+                )
+
+            elif state.step == "pickup_location":
+                # The web form asks for these; the bot never did, so staff got
+                # a request with no location and had to phone the customer.
+                state.data["pickup_location"] = "" if text.strip().lower() == "skip" else text.strip()
+                state.step = "notes"
+                await self._send_message(
+                    chat_id,
+                    "Any notes for our team (child seat, late pickup…)? "
+                    "Send them, or 'skip'.",
+                )
+
+            elif state.step == "notes":
+                state.data["notes"] = "" if text.strip().lower() == "skip" else text.strip()
+
+                pickup = datetime.fromisoformat(state.data["pickup_datetime"])
+                ret = datetime.fromisoformat(state.data["return_datetime"])
+                days = state.data["days"]
+                total = Decimal(state.data["total"])
+
                 state.step = "confirm"
                 await self._send_message(
                     chat_id,
                     f"Booking summary:\n\n"
                     f"Car: {escape(state.data['vehicle_label'])}\n"
-                    f"Pickup: {pickup.strftime('%d %b %Y')}\n"
-                    f"Return: {ret.strftime('%d %b %Y')} ({days} day{'s' if days != 1 else ''})\n"
-                    f"Estimated total: ETB {total:,.2f}\n"
-                    f"ID: {escape(mask_id_number(state.data['id_number']))} ({escape(state.data['id_type'].replace('_', ' '))})\n"
+                    f"Pickup: {pickup.strftime('%d %b %Y')} 09:00\n"
+                    f"Return: {ret.strftime('%d %b %Y')} 09:00 ({days} day{'s' if days != 1 else ''})\n"
+                    + (
+                        f"Pickup location: {escape(state.data['pickup_location'])}\n"
+                        if state.data.get("pickup_location")
+                        else ""
+                    )
+                    + (
+                        f"Notes: {escape(state.data['notes'])}\n"
+                        if state.data.get("notes")
+                        else ""
+                    )
+                    + f"Estimated total: ETB {total:,.2f}"
+                    + (" (weekly/monthly tier)" if state.data.get("tiered") else "")
+                    + "\n"
+                    f"ID: {escape(mask_id_number(state.data['id_number']))} ({escape(state.data['id_type'].replace('_', ' '))})\n\n"
+                    "The final price and any deposit are confirmed by our team "
+                    "when they review your request.\n\n"
                     "Reply CONFIRM to submit, or /cancel.",
                 )
 
@@ -1136,6 +1190,9 @@ class TelegramBotService:
                     expected_return_datetime=ret,
                     agreed_daily_rate=vehicle.daily_rate,
                     deposit_amount=Decimal("0"),
+                    pickup_location=state.data.get("pickup_location") or None,
+                    return_location=state.data.get("pickup_location") or None,
+                    notes=state.data.get("notes") or None,
                 )
                 db.add(agr)
                 db.flush()
@@ -1264,12 +1321,51 @@ class TelegramBotService:
                 else:
                     days_left = int(diff // 86400)
                     days_left_str = f"\n  ⏰ {days_left} day(s) left · Due {return_dt.strftime('%d %b %Y')}"
+            # What it costs. The card showed only the daily rate, so a
+            # customer could not see the estimate they had agreed to, what
+            # they still owed, or the deposit due at pickup.
+            if a.status == AgreementStatus.BOOKING_REQUESTED:
+                tier_vehicle = next(
+                    (seg.vehicle for seg in a.vehicle_segments if seg.vehicle is not None),
+                    None,
+                )
+                est_days, estimate = billing_service.calculate_rental_charge(
+                    a.pickup_datetime,
+                    a.expected_return_datetime,
+                    a.agreed_daily_rate,
+                    tier_vehicle.weekly_rate if tier_vehicle else None,
+                    tier_vehicle.monthly_rate if tier_vehicle else None,
+                )
+                money = (
+                    f"  Estimated total: {estimate:,.2f} ETB "
+                    f"({est_days} day{'s' if est_days != 1 else ''}, "
+                    "confirmed on approval)"
+                )
+            else:
+                breakdown = agreement_service.get_balance_breakdown(db, a.id)
+                money = (
+                    f"  Total: {breakdown['total_charges']:,.2f} ETB · "
+                    f"Paid: {breakdown['total_payments']:,.2f} ETB · "
+                    f"Balance: {breakdown['balance_due']:,.2f} ETB"
+                )
+                if a.deposit_amount and a.deposit_amount > 0:
+                    money += f"\n  Deposit: {a.deposit_amount:,.2f} ETB"
+
+            location = (
+                f"\n  Pickup location: {escape(a.pickup_location)}"
+                if a.pickup_location
+                else ""
+            )
             lines.append(
                 f"• {escape(a.agreement_number)} — {escape(status)}{days_left_str}\n"
-                f"  Pickup: {pickup}\n"
-                f"  Rate: {a.agreed_daily_rate} ETB/day"
+                f"  Pickup: {pickup} 09:00{location}\n"
+                f"  Rate: {a.agreed_daily_rate} ETB/day\n"
+                f"{money}"
             )
-        lines.append("\nUse /extend to extend an active rental.")
+        lines.append(
+            "\nUse /extend to extend an active rental, "
+            "or /cancelbook REF to cancel one."
+        )
         await self._send_message(chat_id, "\n\n".join(lines))
 
     async def _start_extend_booking(self, db, customer_user: CustomerUser, chat_id: int) -> None:
