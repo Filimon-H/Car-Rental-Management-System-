@@ -44,6 +44,24 @@ MAX_LIST_ROWS = 10
 _CUSTOMER_COMMAND_NAMES = {"/book", "/mybookings", "/extend", "/cancelbook"}
 
 
+def contact_request_keyboard(label: str = "📱 Share my phone number") -> dict:
+    """A one-tap keyboard that returns the account's own phone number.
+
+    Telegram sends back a number it holds rather than a string someone
+    typed, so this both removes the worst typing step in the flow and makes
+    a malformed value impossible on that path.
+    """
+    return {
+        "keyboard": [[{"text": label, "request_contact": True}]],
+        "resize_keyboard": True,
+        "one_time_keyboard": True,
+    }
+
+
+#: Dismisses a custom keyboard once it has served its purpose.
+REMOVE_KEYBOARD = {"remove_keyboard": True}
+
+
 def _is_valid_phone(value: str) -> bool:
     """Whether a normalised value is a real Ethiopian mobile number.
 
@@ -395,7 +413,23 @@ class TelegramBotService:
         telegram_user_id = from_user.get("id")
         telegram_username = from_user.get("username")
 
-        if not text or chat_id is None or telegram_user_id is None:
+        if chat_id is None or telegram_user_id is None:
+            return
+
+        # A shared contact is the phone step answered by tapping rather than
+        # typing. It arrives with no text at all, so the guard below used to
+        # drop it — along with photos, voice notes and locations, which got
+        # no reply of any kind.
+        contact = message.get("contact")
+        if contact:
+            await self._handle_contact(chat_id, telegram_user_id, contact)
+            return
+
+        if not text:
+            await self._send_message(
+                chat_id,
+                "I can only read text messages. Use /help to see what I can do.",
+            )
             return
 
         if text.startswith("/"):
@@ -450,6 +484,79 @@ class TelegramBotService:
         self._extend_states.pop(chat_id, None)
         self._pending_search_states.pop(chat_id, None)
         return had
+
+    async def _apply_registration_phone(self, chat_id: int, raw: str) -> None:
+        """Validate a phone for the registration flow, however it arrived.
+
+        Phone is the identity key: /customer searches it and the duplicate
+        guard keys on it. "notaphone" was once accepted here, echoed on the
+        confirmation card and written to the record, leaving a customer
+        unreachable by search and invisible to the guard.
+        """
+        state = self._registration_states.get(chat_id)
+        if not state:
+            return
+
+        candidate = normalize_ethiopian_phone(raw)
+        if not isinstance(candidate, str) or not _is_valid_phone(candidate):
+            await self._send_message(
+                chat_id,
+                "That doesn't look like a phone number — send it as "
+                "09… or +2519…, tap the button, or /cancel to stop.",
+                reply_markup=contact_request_keyboard(),
+            )
+            return
+
+        db = SessionLocal()
+        try:
+            # Catch a duplicate now rather than after four more fields.
+            existing = (
+                db.query(Customer)
+                .filter(Customer.phone_primary == candidate)
+                .first()
+            )
+            if existing:
+                self._registration_states.pop(chat_id, None)
+                await self._send_message(
+                    chat_id,
+                    f"That phone number already belongs to "
+                    f"{escape(existing.full_name)} (customer {existing.id}).\n"
+                    f"Use /customer {escape(candidate)} to open the record, "
+                    "or /register_customer to start again with a different "
+                    "number.",
+                    reply_markup=REMOVE_KEYBOARD,
+                )
+                return
+        finally:
+            db.close()
+
+        state.data["phone_primary"] = candidate
+        state.step = "id_number"
+        # "/skip" was rendered by Telegram as a tappable command that does
+        # not exist; write it without the slash.
+        await self._send_message(
+            chat_id, "Send ID number, or send SKIP.", reply_markup=REMOVE_KEYBOARD
+        )
+
+    async def _handle_contact(
+        self, chat_id: int, telegram_user_id: int, contact: dict[str, Any]
+    ) -> None:
+        """Use a shared contact as the answer to a pending phone prompt."""
+        raw = str(contact.get("phone_number") or "")
+        # Telegram often omits the leading +.
+        if raw and not raw.startswith("+"):
+            raw = f"+{raw}"
+
+        state = self._registration_states.get(chat_id)
+        if state and state.step == "phone_primary":
+            await self._apply_registration_phone(chat_id, raw)
+            return
+
+        await self._send_message(
+            chat_id,
+            "Thanks. I only need a phone number when I ask for one — "
+            "use /help to see what I can do.",
+        )
 
     async def _handle_command(
         self,
@@ -597,12 +704,18 @@ class TelegramBotService:
                 )
                 return
             username_suffix = f" (@{settings.telegram_bot_username})" if settings.telegram_bot_username else ""
+            # A keyboard rather than a pointer to another command: an
+            # unlinked chat previously had nothing to act on but /help.
             await self._send_message(
                 chat_id,
                 f"Welcome to the car rental bot{username_suffix}!\n\n"
                 "To get started, link your account:\n"
                 "• Customers: go to My Bookings on the website → get a link code → send /link CODE\n"
                 "• Staff: generate a link code in the web app → send /link CODE",
+                reply_markup={
+                    "keyboard": [[{"text": "/help"}, {"text": "/link"}]],
+                    "resize_keyboard": True,
+                },
             )
         finally:
             db.close()
@@ -968,45 +1081,16 @@ class TelegramBotService:
             elif state.step == "last_name":
                 state.data["last_name"] = text
                 state.step = "phone_primary"
-                await self._send_message(chat_id, "Send the primary phone number.")
-            elif state.step == "phone_primary":
-                # Phone is the identity key: /customer searches it and the
-                # duplicate guard keys on it. "notaphone" was accepted here,
-                # echoed on the confirmation card and written to the record,
-                # leaving a customer unreachable by search and invisible to
-                # the guard — quietly recreating the duplicates it prevents.
-                candidate = normalize_ethiopian_phone(text)
-                if not isinstance(candidate, str) or not _is_valid_phone(candidate):
-                    await self._send_message(
-                        chat_id,
-                        "That doesn't look like a phone number — send it as "
-                        "09… or +2519…, or /cancel to stop.",
-                    )
-                    return
-                state.data["phone_primary"] = candidate
-
-                # Catch a duplicate now rather than after four more fields.
-                existing = (
-                    db.query(Customer)
-                    .filter(Customer.phone_primary == candidate)
-                    .first()
+                await self._send_message(
+                    chat_id,
+                    "Send the phone number, or tap the button to share yours.",
+                    reply_markup=contact_request_keyboard(),
                 )
-                if existing:
-                    self._registration_states.pop(chat_id, None)
-                    await self._send_message(
-                        chat_id,
-                        f"That phone number already belongs to "
-                        f"{escape(existing.full_name)} (customer {existing.id}).\n"
-                        f"Use /customer {escape(candidate)} to open the record, "
-                        "or /register_customer to start again with a different "
-                        "number.",
-                    )
-                    return
-
-                state.step = "id_number"
-                # "/skip" was rendered by Telegram as a tappable command that
-                # does not exist; write it without the slash.
-                await self._send_message(chat_id, "Send ID number, or send SKIP.")
+            elif state.step == "phone_primary":
+                # Typed or tapped, one path: sharing a contact must not be a
+                # way round the validation and duplicate checks.
+                await self._apply_registration_phone(chat_id, text)
+                return
             elif state.step == "id_number":
                 state.data["id_number"] = None if text.upper() == "SKIP" else text
                 state.step = "license_number"
@@ -1018,9 +1102,20 @@ class TelegramBotService:
                     chat_id,
                     "Reply CONFIRM to create this customer:\n"
                     f"{escape(state.data['first_name'] or '')} {escape(state.data['last_name'] or '')}\n"
-                    f"Phone: {escape(state.data['phone_primary'] or '')}\n"
-                    f"ID: {escape(state.data['id_number'] or 'n/a')}\n"
-                    f"License: {escape(state.data['driver_license_number'] or 'n/a')}",
+                    f"Phone: {escape(state.data['phone_primary'] or '')}"
+                    # Skipped fields were shown as "n/a", which reads like
+                    # missing data rather than a deliberate omission.
+                    + (
+                        f"\nID: {escape(mask_id_number(state.data['id_number']))}"
+                        if state.data.get("id_number")
+                        else "\nID: not recorded"
+                    )
+                    + (
+                        f"\nLicense: {escape(state.data['driver_license_number'])}"
+                        if state.data.get("driver_license_number")
+                        else "\nLicence: not recorded"
+                    ),
+                    reply_markup=REMOVE_KEYBOARD,
                 )
             elif state.step == "confirm":
                 if text.upper() != "CONFIRM":
@@ -1808,18 +1903,24 @@ class TelegramBotService:
                     return
                 await asyncio.sleep(10)
 
-    async def _send_message(self, chat_id: int, text: str) -> None:
-        """Send a plain text Telegram message."""
+    async def _send_message(
+        self,
+        chat_id: int,
+        text: str,
+        reply_markup: dict[str, Any] | None = None,
+    ) -> None:
+        """Send a Telegram message, optionally with a keyboard.
+
+        Buttons are how a phone conversation avoids a keyboard: tapping is
+        one action, typing a number is a dozen and can go wrong.
+        """
         if not self.enabled:
             return
+        payload: dict[str, Any] = {"chat_id": chat_id, "text": text[:4096]}
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
         try:
-            await self._api(
-                "sendMessage",
-                {
-                    "chat_id": chat_id,
-                    "text": text[:4096],
-                },
-            )
+            await self._api("sendMessage", payload)
         except Exception as exc:
             logger.error("Telegram sendMessage failed for chat %s: %s", chat_id, exc)
 
