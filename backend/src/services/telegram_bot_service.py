@@ -190,6 +190,8 @@ class TelegramBotService:
         #: "/customer 0923677823" often arrives as a bare "/customer" with
         #: the argument dropped and nothing said about it.
         self._pending_search_states: dict[int, str] = {}
+        #: Chats whose command menu has been scoped this process.
+        self._scoped_menus: dict[int, str] = {}
 
     @property
     def enabled(self) -> bool:
@@ -333,6 +335,13 @@ class TelegramBotService:
         """
         extra = self._STAFF_COMMANDS if role == "staff" else self._CUSTOMER_COMMANDS
         return [*self._UNIVERSAL_COMMANDS, *extra]
+
+    async def _ensure_scoped_menu(self, chat_id: int, role: str) -> None:
+        """Scope a chat's menu once per process, for chats linked earlier."""
+        if self._scoped_menus.get(chat_id) == role:
+            return
+        self._scoped_menus[chat_id] = role
+        await self.set_commands_for_chat(chat_id, role)
 
     async def set_commands_for_chat(self, chat_id: int, role: str) -> None:
         """Scope a chat's menu to its role. Called when a chat links."""
@@ -483,6 +492,11 @@ class TelegramBotService:
             # Check staff link first
             staff_link = telegram_link_service.get_link_for_chat(db, chat_id)
             if staff_link:
+                # Menus are scoped when a chat links, which chats linked
+                # before that existed never did: they fall back to the
+                # unlinked default and lose their commands from the menu.
+                # Backfill once, on first activity.
+                await self._ensure_scoped_menu(chat_id, "staff")
                 staff_link = telegram_link_service.touch_link(db, staff_link, telegram_username)
                 staff_user = (
                     db.query(StaffUser)
@@ -519,6 +533,7 @@ class TelegramBotService:
                 .first()
             )
             if customer_link:
+                await self._ensure_scoped_menu(chat_id, "customer")
                 customer_link.last_seen_at = datetime.now(timezone.utc)
                 db.commit()
                 customer_user = db.query(CustomerUser).filter(
@@ -608,6 +623,7 @@ class TelegramBotService:
                     .first()
                 )
                 if customer_link:
+                    await self._ensure_scoped_menu(chat_id, "customer")
                     await self._send_message(
                         chat_id,
                         "Available commands:\n"
@@ -632,6 +648,7 @@ class TelegramBotService:
                 await self._send_message(chat_id, "Your linked staff account is inactive.")
                 return
 
+            await self._ensure_scoped_menu(chat_id, "staff")
             commands = ["/start", "/help", "/link CODE", "/cancel"]
             if has_permission(staff_user.role, Permission.VIEW_CUSTOMERS):
                 commands.append("/customer SEARCH")

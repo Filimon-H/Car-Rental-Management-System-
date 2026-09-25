@@ -392,3 +392,24 @@ class TestTheMenuMatchesWhatTheChatCanDo:
         # Both keep the universal ones.
         for shared in ("start", "help", "cancel"):
             assert shared in staff_names and shared in customer_names
+
+    def test_an_already_linked_chat_gets_its_menu_without_relinking(
+        self, db: Session, service, staff_chat, monkeypatch
+    ):
+        """Menus are scoped at link time, which existing chats already passed.
+
+        Without a backfill they fall back to the unlinked default and a
+        staff member silently loses their commands from the menu.
+        """
+        scoped: list[tuple[int, str]] = []
+
+        async def record(chat_id, role):
+            scoped.append((chat_id, role))
+
+        monkeypatch.setattr(service, "set_commands_for_chat", record)
+
+        send(service, STAFF_CHAT, 9101, "/help")
+
+        assert (STAFF_CHAT, "staff") in scoped, (
+            "a linked chat never gets its scoped menu"
+        )
