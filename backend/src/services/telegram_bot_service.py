@@ -192,6 +192,9 @@ class TelegramBotService:
         self._pending_search_states: dict[int, str] = {}
         #: Chats whose command menu has been scoped this process.
         self._scoped_menus: dict[int, str] = {}
+        #: Strong refs to in-flight notification tasks, so the event
+        #: loop does not garbage-collect them mid-send.
+        self._pending_notifications: set = set()
 
     @property
     def enabled(self) -> bool:
@@ -1701,16 +1704,57 @@ class TelegramBotService:
         )
         return link.chat_id if link else None
 
+    async def notify_customer(self, db, customer_id: int, text: str) -> None:
+        """Message a customer, if they have linked Telegram.
+
+        A notification must never break the business action that triggered
+        it: an unreachable Telegram cannot roll back an approval or a
+        payment, so every failure here is logged and swallowed.
+        """
+        if not self.enabled:
+            return
+        try:
+            chat_id = self._get_customer_chat_id(db, customer_id)
+            if chat_id:
+                await self._send_message(chat_id, text)
+        except Exception as exc:
+            logger.warning("Could not notify customer %s: %s", customer_id, exc)
+
+    def notify_customer_soon(self, db, customer_id: int, text: str) -> None:
+        """Queue a customer notification from synchronous service code.
+
+        The services that approve bookings and post payments are sync, and
+        the send is fire-and-forget by design — the ledger row is the record
+        that matters, the message is a courtesy.
+        """
+        if not self.enabled:
+            return
+        coro = self.notify_customer(db, customer_id, text)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No event loop (a CLI, a test, a sync worker): run it inline.
+            try:
+                asyncio.run(coro)
+            except Exception as exc:
+                logger.warning("Could not notify customer %s: %s", customer_id, exc)
+            return
+        task = loop.create_task(coro)
+        self._pending_notifications.add(task)
+        task.add_done_callback(self._pending_notifications.discard)
+
     async def _send_return_reminders(self) -> None:
         """Send countdown and overdue notifications for active agreements."""
-        now = datetime.now(timezone.utc)
+        # Business dates carry no offset, so they must be compared against a
+        # wall-clock now. Treating them as UTC shifted every comparison by
+        # three hours: a rental due in two hours was announced as overdue,
+        # and a genuinely late one was not flagged until three hours after.
+        now = business_now()
         db = SessionLocal()
         try:
             active = db.query(Agreement).filter(Agreement.status == AgreementStatus.ACTIVE).all()
             for agreement in active:
-                return_dt = agreement.expected_return_datetime
-                if return_dt.tzinfo is None:
-                    return_dt = return_dt.replace(tzinfo=timezone.utc)
+                return_dt = as_business_naive(agreement.expected_return_datetime)
 
                 diff_seconds = (return_dt - now).total_seconds()
 
@@ -1725,7 +1769,7 @@ class TelegramBotService:
                             f"Please return the car or contact us immediately.\n"
                             f"📞 Call us to arrange an extension."
                         )
-                    agreement.overdue_notified_at = now
+                    agreement.overdue_notified_at = datetime.now(timezone.utc)
                     agreement.status = AgreementStatus.OVERDUE
                     db.commit()
 

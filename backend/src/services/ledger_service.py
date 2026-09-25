@@ -119,9 +119,42 @@ def post_payment(
     db.add(entry)
     db.commit()
     db.refresh(entry)
-    
+
+    # Acknowledge it. A receipt the customer did not have to ask for is one
+    # of the few things a bot can do that the website cannot.
+    _notify_customer_of_payment(db, agreement_id, amount)
+
     logger.info(f"Posted payment: {amount} via {payment_method.value} to agreement {agreement_id}")
     return entry
+
+
+def _notify_customer_of_payment(
+    db: Session, agreement_id: int, amount: Decimal
+) -> None:
+    """Confirm a payment to the customer, with what is left to pay."""
+    from src.models.agreement import Agreement
+    from src.services import agreement_service
+    from src.services.telegram_bot_service import telegram_bot_service
+
+    try:
+        agreement = db.query(Agreement).filter(Agreement.id == agreement_id).first()
+        if not agreement:
+            return
+        balance = agreement_service.get_balance_breakdown(db, agreement_id)["balance_due"]
+        remaining = (
+            "Paid in full — thank you."
+            if balance <= 0
+            else f"Remaining balance: {balance:,.2f} ETB"
+        )
+        telegram_bot_service.notify_customer_soon(
+            db,
+            agreement.customer_id,
+            f"Payment received: {amount:,.2f} ETB\n"
+            f"{agreement.agreement_number}\n"
+            f"{remaining}",
+        )
+    except Exception as exc:  # never let a receipt undo a posted payment
+        logger.warning("Could not notify payment on agreement %s: %s", agreement_id, exc)
 
 
 def post_deposit(

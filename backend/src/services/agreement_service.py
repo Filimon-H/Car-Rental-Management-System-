@@ -690,6 +690,28 @@ def _find_blocking_agreement(
     )
 
 
+def _notify_customer_of_approval(
+    db: Session, agreement: Agreement, charge: Decimal
+) -> None:
+    """Send the approval message, never letting it break the approval."""
+    from src.services.telegram_bot_service import telegram_bot_service
+
+    deposit = ""
+    if agreement.deposit_amount and agreement.deposit_amount > 0:
+        deposit = f"\nDeposit at pickup: {agreement.deposit_amount:,.2f} ETB"
+
+    telegram_bot_service.notify_customer_soon(
+        db,
+        agreement.customer_id,
+        f"Your booking is confirmed.\n\n"
+        f"{agreement.agreement_number}\n"
+        f"Pickup: {agreement.pickup_datetime:%d %b %Y %H:%M}\n"
+        f"Return: {agreement.expected_return_datetime:%d %b %Y %H:%M}\n"
+        f"Total: {charge:,.2f} ETB{deposit}\n\n"
+        f"Use /mybookings to see the details.",
+    )
+
+
 def _rental_charge_description(
     days: int, daily_rate: Decimal, charge: Decimal
 ) -> str:
@@ -926,6 +948,11 @@ def approve_booking_request(
     agreement.status = AgreementStatus.PENDING_PAYMENT
     db.commit()
     db.refresh(agreement)
+
+    # Tell the customer. Until now they had to keep opening the site or
+    # /mybookings to discover their request had been accepted -- which is
+    # exactly the kind of thing a bot exists to save them.
+    _notify_customer_of_approval(db, agreement, charge)
 
     logger.info(f"Approved booking request {agreement.agreement_number}")
     return agreement
