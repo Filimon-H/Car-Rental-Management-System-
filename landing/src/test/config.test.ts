@@ -205,9 +205,13 @@ describe('every translation key a component uses exists', () => {
     ['en', enLocale],
     ['am', amLocale],
   ])('%s defines them all', (_name, locale) => {
-    const missing = [...used]
-      .filter((key) => typeof lookup(locale as Record<string, unknown>, key) !== 'string')
-      .sort()
+    const loc = locale as Record<string, unknown>
+    // A plural key (t('booking.days', { count })) is stored as days_one /
+    // days_other; i18next picks the form from the count.
+    const defined = (key: string) =>
+      typeof lookup(loc, key) === 'string' ||
+      (typeof lookup(loc, `${key}_one`) === 'string' && typeof lookup(loc, `${key}_other`) === 'string')
+    const missing = [...used].filter((key) => !defined(key)).sort()
     expect(missing).toEqual([])
   })
 })
@@ -311,9 +315,10 @@ describe('the booking flow keeps what the customer entered', () => {
     expect(page).toContain('isExpired(profileData.id_expiry)')
   })
 
-  it('an unavailable car explains the redirect', () => {
-    const page = code('BookingPage.tsx')
-    expect(page).toContain('no longer available for booking')
+  it('an unavailable car explains the redirect, in either language', () => {
+    expect(code('BookingPage.tsx')).toContain("notice: t('booking.carUnavailable')")
+    expect(enLocale.booking.carUnavailable).toMatch(/no longer available/)
+    expect(amLocale.booking.carUnavailable).toMatch(/[\u1200-\u137F]/)
     expect(code('App.tsx')).toContain('notice')
   })
 })
@@ -369,5 +374,32 @@ describe('the fleet page filters by date like the bot does', () => {
     // booking flow feel broken.
     expect(code('Fleet.tsx')).toContain('state={dates ?? undefined}')
     expect(code('BookingPage.tsx')).toContain('carried')
+  })
+})
+
+describe('the booking page is translated', () => {
+  // It had no i18n at all: switching to Amharic left the whole booking flow,
+  // the one place a customer commits to paying, in English.
+  it('uses translations throughout', () => {
+    const page = code('BookingPage.tsx')
+    expect((page.match(/\bt\(/g) ?? []).length).toBeGreaterThan(50)
+  })
+
+  it('every booking string exists in Amharic', () => {
+    expect(Object.keys(amLocale.booking).sort()).toEqual(Object.keys(enLocale.booking).sort())
+    expect(amLocale.booking.confirmRequest).toMatch(/[\u1200-\u137F]/)
+  })
+
+  it('labels are tied to their inputs', () => {
+    // Labels had no htmlFor, so a screen reader announced an unnamed textbox.
+    const page = code('BookingPage.tsx')
+    for (const id of ['booking-id-number', 'booking-licence-number', 'booking-pickup', 'booking-return']) {
+      expect(page).toContain(`htmlFor="${id}"`)
+      expect(page).toContain(`id="${id}"`)
+    }
+  })
+
+  it('expiry dates follow the active language', () => {
+    expect(code('BookingPage.tsx')).toMatch(/startsWith\('am'\) \? 'am-ET'/)
   })
 })

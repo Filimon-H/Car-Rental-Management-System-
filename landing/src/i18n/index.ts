@@ -20,6 +20,10 @@ i18n
     }
   })
 
+// Set at start-up too, not only on change: a returning Amharic visitor
+// otherwise got lang="en", and screen readers used English pronunciation.
+document.documentElement.lang = i18n.language || 'en'
+
 i18n.on('languageChanged', (lng) => {
   localStorage.setItem('language', lng)
   document.documentElement.dir = lng === 'am' ? 'ltr' : 'ltr' // Amharic is LTR

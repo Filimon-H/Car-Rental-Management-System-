@@ -4,6 +4,8 @@ import { Car, Calendar, MapPin, ArrowLeft, User, ChevronRight, Shield } from 'lu
 import { useAuthStore, CustomerProfile } from '../services/auth'
 import { bookingService, PriceQuote, PublicVehicle } from '../services/booking'
 import { apiClient, uploadsUrl as photoUrl } from '../services/apiClient'
+import { useTranslation } from 'react-i18next'
+import i18n from '../i18n'
 
 /**
  * Send a datetime-local value as the API's naive wall-clock representation.
@@ -29,7 +31,8 @@ function isExpired(value: string): boolean {
 }
 
 function formatExpiry(value: string): string {
-  return new Date(value).toLocaleDateString('en-GB', {
+  // Was pinned to en-GB, so the Amharic page still printed English dates.
+  return new Date(value).toLocaleDateString(i18n.language?.startsWith('am') ? 'am-ET' : 'en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -52,12 +55,14 @@ function daysBetween(a: string, b: string): number {
   return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)))
 }
 
-const ID_TYPES = [
-  { value: 'national_id', label: 'National ID' },
-  { value: 'passport', label: 'Passport' },
-  { value: 'kebele_id', label: 'Kebele ID' },
-  { value: 'driving_license', label: "Driver's License (as ID)" },
-]
+/** ID types the backend accepts; labels come from booking.idTypes.* */
+const ID_TYPES = ['national_id', 'passport', 'kebele_id', 'driving_license'] as const
+
+/** The two notes the quote endpoint sends, mapped to translations. */
+const PRICING_NOTES: Record<string, string> = {
+  'Best weekly/monthly tier applied': 'booking.tierApplied',
+  'Daily rate applied': 'booking.dailyRateApplied',
+}
 
 // ---------------------------------------------------------------------------
 // Step 1 — Personal information
@@ -78,6 +83,7 @@ interface ProfileFormData {
 }
 
 function PersonalInfoStep({ profile, onNext }: PersonalInfoProps) {
+  const { t } = useTranslation()
   const [form, setForm] = useState<ProfileFormData>({
     id_type: profile.id_type || '',
     id_number: profile.id_number || '',
@@ -95,11 +101,11 @@ function PersonalInfoStep({ profile, onNext }: PersonalInfoProps) {
   function handleNext(e: React.FormEvent) {
     e.preventDefault()
     if (!form.id_type || !form.id_number) {
-      setError('ID type and ID number are required')
+      setError(t('booking.idRequired'))
       return
     }
     if (!form.license_number) {
-      setError("Driver's license number is required")
+      setError(t('booking.licenceRequired'))
       return
     }
     setError('')
@@ -110,22 +116,22 @@ function PersonalInfoStep({ profile, onNext }: PersonalInfoProps) {
     <form onSubmit={handleNext} className="bg-dark-200 rounded-2xl p-6 space-y-5">
       <div className="flex items-center gap-2 mb-2">
         <User className="h-5 w-5 text-gold" />
-        <h3 className="text-white font-semibold text-lg">Your information</h3>
+        <h3 className="text-white font-semibold text-lg">{t('booking.yourInformation')}</h3>
       </div>
       <p className="text-gray-400 text-sm -mt-3">
-        Required for rental verification. Saved to your profile for future bookings.
+        {t('booking.verificationNote')}
       </p>
 
       {/* Read-only from signup */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Full name</label>
+          <p className="block text-xs text-gray-500 mb-1">{t('booking.fullName')}</p>
           <div className="w-full bg-dark-300/50 border border-gray-700/50 rounded-lg px-4 py-2.5 text-gray-400 text-sm">
             {profile.first_name} {profile.last_name}
           </div>
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Phone</label>
+          <p className="block text-xs text-gray-500 mb-1">{t('booking.phone')}</p>
           <div className="w-full bg-dark-300/50 border border-gray-700/50 rounded-lg px-4 py-2.5 text-gray-400 text-sm">
             {profile.phone_primary}
           </div>
@@ -136,28 +142,30 @@ function PersonalInfoStep({ profile, onNext }: PersonalInfoProps) {
 
       {/* ID */}
       <div>
-        <label className="block text-sm text-gray-400 mb-1.5">
-          ID type <span className="text-red-400">*</span>
+        <label htmlFor="booking-id-type" className="block text-sm text-gray-400 mb-1.5">
+          {t('booking.idType')} <span className="text-red-400" aria-hidden="true">*</span>
         </label>
         <select
+          id="booking-id-type"
           required
           value={form.id_type}
           onChange={set('id_type')}
           className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
         >
-          <option value="">Select ID type…</option>
-          {ID_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>{t.label}</option>
+          <option value="">{t('booking.selectIdType')}</option>
+          {ID_TYPES.map((type) => (
+            <option key={type} value={type}>{t(`booking.idTypes.${type}`)}</option>
           ))}
         </select>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm text-gray-400 mb-1.5">
-            ID number <span className="text-red-400">*</span>
+          <label htmlFor="booking-id-number" className="block text-sm text-gray-400 mb-1.5">
+            {t('booking.idNumber')} <span className="text-red-400" aria-hidden="true">*</span>
           </label>
           <input
+            id="booking-id-number"
             required
             value={form.id_number}
             onChange={set('id_number')}
@@ -166,8 +174,9 @@ function PersonalInfoStep({ profile, onNext }: PersonalInfoProps) {
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-400 mb-1.5">ID expiry date</label>
+          <label htmlFor="booking-id-expiry" className="block text-sm text-gray-400 mb-1.5">{t('booking.idExpiry')}</label>
           <input
+            id="booking-id-expiry"
             type="date"
             value={form.id_expiry}
             onChange={set('id_expiry')}
@@ -175,7 +184,7 @@ function PersonalInfoStep({ profile, onNext }: PersonalInfoProps) {
           />
           {isExpired(form.id_expiry) && (
             <p className="text-amber-400 text-xs mt-1.5">
-              This ID expired on {formatExpiry(form.id_expiry)}.
+              {t('booking.idExpired', { date: formatExpiry(form.id_expiry) })}
             </p>
           )}
         </div>
@@ -186,10 +195,11 @@ function PersonalInfoStep({ profile, onNext }: PersonalInfoProps) {
       {/* Driver's license */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm text-gray-400 mb-1.5">
-            Driver's license number <span className="text-red-400">*</span>
+          <label htmlFor="booking-licence-number" className="block text-sm text-gray-400 mb-1.5">
+            {t('booking.licenceNumber')} <span className="text-red-400" aria-hidden="true">*</span>
           </label>
           <input
+            id="booking-licence-number"
             required
             value={form.license_number}
             onChange={set('license_number')}
@@ -198,8 +208,9 @@ function PersonalInfoStep({ profile, onNext }: PersonalInfoProps) {
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-400 mb-1.5">License expiry date</label>
+          <label htmlFor="booking-licence-expiry" className="block text-sm text-gray-400 mb-1.5">{t('booking.licenceExpiry')}</label>
           <input
+            id="booking-licence-expiry"
             type="date"
             value={form.license_expiry}
             onChange={set('license_expiry')}
@@ -207,8 +218,7 @@ function PersonalInfoStep({ profile, onNext }: PersonalInfoProps) {
           />
           {isExpired(form.license_expiry) && (
             <p role="alert" className="text-amber-400 text-xs mt-1.5">
-              This licence expired on {formatExpiry(form.license_expiry)}. You'll
-              need a valid licence covering the whole rental.
+              {t('booking.licenceExpired', { date: formatExpiry(form.license_expiry) })}
             </p>
           )}
         </div>
@@ -218,28 +228,31 @@ function PersonalInfoStep({ profile, onNext }: PersonalInfoProps) {
 
       {/* Emergency contact */}
       <div>
-        <label className="block text-sm text-gray-500 mb-3 flex items-center gap-1.5">
-          <Shield className="h-4 w-4 text-gray-600" />
-          Emergency contact <span className="text-gray-600">(recommended)</span>
-        </label>
+        <p id="booking-emergency" className="block text-sm text-gray-500 mb-3 flex items-center gap-1.5">
+          <Shield className="h-4 w-4 text-gray-600" aria-hidden="true" />
+          {t('booking.emergencyContact')} <span className="text-gray-600">{t('booking.recommended')}</span>
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <input
             value={form.emergency_contact_name}
             onChange={set('emergency_contact_name')}
-            placeholder="Contact name"
+            aria-label={`${t('booking.emergencyContact')}: ${t('booking.contactName')}`}
+            placeholder={t('booking.contactName')}
             className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
           />
           <input
             value={form.emergency_contact_phone}
             onChange={set('emergency_contact_phone')}
-            placeholder="Contact phone"
+            type="tel"
+            aria-label={`${t('booking.emergencyContact')}: ${t('booking.contactPhone')}`}
+            placeholder={t('booking.contactPhone')}
             className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
           />
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
+        <div role="alert" className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
           {error}
         </div>
       )}
@@ -248,7 +261,7 @@ function PersonalInfoStep({ profile, onNext }: PersonalInfoProps) {
         type="submit"
         className="w-full bg-gold hover:bg-gold-light text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
       >
-        Continue to booking dates
+        {t('booking.continueToDates')}
         <ChevronRight className="h-4 w-4" />
       </button>
     </form>
@@ -273,6 +286,7 @@ interface BookingDatesProps {
 }
 
 function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, error, onClearError, initialDates, onDatesChange }: BookingDatesProps) {
+  const { t } = useTranslation()
   const tomorrow = new Date()
   tomorrow.setDate(tomorrow.getDate() + 1)
   tomorrow.setHours(9, 0, 0, 0)
@@ -305,9 +319,9 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
   const pickupInPast = pickup !== '' && new Date(pickup) <= new Date()
   const returnBeforePickup = pickup !== '' && returnDate !== '' && days <= 0
   const blockedReason = pickupInPast
-    ? 'Pickup must be in the future.'
+    ? t('booking.pickupInPast')
     : returnBeforePickup
-      ? 'Return must be after pickup.'
+      ? t('booking.returnBeforePickup')
       : ''
 
   /** Editing either date invalidates any previous complaint about them. */
@@ -350,7 +364,7 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (new Date(returnDate) <= new Date(pickup)) {
-      setLocalError('Return date must be after pickup date')
+      setLocalError(t('booking.returnBeforePickup'))
       return
     }
     setLocalError('')
@@ -363,20 +377,20 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
       <div className="bg-dark-200 rounded-2xl p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-white font-semibold flex items-center gap-2">
-            <User className="h-4 w-4 text-gold" /> Your details
+            <User className="h-4 w-4 text-gold" aria-hidden="true" /> {t('booking.yourDetails')}
           </h3>
-          <button type="button" onClick={onBack} className="text-gold text-xs hover:underline">Edit</button>
+          <button type="button" onClick={onBack} className="text-gold text-xs hover:underline">{t('booking.edit')}</button>
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
           <div>
-            <span className="text-gray-500">ID:</span>{' '}
-            <span className="text-white">{profileData.id_number} ({profileData.id_type.replace('_', ' ')})</span>
+            <span className="text-gray-500">{t('booking.idLabel')}:</span>{' '}
+            <span className="text-white">{profileData.id_number} ({t(`booking.idTypes.${profileData.id_type}`, profileData.id_type)})</span>
             {isExpired(profileData.id_expiry) && (
-              <span className="text-amber-400"> · expired {formatExpiry(profileData.id_expiry)}</span>
+              <span className="text-amber-400"> · {t('booking.expiredOn', { date: formatExpiry(profileData.id_expiry) })}</span>
             )}
           </div>
           <div>
-            <span className="text-gray-500">License:</span>{' '}
+            <span className="text-gray-500">{t('booking.licenceLabel')}:</span>{' '}
             <span className="text-white">{profileData.license_number}</span>
             {/*
               The expiry warnings lived only on step 1, so at the moment of
@@ -384,25 +398,26 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
               flagged — the customer saw no problem until submission failed.
             */}
             {isExpired(profileData.license_expiry) && (
-              <span className="text-amber-400"> · expired {formatExpiry(profileData.license_expiry)}</span>
+              <span className="text-amber-400"> · {t('booking.expiredOn', { date: formatExpiry(profileData.license_expiry) })}</span>
             )}
           </div>
           {profileData.emergency_contact_name && (
-            <div className="col-span-2"><span className="text-gray-500">Emergency:</span> <span className="text-white">{profileData.emergency_contact_name} · {profileData.emergency_contact_phone}</span></div>
+            <div className="col-span-2"><span className="text-gray-500">{t('booking.emergencyLabel')}:</span> <span className="text-white">{profileData.emergency_contact_name} · {profileData.emergency_contact_phone}</span></div>
           )}
         </div>
       </div>
 
       <div className="bg-dark-200 rounded-2xl p-6 space-y-5">
         <h3 className="text-white font-semibold text-lg flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-gold" />
-          Booking dates
+          <Calendar className="h-5 w-5 text-gold" aria-hidden="true" />
+          {t('booking.bookingDates')}
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">Pickup date & time</label>
+            <label htmlFor="booking-pickup" className="block text-sm text-gray-400 mb-1.5">{t('booking.pickupDateTime')}</label>
             <input
+              id="booking-pickup"
               type="datetime-local"
               required
               min={minPickup}
@@ -412,8 +427,9 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">Return date & time</label>
+            <label htmlFor="booking-return" className="block text-sm text-gray-400 mb-1.5">{t('booking.returnDateTime')}</label>
             <input
+              id="booking-return"
               type="datetime-local"
               required
               min={pickup || minPickup}
@@ -425,37 +441,40 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
         </div>
 
         <div>
-          <label className="block text-sm text-gray-400 mb-1.5 flex items-center gap-1.5">
-            <MapPin className="h-3.5 w-3.5" /> Pickup location (optional)
+          <label htmlFor="booking-pickup-location" className="block text-sm text-gray-400 mb-1.5 flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5" aria-hidden="true" /> {t('booking.pickupLocation')}
           </label>
           <input
+            id="booking-pickup-location"
             value={pickupLocation}
             onChange={(e) => setPickupLocation(e.target.value)}
             className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
-            placeholder="e.g. Bole International Airport"
+            placeholder={t('booking.locationPlaceholder')}
           />
         </div>
 
         <div>
-          <label className="block text-sm text-gray-400 mb-1.5 flex items-center gap-1.5">
-            <MapPin className="h-3.5 w-3.5" /> Return location (optional)
+          <label htmlFor="booking-return-location" className="block text-sm text-gray-400 mb-1.5 flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5" aria-hidden="true" /> {t('booking.returnLocation')}
           </label>
           <input
+            id="booking-return-location"
             value={returnLocation}
             onChange={(e) => setReturnLocation(e.target.value)}
             className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
-            placeholder="e.g. Bole International Airport"
+            placeholder={t('booking.locationPlaceholder')}
           />
         </div>
 
         <div>
-          <label className="block text-sm text-gray-400 mb-1.5">Notes (optional)</label>
+          <label htmlFor="booking-notes" className="block text-sm text-gray-400 mb-1.5">{t('booking.notes')}</label>
           <textarea
+            id="booking-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
             className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold resize-none"
-            placeholder="Any special requests…"
+            placeholder={t('booking.notesPlaceholder')}
           />
         </div>
 
@@ -468,30 +487,34 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
         {days > 0 && !blockedReason && (
           <div className="bg-dark-300 rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-400 text-sm">{quote?.days ?? days} day{(quote?.days ?? days) !== 1 ? 's' : ''}</span>
-              <span className="text-gold font-bold text-lg">{quoteLoading ? 'Calculating…' : `${total.toLocaleString()} ETB`}</span>
+              <span className="text-gray-400 text-sm">{t('booking.days', { count: quote?.days ?? days })}</span>
+              <span className="text-gold font-bold text-lg">{quoteLoading ? t('booking.calculating') : `${total.toLocaleString()} ETB`}</span>
             </div>
-            {quote && <p className="text-gray-500 text-xs mb-1">{quote.pricing_note}</p>}
+            {quote && (
+              <p className="text-gray-500 text-xs mb-1">
+                {PRICING_NOTES[quote.pricing_note] ? t(PRICING_NOTES[quote.pricing_note]) : quote.pricing_note}
+              </p>
+            )}
             <p className="text-gray-600 text-xs">
-              + deposit collected at pickup · final price confirmed by staff
+              {t('booking.depositNote')}
             </p>
           </div>
         )}
 
         {(localError || error) && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
+          <div role="alert" className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
             {localError || error}
           </div>
         )}
 
         <p className="text-gray-500 text-xs">
-          Your request will be reviewed by our team. You'll see the status in My Bookings.
+          {t('booking.reviewNote')}
         </p>
 
         <div className="flex gap-3">
           <button
             type="button"
-            aria-label="Back to your details"
+            aria-label={t('booking.backToDetails')}
             onClick={onBack}
             className="px-5 py-3 rounded-lg border border-gray-600 text-gray-300 text-sm hover:border-gold hover:text-gold transition-colors"
           >
@@ -502,7 +525,7 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
             disabled={submitting || quoteLoading || days <= 0 || blockedReason !== ''}
             className="flex-1 bg-gold hover:bg-gold-light text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-60"
           >
-            {submitting ? 'Submitting…' : 'Confirm Booking Request'}
+            {submitting ? t('booking.submitting') : t('booking.confirmRequest')}
           </button>
         </div>
       </div>
@@ -514,6 +537,7 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
 // Main page
 // ---------------------------------------------------------------------------
 export default function BookingPage() {
+  const { t } = useTranslation()
   const { vehicleId } = useParams<{ vehicleId: string }>()
   const navigate = useNavigate()
   const profile = useAuthStore((s) => s.profile)
@@ -576,18 +600,18 @@ export default function BookingPage() {
         if (v.status !== 'available') {
           navigate('/', {
             replace: true,
-            state: { notice: 'That car is no longer available for booking.' },
+            state: { notice: t('booking.carUnavailable') },
           })
         } else setVehicle(v)
       })
       .catch(() =>
         navigate('/', {
           replace: true,
-          state: { notice: "We couldn't load that car. Please try another." },
+          state: { notice: t('booking.carLoadFailed') },
         })
       )
       .finally(() => setLoadingVehicle(false))
-  }, [vehicleId, navigate])
+  }, [vehicleId, navigate, t])
 
   async function handleProfileNext(data: ProfileFormData) {
     // Save to backend so it's there for staff
@@ -620,7 +644,7 @@ export default function BookingPage() {
       })
       navigate('/my-bookings')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Booking failed')
+      setError(err instanceof Error ? err.message : t('booking.bookingFailed'))
     } finally {
       setSubmitting(false)
     }
@@ -629,7 +653,7 @@ export default function BookingPage() {
   if (loadingVehicle || !profile) {
     return (
       <div className="min-h-screen bg-dark flex items-center justify-center">
-        <div className="text-gray-400">Loading…</div>
+        <div className="text-gray-400" role="status">{t('booking.loading')}</div>
       </div>
     )
   }
@@ -642,7 +666,7 @@ export default function BookingPage() {
     <div className="min-h-screen bg-dark py-10 px-4">
       <div className="max-w-2xl mx-auto">
         <Link to="/" className="flex items-center gap-2 text-gray-400 hover:text-gold transition-colors mb-8 text-sm">
-          <ArrowLeft className="h-4 w-4" /> Back to fleet
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {t('booking.backToFleet')}
         </Link>
 
         <div className="flex items-center mb-6">
@@ -655,7 +679,7 @@ export default function BookingPage() {
 
         {/* Step indicator */}
         <div className="flex items-center gap-3 mb-6">
-          {[{ n: 1, label: 'Your info' }, { n: 2, label: 'Dates & confirm' }].map(({ n, label }) => (
+          {[{ n: 1, label: t('booking.stepInfo') }, { n: 2, label: t('booking.stepDates') }].map(({ n, label }) => (
             <div key={n} className="flex items-center gap-2">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${step === n ? 'bg-gold text-white' : step > n ? 'bg-green-500 text-white' : 'bg-dark-300 text-gray-500'}`}>
                 {step > n ? '✓' : n}
@@ -677,8 +701,8 @@ export default function BookingPage() {
           )}
           <div>
             <h2 className="text-white font-semibold text-lg">{vehicle.year} {vehicle.make} {vehicle.model}</h2>
-            <p className="text-gray-400 text-sm">{vehicle.vehicle_type} · {vehicle.seats} seats · {vehicle.transmission}</p>
-            <p className="text-gold font-semibold mt-1">{Number(vehicle.daily_rate).toLocaleString()} ETB / day</p>
+            <p className="text-gray-400 text-sm">{t('booking.vehicleSpec', { type: vehicle.vehicle_type, seats: vehicle.seats, transmission: vehicle.transmission })}</p>
+            <p className="text-gold font-semibold mt-1">{t('booking.perDay', { amount: Number(vehicle.daily_rate).toLocaleString() })}</p>
           </div>
         </div>
 
