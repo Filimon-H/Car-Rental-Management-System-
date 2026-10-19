@@ -103,6 +103,7 @@ def get_available_vehicles(
     start_datetime: datetime,
     end_datetime: datetime,
     vehicle_type: str | None = None,
+    holds_only: bool = False,
 ) -> list[Vehicle]:
     """Get all vehicles available for the given date range.
     
@@ -121,7 +122,9 @@ def get_available_vehicles(
         select(AgreementVehicleSegment.vehicle_id)
         .join(Agreement)
         .filter(
-            Agreement.status.not_in([AgreementStatus.CANCELLED, AgreementStatus.CLOSED, AgreementStatus.RETURNED]),
+            # holds_only: the customer search passes it, so a pending request
+            # — which holds nothing until approved — does not hide a car.
+            Agreement.status.not_in(_excluded_statuses(holds_only)),
             AgreementVehicleSegment.start_datetime < end_datetime,
             AgreementVehicleSegment.end_datetime > start_datetime,
         )

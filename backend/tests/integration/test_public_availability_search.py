@@ -181,3 +181,80 @@ class TestTheResponseCarriesThePrice:
         assert row.get("quoted_total") is not None, row
         assert Decimal(row["quoted_total"]) == Decimal("6500.00"), row
         assert row.get("quoted_days") == 7, row
+
+
+def request(db: Session, vehicle: Vehicle, customer_id: int, start, end) -> Agreement:
+    """A booking request: not approved, so it holds nothing."""
+    a = hold(db, vehicle, customer_id, start, end)
+    a.status = AgreementStatus.BOOKING_REQUESTED
+    a.agreement_number = f"REQ-{vehicle.id}"
+    db.commit()
+    return a
+
+
+class TestOnlyRealHoldsHideACar:
+    def test_a_pending_request_does_not_hide_a_car(self, client, db: Session, vendor, test_customer):
+        """Requests are not holds; approval already treats them that way."""
+        car = make_vehicle(db, vendor, "AVAIL-REQ")
+        start = datetime.now().replace(microsecond=0) + timedelta(days=20)
+        request(db, car, test_customer.id, start, start + timedelta(days=3))
+
+        ids = [v["id"] for v in search(client, start, start + timedelta(days=3))]
+        assert car.id in ids, "a mere request hid the car from the search"
+
+    def test_a_reserved_car_free_for_the_window_is_offered(self, client, db: Session, vendor, test_customer):
+        """Its status says a booking exists; it says nothing about this window."""
+        car = make_vehicle(db, vendor, "AVAIL-RES")
+        start = datetime.now().replace(microsecond=0) + timedelta(days=20)
+        hold(db, car, test_customer.id, start + timedelta(days=30), start + timedelta(days=35))
+        car.status = VehicleStatus.RESERVED
+        db.commit()
+
+        row = next(v for v in search(client, start, start + timedelta(days=3)) if v["id"] == car.id)
+        assert row["quoted_total"] is not None
+
+
+class TestABookingCannotOverlapAHold:
+    @pytest.fixture
+    def customer_headers(self, client, db: Session, test_customer):
+        from src.core.security import hash_password
+        from src.models.customer_user import CustomerUser
+        db.add(CustomerUser(customer_id=test_customer.id, email="overlap@example.com",
+                            hashed_password=hash_password("pass12345"), is_active=True))
+        db.commit()
+        r = client.post("/api/public/auth/login", json={"email": "overlap@example.com", "password": "pass12345"})
+        return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    def book(self, client, headers, car, start, end):
+        return client.post("/api/public/bookings", json={
+            "vehicle_id": car.id, "pickup_datetime": start.isoformat(),
+            "expected_return_datetime": end.isoformat()}, headers=headers)
+
+    def test_dates_overlapping_a_hold_are_refused(self, client, db: Session, vendor, test_customer, customer_headers):
+        """A request that can never be approved should not be accepted."""
+        car = make_vehicle(db, vendor, "AVAIL-CLASH")
+        start = datetime.now().replace(microsecond=0) + timedelta(days=20)
+        hold(db, car, test_customer.id, start, start + timedelta(days=5))
+
+        r = self.book(client, customer_headers, car, start + timedelta(days=1), start + timedelta(days=3))
+        assert r.status_code == 400, r.text
+        assert "booked" in r.text.lower()
+
+    def test_a_free_window_on_a_reserved_car_is_accepted(self, client, db: Session, vendor, test_customer, customer_headers):
+        car = make_vehicle(db, vendor, "AVAIL-OK")
+        start = datetime.now().replace(microsecond=0) + timedelta(days=20)
+        hold(db, car, test_customer.id, start + timedelta(days=30), start + timedelta(days=35))
+        car.status = VehicleStatus.RESERVED
+        db.commit()
+
+        r = self.book(client, customer_headers, car, start, start + timedelta(days=3))
+        assert r.status_code in (200, 201), r.text
+
+    def test_overlapping_requests_are_still_allowed(self, client, db: Session, vendor, test_customer, customer_headers):
+        """Unchanged: two requests may overlap; staff choose at approval."""
+        car = make_vehicle(db, vendor, "AVAIL-TWO")
+        start = datetime.now().replace(microsecond=0) + timedelta(days=20)
+        request(db, car, test_customer.id, start, start + timedelta(days=5))
+
+        r = self.book(client, customer_headers, car, start + timedelta(days=1), start + timedelta(days=3))
+        assert r.status_code in (200, 201), r.text

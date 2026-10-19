@@ -313,7 +313,7 @@ def list_vehicles(
 
     from src.repositories import availability_repository
 
-    available = availability_repository.get_available_vehicles(db, pickup, return_at)
+    available = availability_repository.get_available_vehicles(db, pickup, return_at, holds_only=True)
     rows = []
     for v in available:
         days, total = billing_service.calculate_rental_charge(
@@ -407,6 +407,20 @@ def create_booking(
     # staff. An absent expiry is not treated as expired -- the record simply
     # has not been captured, and staff verify documents at pickup.
     _require_valid_documents(customer, return_at)
+
+    # Refuse dates a real hold already covers. Such a request can never be
+    # approved, and accepting it left the customer waiting on a booking that
+    # was impossible from the start. Other pending requests do not count:
+    # they hold nothing, and staff choose between them at approval.
+    from src.repositories import availability_repository
+
+    if not availability_repository.check_vehicle_available(
+        db, vehicle.id, pickup, return_at, holds_only=True
+    ):
+        raise BusinessError(
+            ErrorCode.VEHICLE_NOT_AVAILABLE,
+            "That car is booked or out on rental for those dates. Please choose other dates.",
+        )
 
     agreement_number = agreement_service.generate_agreement_number(db)
 
