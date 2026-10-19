@@ -305,6 +305,8 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
   const [localError, setLocalError] = useState('')
   const [quote, setQuote] = useState<PriceQuote | null>(null)
   const [quoteLoading, setQuoteLoading] = useState(false)
+  /** False when the car is held for the chosen window; null while unknown. */
+  const [freeForDates, setFreeForDates] = useState<boolean | null>(null)
 
   const days = daysBetween(pickup, returnDate)
   const total = quote ? Number(quote.total) : days * parseFloat(vehicle.daily_rate)
@@ -322,7 +324,9 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
     ? t('booking.pickupInPast')
     : returnBeforePickup
       ? t('booking.returnBeforePickup')
-      : ''
+      : freeForDates === false
+        ? t('booking.bookedForDates')
+        : ''
 
   /** Editing either date invalidates any previous complaint about them. */
   const changeDates = (next: () => void) => {
@@ -339,21 +343,30 @@ function BookingDatesStep({ vehicle, profileData, onBack, onSubmit, submitting, 
     // No point pricing a range the server will reject.
     if (days <= 0 || pickupInPast) {
       setQuote(null)
+      setFreeForDates(null)
       return
     }
     let cancelled = false
     setQuoteLoading(true)
+    const range = { pickup: toWallClockIso(pickup), returnDate: toWallClockIso(returnDate) }
     const timer = window.setTimeout(() => {
       bookingService.getQuote({
         vehicle_id: vehicle.id,
-        pickup_datetime: toWallClockIso(pickup),
-        expected_return_datetime: toWallClockIso(returnDate),
+        pickup_datetime: range.pickup,
+        expected_return_datetime: range.returnDate,
       }).then((result) => {
         if (!cancelled) setQuote(result)
       }).catch(() => {
         if (!cancelled) setQuote(null)
       }).finally(() => {
         if (!cancelled) setQuoteLoading(false)
+      })
+      // Say so before submit if another booking holds these dates; the
+      // server refuses them too, but only after the customer has committed.
+      bookingService.getVehicles(range).then((free) => {
+        if (!cancelled) setFreeForDates(free.some((v) => v.id === vehicle.id))
+      }).catch(() => {
+        if (!cancelled) setFreeForDates(null)
       })
     }, 250)
     return () => {
@@ -597,7 +610,11 @@ export default function BookingPage() {
       .then((v) => {
         // Bouncing to / with no message left the customer wondering what
         // they had done wrong.
-        if (v.status !== 'available') {
+        // A reserved car is only booked for some other window; refusing it
+        // here meant a car the fleet search had just offered could not be
+        // booked. A rented car is out now and staff approval refuses it, so
+        // that still redirects. The chosen dates are checked on step 2.
+        if (v.status === 'rented') {
           navigate('/', {
             replace: true,
             state: { notice: t('booking.carUnavailable') },

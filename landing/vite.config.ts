@@ -14,5 +14,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // Let tests read index.css (layout rules such as scroll margins are
+    // asserted there); other stylesheets stay unprocessed.
+    css: { include: [/index\.css/] },
   },
 })

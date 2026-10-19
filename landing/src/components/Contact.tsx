@@ -16,10 +16,24 @@ export default function Contact() {
   // A name and a message are the minimum worth sending on.
   const canSend = form.name.trim() !== '' && form.message.trim() !== ''
 
+  /*
+    The form sets noValidate so it can word its own messages, but nothing
+    replaced the browser's checks: "not-an-email" was sent, and the business
+    received an enquiry it could not reply to. Phone stays loose — visitors
+    include tourists with foreign numbers — but must at least be a number.
+  */
+  const emailInvalid = form.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
+  const phoneInvalid = form.phone.trim() !== '' && !/^\+?[\d\s\-()]{7,20}$/.test(form.phone.trim())
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!canSend) {
       setError('Please add your name and a message.')
+      return
+    }
+    if (emailInvalid || phoneInvalid) {
+      setError('')
+      ;(document.getElementById(emailInvalid ? 'contact-email' : 'contact-phone') as HTMLInputElement | null)?.focus()
       return
     }
 
@@ -130,9 +144,16 @@ export default function Contact() {
                   type="tel"
                   value={form.phone}
                   onChange={update('phone')}
+                  aria-invalid={phoneInvalid}
+                  aria-describedby={phoneInvalid ? 'contact-phone-error' : undefined}
                   placeholder="Phone Number"
                   className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-gold"
                 />
+                {phoneInvalid && (
+                  <p id="contact-phone-error" className="mt-1.5 text-sm text-amber-400">
+                    That doesn't look like a phone number.
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="contact-email" className="sr-only">Email address</label>
@@ -142,9 +163,16 @@ export default function Contact() {
                   type="email"
                   value={form.email}
                   onChange={update('email')}
+                  aria-invalid={emailInvalid}
+                  aria-describedby={emailInvalid ? 'contact-email-error' : undefined}
                   placeholder="Email Address"
                   className="w-full bg-dark-300 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-gold"
                 />
+                {emailInvalid && (
+                  <p id="contact-email-error" className="mt-1.5 text-sm text-amber-400">
+                    That doesn't look like an email address — we need it to reply.
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="contact-message" className="sr-only">Your message</label>
@@ -166,7 +194,7 @@ export default function Contact() {
 
               <button
                 type="submit"
-                disabled={!canSend}
+                disabled={!canSend || emailInvalid || phoneInvalid}
                 className="btn-gold-filled flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="h-4 w-4" />

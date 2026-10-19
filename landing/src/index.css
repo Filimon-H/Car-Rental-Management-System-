@@ -29,6 +29,16 @@ html {
   scroll-behavior: smooth;
 }
 
+/*
+  The header is fixed at h-28 (7rem). With no scroll margin a section
+  scrolled into view had its heading underneath it, which read as landing on
+  the wrong section, especially jumping upward. Header nav, footer links and
+  plain #anchors all honour this.
+*/
+section[id] {
+  scroll-margin-top: 7rem;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

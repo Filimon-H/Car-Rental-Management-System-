@@ -29,6 +29,20 @@ export default function Hero() {
 
   const current = heroSlides[currentSlide]
 
+  /*
+    Book Now did exactly what View Fleet does. Booking starts with dates now,
+    so it takes the visitor to the date search and puts the cursor in it.
+  */
+  const startBooking = () => {
+    const pickup = document.getElementById('fleet-pickup') as HTMLInputElement | null
+    if (!pickup) {
+      scrollToCars()
+      return
+    }
+    pickup.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    pickup.focus({ preventScroll: true })
+  }
+
   const scrollToCars = () => {
     document.querySelector('#cars')?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -54,7 +68,7 @@ export default function Hero() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 mb-16">
               <button
-                onClick={scrollToCars}
+                onClick={startBooking}
                 className="bg-gold hover:bg-gold-light text-white px-8 py-4 rounded-lg font-bold text-lg transition-colors"
               >
                 {t('hero.bookNow')}

@@ -14,7 +14,12 @@ export const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`
  * is a same-origin path so a deployment can proxy /admin at the edge, the way
  * API_BASE_URL defaults to /api; set VITE_ADMIN_URL to point elsewhere.
  */
-export const ADMIN_BASE_URL = (import.meta.env.VITE_ADMIN_URL || '/admin').replace(/\/$/, '')
+// Development defaults to the admin dev server, since /admin only exists
+// where a deployment routes it; locally the footer link hit a blank page.
+// Production builds still default to /admin, so no dev URL ever ships.
+export const ADMIN_BASE_URL = (
+  import.meta.env.VITE_ADMIN_URL || (import.meta.env.DEV ? 'http://localhost:3000' : '/admin')
+).replace(/\/$/, '')
 export const STAFF_LOGIN_URL = `${ADMIN_BASE_URL}/login`
 
 export const uploadsUrl = (path: string | null) =>

@@ -120,7 +120,8 @@
       "passport": "Passport",
       "kebele_id": "Kebele ID",
       "driving_license": "Driver's licence (as ID)"
-    }
+    },
+    "bookedForDates": "That car is already booked for those dates. Please choose other dates."
   },
   "errors": {
     "title": "Something went wrong",

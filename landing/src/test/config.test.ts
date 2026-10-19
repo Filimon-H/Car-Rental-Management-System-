@@ -26,6 +26,7 @@ const sources = import.meta.glob<string>(
     '../data/cars.ts',
     '../services/adminAuth.ts',
     '../services/booking.ts',
+    '../services/apiClient.ts',
   ],
   { query: '?raw', import: 'default', eager: true }
 )
@@ -49,9 +50,10 @@ function code(name: string): string {
 }
 
 describe('URLs default to same-origin paths', () => {
-  it('the admin app is not pinned to a developer machine', () => {
-    expect(ADMIN_BASE_URL).toBe('/admin')
-    expect(STAFF_LOGIN_URL).toBe('/admin/login')
+  it('the admin app is not pinned to a developer machine in production', () => {
+    // Vitest runs as development, where the dev server is the right target.
+    expect(STAFF_LOGIN_URL).toBe(`${ADMIN_BASE_URL}/login`)
+    expect(source('apiClient.ts')).toMatch(/import\.meta\.env\.DEV \? 'http:\/\/localhost:3000' : '\/admin'/)
   })
 
   it('the API follows the same rule', () => {
@@ -428,5 +430,73 @@ describe('landing basics', () => {
 
   it('the error and 404 strings exist in both languages', () => {
     expect(Object.keys(amLocale.errors).sort()).toEqual(Object.keys(enLocale.errors).sort())
+  })
+})
+
+describe('the fleet date search can actually produce a booking', () => {
+  it('a card from a date search is judged by that window, not today', () => {
+    // Five cars free for the dates came back marked "Reserved · Unavailable".
+    const fleet = code('Fleet.tsx')
+    expect(fleet).toMatch(/if \(car\.quoted_total != null\) \{\s*return \{ bookable: true/)
+    expect(fleet).toContain('Free for your dates')
+  })
+
+  it('the booking page accepts a reserved car and checks the dates instead', () => {
+    const page = code('BookingPage.tsx')
+    expect(page).toContain("if (v.status === 'rented') {")
+    expect(page).not.toContain("if (v.status !== 'available') {")
+    expect(page).toContain('setFreeForDates(free.some((v) => v.id === vehicle.id))')
+  })
+
+  it('same-day pickup is offered and the return must be a later day', () => {
+    const fleet = code('Fleet.tsx')
+    expect(fleet).toContain('return localDateInput(new Date())')
+    expect(fleet).toContain('min={nextDay(pickup || minPickup)}')
+  })
+
+  it('a fully booked fleet says what to do next', () => {
+    expect(code('Fleet.tsx')).toContain('All our cars are out or booked today.')
+  })
+})
+
+describe('navigation lands where it says', () => {
+  it('Home has a real target and no fake dropdowns remain', () => {
+    const header = code('Header.tsx')
+    expect(header).toContain("{ href: '#top', label: t('nav.home') }")
+    expect(header).not.toContain('ChevronDown')
+  })
+
+  it('sections clear the fixed header', () => {
+    const css = (import.meta.glob<string>('../index.css', { query: '?raw', import: 'default', eager: true }))['../index.css']
+    expect(css).toMatch(/section\[id\]\s*\{\s*scroll-margin-top:\s*7rem;/)
+  })
+
+  it('the lazy About image reserves its space', () => {
+    expect(code('About.tsx')).toContain('aspect-[4/3]')
+  })
+
+  it('Book Now starts the date search', () => {
+    const hero = code('Hero.tsx')
+    expect(hero).toContain("document.getElementById('fleet-pickup')")
+    expect(hero).toContain('onClick={startBooking}')
+  })
+})
+
+describe('forms and dialogs', () => {
+  it('the contact form refuses an address it could not reply to', () => {
+    const contact = code('Contact.tsx')
+    expect(contact).toContain('const emailInvalid =')
+    expect(contact).toContain('disabled={!canSend || emailInvalid || phoneInvalid}')
+  })
+
+  it('the car dialog takes, keeps and returns focus', () => {
+    const fleet = code('Fleet.tsx')
+    expect(fleet).toContain('closeRef.current?.focus()')
+    expect(fleet).toContain("if (e.key !== 'Tab' || !dialogRef.current) return")
+    expect(fleet).toContain('opener?.focus?.()')
+  })
+
+  it('a car can be opened from the keyboard', () => {
+    expect(code('Fleet.tsx')).toContain("onClick={(e) => { e.stopPropagation(); onInspect() }}")
   })
 })

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronDown, Phone, Menu, X, User, Send } from 'lucide-react'
+import { Phone, Menu, X, User, Send } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { contactInfo } from '../data/cars'
@@ -18,7 +18,8 @@ export default function Header() {
   const logout = useAuthStore((s) => s.logout)
 
   const navLinks = [
-    { href: '#', label: t('nav.home') },
+    // Was a bare '#', unlike every sibling; the logo already used #top.
+    { href: '#top', label: t('nav.home') },
     { href: '#about', label: t('nav.about') },
     { href: '#services', label: t('nav.services') },
     { href: '#cars', label: t('nav.cars') },
@@ -37,12 +38,7 @@ export default function Header() {
 
   const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault()
-    if (href === '#') {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-      setIsMenuOpen(false)
-      return
-    }
-    document.querySelector(href)?.scrollIntoView({ behavior: 'smooth' })
+    document.querySelector(href === '#' ? '#top' : href)?.scrollIntoView({ behavior: 'smooth' })
     setIsMenuOpen(false)
   }
 
@@ -67,10 +63,13 @@ export default function Header() {
                 onClick={(e) => scrollToSection(e, link.href)}
                 className="flex items-center gap-1 text-sm font-medium text-white transition-colors hover:text-gold"
               >
+                {/*
+                  Services and Cars carried a dropdown chevron but open no
+                  submenu, so the arrow promised something that was not there.
+                  It was also keyed on the English label, so it vanished in
+                  Amharic.
+                */}
                 {link.label}
-                {(link.label === 'Services' || link.label === 'Cars') && (
-                  <ChevronDown className="h-3 w-3" />
-                )}
               </a>
             ))}
           </nav>

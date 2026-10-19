@@ -54,7 +54,12 @@ export default function About() {
             <img loading="lazy" decoding="async"
               src="https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&q=80&w=800"
               alt="Nod Car Rent fleet"
-              className="rounded-2xl w-full object-cover"
+              // A fixed ratio keeps its space reserved while it lazy-loads;
+              // with height unset the page grew mid-scroll and nav jumps
+              // landed short of their section.
+              width={800}
+              height={600}
+              className="rounded-2xl w-full aspect-[4/3] object-cover"
             />
             <div className="absolute -bottom-6 -left-6 bg-brand rounded-2xl p-6 hidden lg:block">
               <p className="text-white text-3xl font-bold">5+</p>

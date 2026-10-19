@@ -37,6 +37,32 @@ const UNKNOWN_STATUS_BADGE = {
   cls: 'bg-gray-500/20 text-gray-400 border border-gray-500/30',
 }
 
+/**
+ * Whether a car can be booked, and the badge that says so.
+ *
+ * A date search returns only cars the server has checked are free for that
+ * window, each carrying quoted_total. The cards ignored that and judged by
+ * today's status, so a search answered with five free cars, every one marked
+ * "Reserved · Unavailable · Available from 5 Dec" — the page contradicted the
+ * search it had just run, and nothing could be booked from it. Status says
+ * whether *some* booking exists, not whether this window is taken.
+ */
+const FREE_FOR_DATES_BADGE = {
+  label: 'Free for your dates',
+  cls: 'bg-green-500/20 text-green-400 border border-green-500/30',
+}
+
+function availabilityOf(car: PublicVehicle) {
+  if (car.quoted_total != null) {
+    return { bookable: true, badge: FREE_FOR_DATES_BADGE, showAvailableFrom: false }
+  }
+  return {
+    bookable: car.status === 'available',
+    badge: STATUS_BADGE[car.status] ?? UNKNOWN_STATUS_BADGE,
+    showAvailableFrom: car.status !== 'available' && !!car.available_from,
+  }
+}
+
 /** The visible name of a vehicle, reused for alt text and control labels. */
 function carName(car: PublicVehicle): string {
   return `${car.year} ${car.make} ${car.model}`
@@ -158,16 +184,58 @@ function PhotoCarousel({
 // ---------------------------------------------------------------------------
 // Car detail modal
 // ---------------------------------------------------------------------------
-function CarModal({ car, onClose }: { car: PublicVehicle; onClose: () => void }) {
+function CarModal({
+  car,
+  onClose,
+  dates,
+}: {
+  car: PublicVehicle
+  onClose: () => void
+  dates?: { pickup: string; returnDate: string } | null
+}) {
   const photos = getPhotos(car)
-  const isAvailable = car.status === 'available'
-  const badge = STATUS_BADGE[car.status] ?? UNKNOWN_STATUS_BADGE
+  const { bookable: isAvailable, badge, showAvailableFrom } = availabilityOf(car)
 
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null)
+
+  /*
+    Focus went nowhere: it stayed on <body> behind the dialog, so a keyboard
+    user could not reach its buttons and Tab walked the page underneath.
+    Focus now moves into the dialog, Tab cycles inside it, and on close it
+    returns to the card that opened it.
+  */
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const opener = document.activeElement as HTMLElement | null
+    closeRef.current?.focus()
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (e.key !== 'Tab' || !dialogRef.current) return
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+      opener?.focus?.()
+    }
   }, [onClose])
 
   return (
@@ -176,6 +244,7 @@ function CarModal({ car, onClose }: { car: PublicVehicle; onClose: () => void })
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={carName(car)}
@@ -186,6 +255,7 @@ function CarModal({ car, onClose }: { car: PublicVehicle; onClose: () => void })
         <div className="group relative rounded-t-2xl overflow-hidden">
           <PhotoCarousel photos={photos} label={carName(car)} height="h-64" autoplay grayscale={!isAvailable} />
           <button
+            ref={closeRef}
             type="button"
             aria-label={`Close details for ${carName(car)}`}
             onClick={onClose}
@@ -225,7 +295,7 @@ function CarModal({ car, onClose }: { car: PublicVehicle; onClose: () => void })
             </div>
           </div>
 
-          {!isAvailable && car.available_from && (
+          {showAvailableFrom && car.available_from && (
             <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 mb-5">
               <Calendar className="h-4 w-4 text-yellow-400 shrink-0" />
               <p className="text-yellow-300 text-sm">
@@ -242,6 +312,7 @@ function CarModal({ car, onClose }: { car: PublicVehicle; onClose: () => void })
             {isAvailable ? (
               <Link
                 to={`/book/${car.id}`}
+                state={dates ?? undefined}
                 onClick={onClose}
                 className="btn-gold px-6 py-2.5 rounded-full text-sm font-semibold"
               >
@@ -273,8 +344,7 @@ function ApiCarCard({
   dates?: { pickup: string; returnDate: string } | null
 }) {
   const photos = getPhotos(car)
-  const isAvailable = car.status === 'available'
-  const badge = STATUS_BADGE[car.status] ?? UNKNOWN_STATUS_BADGE
+  const { bookable: isAvailable, badge, showAvailableFrom } = availabilityOf(car)
 
   return (
     <div
@@ -293,7 +363,20 @@ function ApiCarCard({
         </div>
       </div>
       <div className="p-6">
-        <h3 className="text-xl font-semibold text-white mb-4">{carName(car)}</h3>
+        {/*
+          The card opens on click, but it is a div: nothing on it could take
+          keyboard focus, so the details dialog was unreachable without a
+          mouse. The name is a real button; clicking anywhere still works.
+        */}
+        <h3 className="text-xl font-semibold text-white mb-4">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onInspect() }}
+            className="text-left hover:text-gold focus-visible:text-gold focus:outline-none focus-visible:underline"
+          >
+            {carName(car)}
+          </button>
+        </h3>
         <div className="flex items-center justify-between text-sm text-gray-400 mb-4">
           <div className="flex items-center gap-1.5">
             <Users className="h-4 w-4 text-gold" />
@@ -308,7 +391,7 @@ function ApiCarCard({
             <span>A/C</span>
           </div>
         </div>
-        {!isAvailable && car.available_from && (
+        {showAvailableFrom && car.available_from && (
           <p className="text-xs text-gray-400 mb-4">
             Available from <span className="text-gold font-medium">{formatDate(car.available_from)}</span>
           </p>
@@ -360,11 +443,35 @@ function ApiCarCard({
 // ---------------------------------------------------------------------------
 // Fleet section
 // ---------------------------------------------------------------------------
-/** Tomorrow at 09:00, as a date input value. */
+/** A local date as YYYY-MM-DD. toISOString() gave the UTC date, which in
+ *  Addis is yesterday until 03:00. */
+function localDateInput(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/** The earliest pickup day: today, since the site offers same-day and 24/7
+ *  service and the booking page already allowed it. */
 function defaultPickup(): string {
-  const d = new Date()
+  return localDateInput(new Date())
+}
+
+/** The day after a date input value. */
+function nextDay(value: string): string {
+  const d = new Date(`${value}T00:00:00`)
   d.setDate(d.getDate() + 1)
-  return d.toISOString().slice(0, 10)
+  return localDateInput(d)
+}
+
+/** Pickup time for a chosen day: 09:00, or the next full hour if that has
+ *  already passed today, which the server would otherwise refuse. */
+function pickupTime(day: string): string {
+  const now = new Date()
+  if (day === localDateInput(now) && now.getHours() >= 9) {
+    const hour = Math.min(now.getHours() + 1, 23)
+    return `${day}T${String(hour).padStart(2, '0')}:00:00`
+  }
+  return `${day}T09:00:00`
 }
 
 export default function Fleet() {
@@ -398,7 +505,7 @@ export default function Fleet() {
     }
     setDateError('')
     setApplied({
-      pickup: `${pickup}T09:00:00`,
+      pickup: pickupTime(pickup),
       returnDate: `${returnDate}T09:00:00`,
     })
   }
@@ -478,7 +585,7 @@ export default function Fleet() {
               <input
                 id="fleet-return"
                 type="date"
-                min={pickup || minPickup}
+                min={nextDay(pickup || minPickup)}
                 value={returnDate}
                 onChange={(e) => { setReturnDate(e.target.value); setDateError('') }}
                 className="bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold [color-scheme:dark]"
@@ -541,6 +648,21 @@ export default function Fleet() {
               </p>
             </div>
           ) : (
+            <>
+            {/*
+              Every car can be rented or reserved today, and the grid then
+              read as a wall of "Unavailable" with no way forward. Reserved
+              cars are often free on other dates, so point at the search.
+            */}
+            {!applied && filteredApi.every((car) => !availabilityOf(car).bookable) && (
+              <div role="status" className="bg-dark-200 border border-gold/30 rounded-2xl p-5 mb-6 text-center">
+                <p className="text-white font-semibold">All our cars are out or booked today.</p>
+                <p className="text-gray-400 text-sm mt-1">
+                  Pick your dates above to see which are free then, or call us on{' '}
+                  {contactInfo.phones[0]} and we'll find you one.
+                </p>
+              </div>
+            )}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredApi.map((car) => (
                 <ApiCarCard
@@ -551,11 +673,12 @@ export default function Fleet() {
                 />
               ))}
             </div>
+            </>
           )}
         </div>
       </section>
 
-      {inspecting && <CarModal car={inspecting} onClose={() => setInspecting(null)} />}
+      {inspecting && <CarModal car={inspecting} dates={applied} onClose={() => setInspecting(null)} />}
     </>
   )
 }
