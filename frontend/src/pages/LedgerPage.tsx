@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { useToast } from '@/hooks/use-toast'
 import customersService, { CustomerLedgerEntry } from '@/services/customers'
 import vendorsService from '@/services/vendors'
-import { toNumber } from '@/lib/utils'
+import { toNumber, formatDateTime as sharedFormatDateTime } from '@/lib/utils'
 import { formatDate as sharedFormatDate } from '../lib/utils'
 
 
@@ -60,7 +60,7 @@ function fmtDate(s: string) {
 }
 
 function fmtTime(s: string) {
-  return new Date(s).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  return sharedFormatDateTime(s, { hour: '2-digit', minute: '2-digit' })
 }
 
 // ─── Reverse modal ─────────────────────────────────────────────────────────────
@@ -553,8 +553,8 @@ function AgreementsTab() {
                         <tr key={entry.id} className={`${entry.entry_type === 'reversal' ? 'bg-amber-50' : 'hover:bg-gray-50'} ${reversed ? 'opacity-50' : ''}`}>
                           <td className="px-3 py-3 text-center text-xs text-gray-500">{idx + 1}</td>
                           <td className="whitespace-nowrap px-5 py-3">
-                            <p className="font-medium text-gray-700">{new Date(entry.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
-                            <p className="text-xs text-gray-500">{new Date(entry.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+                            <p className="font-medium text-gray-700">{sharedFormatDate(entry.created_at, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                            <p className="text-xs text-gray-500">{sharedFormatDateTime(entry.created_at, { hour: '2-digit', minute: '2-digit' })}</p>
                           </td>
                           <td className="whitespace-nowrap px-5 py-3">
                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_BADGE[entry.entry_type] ?? 'bg-gray-100 text-gray-700'} ${reversed ? 'line-through opacity-70' : ''}`}>

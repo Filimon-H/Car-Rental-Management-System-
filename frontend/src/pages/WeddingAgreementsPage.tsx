@@ -11,6 +11,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { PageToolbar } from '@/components/ui/PageToolbar'
 import { Button } from '@/components/ui/Button'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { formatDate as sharedFormatDate } from '@/lib/utils'
 
 const PAGE_SIZE = 20
 
@@ -52,7 +53,7 @@ export default function WeddingAgreementsPage() {
   })
 
   const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('en-US', {
+    sharedFormatDate(dateStr, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

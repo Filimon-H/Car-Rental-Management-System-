@@ -9,6 +9,7 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { documentsService } from '@/services/documents'
 import { InspectionPhotos } from '@/components/inspections/InspectionPhotos'
+import { formatDateTime as sharedFormatDateTime } from '@/lib/utils'
 
 export default function InspectionDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -88,7 +89,7 @@ export default function InspectionDetailPage() {
   const humanize = (key: string) =>
     key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
   const formatDate = (value: string | null) =>
-    value ? new Date(value).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '—'
+    value ? sharedFormatDateTime(value, { dateStyle: 'medium', timeStyle: 'short' }) : '—'
 
   return (
     <div className="p-6">

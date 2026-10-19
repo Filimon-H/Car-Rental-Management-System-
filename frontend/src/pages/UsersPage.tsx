@@ -11,6 +11,7 @@ import {
 } from '@/services/users'
 import { getErrorMessage } from '@/services/apiClient'
 import { useTranslation } from 'react-i18next'
+import { formatDate as sharedFormatDate } from '@/lib/utils'
 
 const ROLES: UserRole[] = ['admin', 'sales', 'fleet', 'inspector', 'accountant']
 
@@ -421,7 +422,7 @@ export default function UsersPage() {
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-400">
                     {user.last_login_at
-                      ? new Date(user.last_login_at).toLocaleDateString()
+                      ? sharedFormatDate(user.last_login_at)
                       : 'Never'}
                   </td>
                   <td className="px-4 py-3">

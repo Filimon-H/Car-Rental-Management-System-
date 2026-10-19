@@ -6,6 +6,7 @@ import { vehiclesService } from '@/services/vehicles'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
 import { MaintenanceSection } from '@/components/vehicles/MaintenanceSection'
 import { useTranslation } from 'react-i18next'
+import { formatDateTime as sharedFormatDateTime } from '@/lib/utils'
 
 const toUploadUrl = (relativePath: string) => {
   const cleaned = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath
@@ -155,8 +156,8 @@ export default function VehicleDetailPage() {
               </div>
               <div className="rounded-lg bg-gray-50 p-4">
                 <div className="text-xs font-medium uppercase text-gray-500">{t('common.metadata')}</div>
-                <div className="mt-1 text-sm text-gray-900">Created: {new Date(vehicle.created_at).toLocaleString()}</div>
-                <div className="text-sm text-gray-600">Updated: {new Date(vehicle.updated_at).toLocaleString()}</div>
+                <div className="mt-1 text-sm text-gray-900">Created: {sharedFormatDateTime(vehicle.created_at)}</div>
+                <div className="text-sm text-gray-600">Updated: {sharedFormatDateTime(vehicle.updated_at)}</div>
               </div>
             </div>
 

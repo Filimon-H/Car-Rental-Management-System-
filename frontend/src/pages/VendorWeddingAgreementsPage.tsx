@@ -14,6 +14,7 @@ import { PageToolbar } from '@/components/ui/PageToolbar'
 import { Button } from '@/components/ui/Button'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { toast } from '@/hooks/use-toast'
+import { formatDate as sharedFormatDate } from '@/lib/utils'
 
 const PAGE_SIZE = 20
 
@@ -55,7 +56,7 @@ export default function VendorWeddingAgreementsPage() {
   })
 
   const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('en-US', {
+    sharedFormatDate(dateStr, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

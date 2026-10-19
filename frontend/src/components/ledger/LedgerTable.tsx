@@ -10,7 +10,7 @@ import {
   Banknote,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { toNumber } from '@/lib/utils'
+import { toNumber, formatDateTime as sharedFormatDateTime } from '@/lib/utils'
 import { formatDate as sharedFormatDate } from '../../lib/utils'
 
 interface TypeMeta {
@@ -111,7 +111,7 @@ export default function LedgerTable({ agreementId, onReverse, onReceipt }: Ledge
     })
 
   const fmtTime = (s: string) =>
-    new Date(s).toLocaleTimeString('en-US', {
+    sharedFormatDateTime(s, {
       hour: '2-digit',
       minute: '2-digit',
     })

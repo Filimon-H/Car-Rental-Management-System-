@@ -6,6 +6,7 @@ import { collateralsService } from '@/services/collaterals'
 import { vehiclesService } from '@/services/vehicles'
 import { ArrowLeft, Printer } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { formatDate as sharedFormatDate, formatDateTime as sharedFormatDateTime } from '@/lib/utils'
 
 /** The office line printed on agreements. Matches the public site. */
 const COMPANY_PHONE = '+251 911 669414'
@@ -43,14 +44,14 @@ export default function AgreementPrintPage() {
   })
 
   const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('en-US', {
+    sharedFormatDate(dateStr, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     })
 
   const formatDateTime = (dateStr: string) =>
-    new Date(dateStr).toLocaleString('en-US', {
+    sharedFormatDateTime(dateStr, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',

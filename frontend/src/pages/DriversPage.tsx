@@ -10,7 +10,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { PageToolbar } from '@/components/ui/PageToolbar'
 import { Button } from '@/components/ui/Button'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { normalizeEthiopianPhone } from '@/lib/utils'
+import { normalizeEthiopianPhone, formatDate as sharedFormatDate } from '@/lib/utils'
 
 const PAGE_SIZE = 20
 
@@ -87,7 +87,7 @@ export default function DriversPage() {
       className: 'whitespace-nowrap',
       cell: (driver) =>
         driver.license_expiry
-          ? new Date(driver.license_expiry).toLocaleDateString()
+          ? sharedFormatDate(driver.license_expiry)
           : t('common.notAvailable', 'N/A'),
     },
     {

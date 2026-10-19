@@ -29,12 +29,10 @@ import { vehiclesService } from '@/services/vehicles'
 import LedgerTable from '@/components/ledger/LedgerTable'
 import { getErrorMessage } from '@/services/apiClient'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import {
-  datetimeLocalToWallClockIso,
+import { datetimeLocalToWallClockIso,
   localNowWallClockIso,
   toDatetimeLocalValue,
-  toNumber,
-} from '@/lib/utils'
+  toNumber, formatDate as sharedFormatDate } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { documentsService } from '@/services/documents'
 import { formatDateTime } from '../lib/utils'
@@ -697,7 +695,7 @@ export default function AgreementDetailPage() {
                   <span className="text-gray-500">{t('drivers.columns.licenseExpiry')}</span>
                   <span className="font-medium">
                     {customer?.driver_license_expiry
-                      ? new Date(customer.driver_license_expiry).toLocaleDateString('en-GB')
+                      ? sharedFormatDate(customer.driver_license_expiry)
                       : '—'}
                   </span>
                 </div>

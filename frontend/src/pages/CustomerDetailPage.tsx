@@ -7,6 +7,7 @@ import { customerDocumentsService } from '@/services/customerDocuments'
 import { collateralsService, CollateralPerson } from '@/services/collaterals'
 import { ProtectedDocumentCard } from '@/components/documents/ProtectedDocumentCard'
 import { useTranslation } from 'react-i18next'
+import { formatDate as sharedFormatDate, formatDateTime as sharedFormatDateTime } from '@/lib/utils'
 
 export default function CustomerDetailPage() {
   const { t } = useTranslation()
@@ -168,11 +169,11 @@ export default function CustomerDetailPage() {
                   <InfoRow label={t('customerCreate.idTypeRequired').replace(' *', '')} value={customer.id_type ? (idTypeLabels[customer.id_type] || customer.id_type) : '-'} />
                   <InfoRow label="ID Number" value={customer.id_number || '-'} />
                   {customer.id_expiry_date && (
-                    <InfoRow label="ID Expiry" value={new Date(customer.id_expiry_date).toLocaleDateString()} icon={<Calendar className="h-4 w-4" />} />
+                    <InfoRow label="ID Expiry" value={sharedFormatDate(customer.id_expiry_date)} icon={<Calendar className="h-4 w-4" />} />
                   )}
                   <InfoRow label="Driver License" value={customer.driver_license_number || '-'} />
                   {customer.driver_license_expiry && (
-                    <InfoRow label="License Expiry" value={new Date(customer.driver_license_expiry).toLocaleDateString()} icon={<Calendar className="h-4 w-4" />} />
+                    <InfoRow label="License Expiry" value={sharedFormatDate(customer.driver_license_expiry)} icon={<Calendar className="h-4 w-4" />} />
                   )}
                 </dl>
               </div>
@@ -293,7 +294,7 @@ export default function CustomerDetailPage() {
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    Expires: {new Date(botLinkCode.expires_at).toLocaleString()} · Single-use
+                    Expires: {sharedFormatDateTime(botLinkCode.expires_at)} · Single-use
                   </p>
                 </div>
 
@@ -347,8 +348,8 @@ export default function CustomerDetailPage() {
           {/* Metadata */}
           <div className="rounded-lg border bg-gray-50 p-4 text-sm text-gray-500">
             <div className="flex gap-6">
-              <span>Created: {new Date(customer.created_at).toLocaleString()}</span>
-              <span>Updated: {new Date(customer.updated_at).toLocaleString()}</span>
+              <span>Created: {sharedFormatDateTime(customer.created_at)}</span>
+              <span>Updated: {sharedFormatDateTime(customer.updated_at)}</span>
               <span className={`font-medium ${customer.is_active ? 'text-green-600' : 'text-red-600'}`}>
                 {customer.is_active ? 'Active' : 'Inactive'}
               </span>

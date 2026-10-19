@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { ClipboardList } from 'lucide-react'
 import { inspectionsService } from '@/services/inspections'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { formatDateTime as sharedFormatDateTime } from '@/lib/utils'
 
 /**
  * Inspection history.
@@ -30,7 +31,7 @@ export default function InspectionsListPage() {
   })
 
   const formatDate = (value: string) =>
-    new Date(value).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+    sharedFormatDateTime(value, { dateStyle: 'medium', timeStyle: 'short' })
 
   return (
     <div>

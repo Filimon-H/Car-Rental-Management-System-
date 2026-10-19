@@ -16,6 +16,7 @@ import { PageToolbar } from '@/components/ui/PageToolbar'
 import { Button } from '@/components/ui/Button'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { getErrorMessage } from '@/services/apiClient'
+import { formatDate as sharedFormatDate } from '@/lib/utils'
 
 const PAGE_SIZE = 20
 
@@ -255,7 +256,7 @@ function VendorDetailPanel({ vendor, onClose, onEdit }: { vendor: Vendor; onClos
                         </div>
                       </div>
                       <div className="text-right text-xs text-slate-400">
-                        {new Date(p.created_at).toLocaleDateString()}
+                        {sharedFormatDate(p.created_at)}
                       </div>
                     </div>
                   ))}
