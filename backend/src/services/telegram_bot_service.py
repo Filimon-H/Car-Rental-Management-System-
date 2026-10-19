@@ -264,6 +264,8 @@ class TelegramBotService:
         self._pending_search_states: dict[int, str] = {}
         #: Chats whose command menu has been scoped this process.
         self._scoped_menus: dict[int, str] = {}
+        #: Whether the default menu is registered; retried until it is.
+        self._commands_registered = False
         #: Strong refs to in-flight notification tasks, so the event
         #: loop does not garbage-collect them mid-send.
         self._pending_notifications: set = set()
@@ -355,6 +357,8 @@ class TelegramBotService:
                 if consecutive_failures:
                     logger.info("Telegram polling recovered after %d failures", consecutive_failures)
                 consecutive_failures = 0
+                # A successful poll means Telegram is reachable again.
+                await self._retry_commands_if_needed()
                 last_error = None
             except asyncio.CancelledError:
                 raise
@@ -415,13 +419,15 @@ class TelegramBotService:
         """Scope a chat's menu once per process, for chats linked earlier."""
         if self._scoped_menus.get(chat_id) == role:
             return
-        self._scoped_menus[chat_id] = role
-        await self.set_commands_for_chat(chat_id, role)
+        # Cache only on success: marking it done first meant one failed call
+        # left the chat on the wrong menu for the life of the process.
+        if await self.set_commands_for_chat(chat_id, role):
+            self._scoped_menus[chat_id] = role
 
-    async def set_commands_for_chat(self, chat_id: int, role: str) -> None:
-        """Scope a chat's menu to its role. Called when a chat links."""
+    async def set_commands_for_chat(self, chat_id: int, role: str) -> bool:
+        """Scope a chat's menu to its role. Returns whether it took."""
         if not self.enabled:
-            return
+            return False
         try:
             await self._api(
                 "setMyCommands",
@@ -430,8 +436,10 @@ class TelegramBotService:
                     "scope": {"type": "chat", "chat_id": chat_id},
                 },
             )
+            return True
         except Exception as exc:
             logger.warning("Unable to scope commands for chat %s: %s", chat_id, exc)
+            return False
 
     async def _set_commands(self) -> None:
         """Register the default command menu for unlinked chats."""
@@ -442,8 +450,24 @@ class TelegramBotService:
         commands = list(self._UNIVERSAL_COMMANDS)
         try:
             await self._api("setMyCommands", {"commands": commands})
+            self._commands_registered = True
         except Exception as exc:
-            logger.warning("Unable to set Telegram commands: %s", exc)
+            # Not fatal: _retry_commands_if_needed tries again as soon as
+            # polling succeeds, i.e. once the network is back.
+            self._commands_registered = False
+            logger.warning("Unable to set Telegram commands, will retry: %s", exc)
+
+    async def _retry_commands_if_needed(self) -> None:
+        """Register the menu if startup could not.
+
+        Registration ran once at startup and gave up on failure, so a server
+        started while Telegram was unreachable recovered its polling but kept
+        a stale menu until the next restart.
+        """
+        if not self._commands_registered:
+            await self._set_commands()
+            if self._commands_registered:
+                logger.info("Telegram commands registered after an earlier failure")
 
     async def _get_updates(self) -> list[dict[str, Any]]:
         """Fetch bot updates with long polling."""
