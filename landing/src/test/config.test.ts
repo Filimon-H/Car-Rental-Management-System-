@@ -500,3 +500,17 @@ describe('forms and dialogs', () => {
     expect(code('Fleet.tsx')).toContain("onClick={(e) => { e.stopPropagation(); onInspect() }}")
   })
 })
+
+describe('hero imagery', () => {
+  it('is served from this site, not hotlinked', () => {
+    // Unsplash is unreachable on some networks, which left a blank backdrop.
+    const hero = code('Hero.tsx')
+    expect(hero).not.toContain('images.unsplash.com')
+    expect(hero.match(/'\/images\/hero\/[a-z0-9-]+\.jpg'/g)?.length).toBe(3)
+  })
+
+  it('no longer reads the demo fleet', () => {
+    expect(code('Hero.tsx')).not.toContain("from '../data/cars'")
+    expect(code('cars.ts')).not.toMatch(/export const cars\b/)
+  })
+})

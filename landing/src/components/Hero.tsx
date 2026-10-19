@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react'
 import { Clock, Shield, MapPin } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { cars } from '../data/cars'
 
 /**
- * Slides supply the backdrop only.
+ * Backdrop photos for the hero. Mood only: these are stock images, not Nod's
+ * fleet, and the hero makes no claim about them — the fleet section shows the
+ * real vehicles. CC0, provenance in public/images/hero/CREDITS.md.
  *
- * The spec card here used to read seats/transmission/A-C off these entries,
- * which are demo data: it advertised a 7-seat Mercedes and a 12-seat minivan
- * that are not in the fleet, and every real vehicle is a 5-seat Toyota. A
- * visitor was shown a capacity the company cannot supply. Driving it from
- * /api/public/vehicles is the better answer, but not yet — no vehicle has a
- * photo and the names are still placeholders ("New Car2"), so the card would
- * be accurate and unusable. Until then it makes no per-vehicle claim.
+ * They are served from this site. They used to be hotlinked from Unsplash,
+ * which is unreachable on some networks, so the hero showed a blank backdrop;
+ * they also came from the demo `cars` array, which advertised a 7-seat
+ * Mercedes and a 12-seat minivan the company does not have.
  */
-const heroSlides = cars.filter((c) => c.featured).slice(0, 3)
+const heroSlides = [
+  { image: '/images/hero/toyota-rav4-white.jpg' },
+  { image: '/images/hero/toyota-yaris-white.jpg' },
+  { image: '/images/hero/toyota-rav4-black.jpg' },
+]
 
 export default function Hero() {
   const { t } = useTranslation()
