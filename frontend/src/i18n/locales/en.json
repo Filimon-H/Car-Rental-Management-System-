@@ -688,7 +688,10 @@
       "daily": "Day",
       "monthly": "Month",
       "yearly": "Year"
-    }
+    },
+    "reversalReasonPlaceholder": "Explain why this entry is being reversed…",
+    "outgoingPayments": "These are outgoing payments from NOD Car Rental to the vendor",
+    "noEntries": "No ledger entries yet"
   },
   "users": {
     "activeAccount": "Active account",
@@ -744,7 +747,9 @@
     "ownerVendor": "Owner (Vendor)",
     "plate": "Plate",
     "serviceFuel": "Service / Fuel",
-    "typeSeats": "Type / Seats"
+    "typeSeats": "Type / Seats",
+    "notFound": "Vehicle not found.",
+    "active": "Active"
   },
   "collateralDetail": {
     "addCollateralPerson": "Add Collateral Person",
@@ -752,7 +757,9 @@
     "editCollateralPerson": "Edit Collateral Person",
     "noCollateralPersons": "No collateral persons added",
     "notFound": "Collateral person not found",
-    "title": "Collateral Details"
+    "title": "Collateral Details",
+    "backToCustomer": "Back to Customer",
+    "backToCollaterals": "Back to Collaterals"
   },
   "adminLookups": {
     "addValue": "Add Value",
@@ -846,7 +853,12 @@
     "returnMustBeLater": "New return date must be after the current expected return date.",
     "settlementActions": "Settlement Actions",
     "settlementClose": "Settlement & Close Agreement",
-    "approvingBooking": "Approving…"
+    "approvingBooking": "Approving…",
+    "printAgreement": "Print Agreement",
+    "postPayment": "Post Payment",
+    "confirmReturn": "Confirm Return",
+    "yesCancelAgreement": "Yes, Cancel Agreement",
+    "returnNotesPlaceholder": "Any notes about the return condition…"
   },
   "sections": {
     "bankInformation": "Bank Information",
@@ -1170,5 +1182,127 @@
     "cbe_birr": "CBE Birr",
     "check": "Cheque",
     "other": "Other"
+  },
+  "forms": {
+    "saving": "Saving…",
+    "processing": "Processing…",
+    "creating": "Creating…",
+    "cancelling": "Cancelling…",
+    "submit": "Submit",
+    "saveAndClose": "Save & Close",
+    "saveAndNext": "Save & Next →",
+    "saveChanges": "Save Changes",
+    "personalInfo": "Personal Info",
+    "contactInfo": "Contact Info",
+    "idAndLicense": "ID & License",
+    "idInfo": "ID Info",
+    "checkingDuplicates": "Checking for duplicates…",
+    "selectRelationship": "Select relationship…",
+    "idDocument": "{{type}} Document",
+    "customerNotesPlaceholder": "Any additional notes about this customer…",
+    "collateralNotesPlaceholder": "Any additional notes about this collateral person…",
+    "notesPlaceholder": "Enter any additional notes…",
+    "ngo": "NGO"
+  },
+  "vendorForm": {
+    "add": "Add Vendor",
+    "edit": "Edit Vendor",
+    "save": "Save Vendor",
+    "type": "Type",
+    "contactPerson": "Contact Person",
+    "commissionRate": "Commission Rate (%)",
+    "bankName": "Bank Name",
+    "accountNumber": "Account Number",
+    "accountHolder": "Account Holder"
+  },
+  "inspectionForm": {
+    "location": "Location",
+    "estCost": "Est. Cost",
+    "create": "Create Inspection"
+  },
+  "lookups": {
+    "subtitle": "Manage dropdown values used throughout the system",
+    "loadFailed": "Failed to load lookup defaults.",
+    "selectOrAdd": "Select a category or add your first value.",
+    "noValues": "No values in this category.",
+    "addValue": "Add Value",
+    "editValue": "Edit Value",
+    "activate": "Activate",
+    "deactivate": "Deactivate"
+  },
+  "collateralNew": {
+    "selectCustomerFirst": "First select the customer this collateral person belongs to",
+    "searchPlaceholder": "Search customers by name, phone, or ID…",
+    "noCustomers": "No customers found."
+  },
+  "customerForm": {
+    "add": "Add Customer",
+    "edit": "Edit Customer"
+  },
+  "driverForm": {
+    "add": "Add Driver",
+    "edit": "Edit Driver"
+  },
+  "dashboardBot": {
+    "label": "Bot",
+    "refreshCode": "Refresh code",
+    "generateCode": "Generate code"
+  },
+  "usersForm": {
+    "create": "Create Staff User",
+    "edit": "Edit Staff User",
+    "resetPassword": "Reset Password"
+  },
+  "weddingForm": {
+    "optionalLink": "Optional - link to a customer wedding agreement"
+  },
+  "vendorPayment": {
+    "referencePlaceholder": "Transaction ID, cheque number…",
+    "save": "Save Payment"
+  },
+  "upload": {
+    "clickToUpload": "Click to upload",
+    "orDragAndDrop": "or drag and drop",
+    "uploading": "Uploading…",
+    "uploaded": "Uploaded",
+    "documentTypes": "JPG, PNG, WebP, or PDF (max 10MB)",
+    "csvOnly": "CSV files only",
+    "selectDifferent": "Click to select a different file"
+  },
+  "bulkUpload": {
+    "title": "Bulk Upload Customers",
+    "instructions": "Instructions",
+    "step1": "Download the template CSV file below",
+    "step2": "Fill in customer data (one customer per row)",
+    "step3": "Required fields: first_name, last_name, phone_primary",
+    "step4": "For individuals: id_number and driver_license_number are required",
+    "step5": "For companies: company_name is required",
+    "step6": "Upload the completed CSV file"
+  },
+  "lightbox": {
+    "close": "Close image preview",
+    "zoomOut": "Zoom out",
+    "zoomIn": "Zoom in",
+    "resetZoom": "Reset zoom"
+  },
+  "search": {
+    "clear": "Clear search"
+  },
+  "account": {
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmNewPassword": "Confirm New Password",
+    "changeFailed": "Failed to change password",
+    "mismatch": "New passwords do not match",
+    "tooShort": "New password must be at least 8 characters",
+    "signOut": "Sign out",
+    "closeUserMenu": "Close user menu"
+  },
+  "shell": {
+    "mainNavigation": "Main navigation",
+    "lightMode": "Switch to light mode",
+    "darkMode": "Switch to dark mode",
+    "closeLanguageMenu": "Close language menu"
   }
 }

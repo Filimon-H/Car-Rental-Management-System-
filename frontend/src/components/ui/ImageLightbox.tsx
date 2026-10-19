@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Minus, Plus, RotateCcw, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface ImageLightboxProps {
   open: boolean
@@ -10,6 +11,7 @@ interface ImageLightboxProps {
 }
 
 export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
+  const { t } = useTranslation()
   const [scale, setScale] = useState(1)
 
   useEffect(() => {
@@ -46,7 +48,7 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
         type="button"
         onClick={onClose}
         className="absolute inset-0 cursor-zoom-out"
-        aria-label="Close image preview"
+        aria-label={t('lightbox.close')}
       />
 
       <div className="relative z-10 flex w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
@@ -57,7 +59,7 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
               type="button"
               onClick={() => setScale((s) => s - 0.25)}
               className="rounded-md border px-2 py-1 text-gray-700 hover:bg-gray-50"
-              aria-label="Zoom out"
+              aria-label={t('lightbox.zoomOut')}
             >
               <Minus className="h-4 w-4" />
             </button>
@@ -65,7 +67,7 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
               type="button"
               onClick={() => setScale((s) => s + 0.25)}
               className="rounded-md border px-2 py-1 text-gray-700 hover:bg-gray-50"
-              aria-label="Zoom in"
+              aria-label={t('lightbox.zoomIn')}
             >
               <Plus className="h-4 w-4" />
             </button>
@@ -73,7 +75,7 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
               type="button"
               onClick={() => setScale(1)}
               className="rounded-md border px-2 py-1 text-gray-700 hover:bg-gray-50"
-              aria-label="Reset zoom"
+              aria-label={t('lightbox.resetZoom')}
             >
               <RotateCcw className="h-4 w-4" />
             </button>
@@ -81,7 +83,7 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
               type="button"
               onClick={onClose}
               className="rounded-md border px-2 py-1 text-gray-700 hover:bg-gray-50"
-              aria-label="Close"
+              aria-label={t('common.close')}
             >
               <X className="h-4 w-4" />
             </button>

@@ -395,7 +395,7 @@ function CustomerModal({
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl ring-1 ring-slate-200">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-base font-semibold text-slate-900">
-            {customer ? 'Edit Customer' : 'Add Customer'}
+            {customer ? t('customerForm.edit') : t('customerForm.add')}
           </h2>
           <button onClick={onClose} className="rounded-md p-1 text-slate-400 hover:text-slate-600">
             <X className="h-4 w-4" />
@@ -419,7 +419,7 @@ function CustomerModal({
               <option value="company">{t('customerCreate.company')}</option>
               <option value="government">{t('customerCreate.government')}</option>
               <option value="embassy">{t('customerCreate.embassy')}</option>
-              <option value="ngo">NGO</option>
+              <option value="ngo">{t('forms.ngo')}</option>
               <option value="church">{t('customerCreate.church')}</option>
             </select>
           </div>
@@ -613,7 +613,7 @@ function CustomerModal({
               disabled={isLoading}
               className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-700 disabled:opacity-50"
             >
-              {isLoading ? 'Saving...' : 'Save'}
+              {isLoading ? t('forms.saving') : t('common.save')}
             </button>
           </div>
         </form>

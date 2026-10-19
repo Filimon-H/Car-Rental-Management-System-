@@ -32,6 +32,7 @@ import apiClient from '@/services/apiClient'
 import { useTheme } from '@/hooks/useTheme'
 
 function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -41,18 +42,18 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     mutationFn: (data: { current_password: string; new_password: string }) =>
       apiClient.post('/me/change-password', data),
     onSuccess: () => onClose(),
-    onError: (err: Error) => setError(err.message || 'Failed to change password'),
+    onError: (err: Error) => setError(err.message || t('account.changeFailed')),
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (newPassword !== confirmPassword) {
-      setError('New passwords do not match')
+      setError(t('account.mismatch'))
       return
     }
     if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters')
+      setError(t('account.tooShort'))
       return
     }
     mutation.mutate({ current_password: currentPassword, new_password: newPassword })
@@ -62,14 +63,14 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Change Password</h3>
+          <h3 className="text-lg font-semibold text-gray-900">{t('account.changePassword')}</h3>
           <button onClick={onClose} className="rounded-md p-1 text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Current Password</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('account.currentPassword')}</label>
             <input
               type="password"
               value={currentPassword}
@@ -79,7 +80,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">New Password</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('account.newPassword')}</label>
             <input
               type="password"
               value={newPassword}
@@ -90,7 +91,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              Confirm New Password
+              {t('account.confirmNewPassword')}
             </label>
             <input
               type="password"
@@ -107,14 +108,14 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
               onClick={onClose}
               className="flex-1 rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={mutation.isPending}
               className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
             >
-              {mutation.isPending ? 'Saving...' : 'Save'}
+              {mutation.isPending ? t('forms.saving') : t('common.save')}
             </button>
           </div>
         </form>
@@ -355,7 +356,7 @@ export default function Layout() {
           )}
         </div>
 
-        <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-2 py-4">
+        <nav aria-label={t('shell.mainNavigation')} className="flex-1 overflow-y-auto px-2 py-4">
           {navGroups.map((group) => {
             const visibleItems = group.items.filter(
               (item) => !item.adminOnly || user?.role === 'admin'
@@ -421,7 +422,7 @@ export default function Layout() {
                 type="button"
                 onClick={handleLogout}
                 className="rounded-md p-1.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
-                title="Sign out"
+                title={t('account.signOut')}
               >
                 <LogOut className="h-4 w-4" />
               </button>
@@ -431,7 +432,7 @@ export default function Layout() {
               type="button"
               onClick={handleLogout}
               className="flex w-full items-center justify-center rounded-xl p-2.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
-              title="Sign out"
+              title={t('account.signOut')}
             >
               <LogOut className="h-4 w-4" />
             </button>
@@ -469,7 +470,7 @@ export default function Layout() {
               <button
                 type="button"
                 onClick={toggleTheme}
-                title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                title={isDark ? t('shell.lightMode') : t('shell.darkMode')}
                 className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50 dark:border-night-border dark:bg-night-raised dark:text-orange-brand dark:hover:bg-night-hover"
               >
                 {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -490,7 +491,7 @@ export default function Layout() {
                   <>
                     <button
                       type="button"
-                      aria-label="Close language menu"
+                      aria-label={t('shell.closeLanguageMenu')}
                       className="fixed inset-0 z-10"
                       onClick={() => setLangMenuOpen(false)}
                     />
@@ -534,7 +535,7 @@ export default function Layout() {
                     <>
                       <button
                         type="button"
-                        aria-label="Close user menu"
+                        aria-label={t('account.closeUserMenu')}
                         className="fixed inset-0 z-10"
                         onClick={() => setUserMenuOpen(false)}
                       />

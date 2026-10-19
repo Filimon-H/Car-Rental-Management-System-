@@ -132,7 +132,7 @@ export default function LedgerTable({ agreementId, onReverse, onReceipt }: Ledge
     return (
       <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 py-12 text-center text-gray-500">
         <Banknote className="mx-auto mb-2 h-8 w-8 opacity-40" />
-        <p className="text-sm">No ledger entries yet</p>
+        <p className="text-sm">{t('ledger.noEntries')}</p>
       </div>
     )
   }

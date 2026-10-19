@@ -160,7 +160,7 @@ export default function AdminLookupsPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t('adminLookups.adminSetting')}</h1>
-          <p className="text-sm text-gray-500">Manage dropdown values used throughout the system</p>
+          <p className="text-sm text-gray-500">{t('lookups.subtitle')}</p>
         </div>
         <button
           onClick={openCreate}
@@ -176,9 +176,9 @@ export default function AdminLookupsPage() {
           <div className="rounded-lg border bg-white p-4">
             <div className="mb-2 text-sm font-medium text-gray-700">{t('common.category')}</div>
             {loadingCategories || loadingDefaults ? (
-              <div className="text-sm text-gray-500">Loading...</div>
+              <div className="text-sm text-gray-500">{t('common.loading')}</div>
             ) : defaultsError ? (
-              <div className="text-sm text-red-600">Failed to load lookup defaults.</div>
+              <div className="text-sm text-red-600">{t('lookups.loadFailed')}</div>
             ) : (
               mergedCategories.length > 0 ? (
                 <select
@@ -207,9 +207,9 @@ export default function AdminLookupsPage() {
         <div className="col-span-12 md:col-span-9">
           <div className="overflow-hidden rounded-lg border bg-white">
             {!effectiveCategory ? (
-              <div className="p-6 text-center text-gray-500">Select a category or add your first value.</div>
+              <div className="p-6 text-center text-gray-500">{t('lookups.selectOrAdd')}</div>
             ) : loadingValues ? (
-              <div className="p-6 text-center text-gray-500">Loading...</div>
+              <div className="p-6 text-center text-gray-500">{t('common.loading')}</div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -229,7 +229,7 @@ export default function AdminLookupsPage() {
                       <td className="px-6 py-4 text-sm text-gray-700">{row.sort_order}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${row.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>
-                          {row.is_active ? 'Active' : 'Inactive'}
+                          {row.is_active ? t('common.active') : t('common.inactive')}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -237,7 +237,7 @@ export default function AdminLookupsPage() {
                           <button
                             onClick={() => toggleActive(row)}
                             className="p-1 text-gray-500 hover:text-gray-800"
-                            title={row.is_active ? 'Deactivate' : 'Activate'}
+                            title={row.is_active ? t('lookups.deactivate') : t('lookups.activate')}
                           >
                             <Power className="h-4 w-4" />
                           </button>
@@ -261,7 +261,7 @@ export default function AdminLookupsPage() {
                   ))}
                   {sortedValues.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-gray-500">No values in this category.</td>
+                      <td colSpan={5} className="px-6 py-12 text-center text-gray-500">{t('lookups.noValues')}</td>
                     </tr>
                   )}
                 </tbody>
@@ -275,7 +275,7 @@ export default function AdminLookupsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">{formMode === 'create' ? 'Add Value' : 'Edit Value'}</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{formMode === 'create' ? t('lookups.addValue') : t('lookups.editValue')}</h2>
               <button onClick={() => setFormOpen(false)} className="text-gray-500 hover:text-gray-700">✕</button>
             </div>
 
@@ -324,7 +324,7 @@ export default function AdminLookupsPage() {
                   disabled={createMutation.isPending || updateMutation.isPending}
                   className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-50"
                 >
-                  {createMutation.isPending || updateMutation.isPending ? 'Saving...' : 'Save'}
+                  {createMutation.isPending || updateMutation.isPending ? t('forms.saving') : t('common.save')}
                 </button>
               </div>
             </form>

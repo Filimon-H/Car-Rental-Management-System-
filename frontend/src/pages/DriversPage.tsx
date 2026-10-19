@@ -277,7 +277,7 @@ function DriverModal({ driver, onClose, onSuccess }: { driver: Driver | null; on
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6">
-        <h2 className="mb-4 text-xl font-bold">{driver ? 'Edit Driver' : 'Add Driver'}</h2>
+        <h2 className="mb-4 text-xl font-bold">{driver ? t('driverForm.edit') : t('driverForm.add')}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -374,7 +374,7 @@ function DriverModal({ driver, onClose, onSuccess }: { driver: Driver | null; on
           <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 hover:bg-gray-50">{t('common.cancel')}</button>
             <button type="submit" disabled={isLoading} className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-50">
-              {isLoading ? 'Saving...' : 'Save'}
+              {isLoading ? t('forms.saving') : t('common.save')}
             </button>
           </div>
         </form>

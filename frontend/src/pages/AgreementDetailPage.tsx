@@ -415,7 +415,7 @@ export default function AgreementDetailPage() {
             <button
               onClick={() => navigate(`/agreements/${id}/print`)}
               className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-gray-600 hover:bg-gray-50"
-              title="Print Agreement"
+              title={t('agreementActions.printAgreement')}
             >
               <Printer className="h-4 w-4" />
               {t('sections.print')}
@@ -1005,7 +1005,7 @@ export default function AgreementDetailPage() {
 
       {showChargeModal && (
         <AmountModal
-          title={showChargeModal === 'damage' ? 'Add Damage Charge' : 'Add Late Fee'}
+          title={showChargeModal === 'damage' ? t('agreementActions.addDamageCharge') : t('agreementActions.addLateFee')}
           requirePaymentMethod={false}
           onClose={() => setShowChargeModal(null)}
           onSubmit={(payload) => {
@@ -1293,7 +1293,7 @@ function AmountModal({
               disabled={isLoading}
               className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-50"
             >
-              {isLoading ? 'Saving...' : 'Submit'}
+              {isLoading ? t('forms.saving') : t('forms.submit')}
             </button>
           </div>
         </form>
@@ -1400,7 +1400,7 @@ function PaymentModal({
               disabled={isLoading || !amount}
               className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
             >
-              {isLoading ? 'Processing...' : 'Post Payment'}
+              {isLoading ? t('forms.processing') : t('agreementActions.postPayment')}
             </button>
           </div>
         </form>
@@ -1594,7 +1594,7 @@ function ReturnModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              placeholder="Any notes about the return condition..."
+              placeholder={t('agreementActions.returnNotesPlaceholder')}
               className="w-full rounded-lg border border-gray-300 px-3 py-2"
             />
           </div>
@@ -1611,7 +1611,7 @@ function ReturnModal({
               disabled={isLoading}
               className="rounded-lg bg-purple-600 px-4 py-2 text-white hover:bg-purple-700 disabled:opacity-50"
             >
-              {isLoading ? 'Processing...' : 'Confirm Return'}
+              {isLoading ? t('forms.processing') : t('agreementActions.confirmReturn')}
             </button>
           </div>
         </form>
@@ -1656,7 +1656,7 @@ function SettlementModal({
 
         <div className="mb-6 space-y-3 rounded-lg bg-gray-50 p-4">
           <div className="flex justify-between">
-            <span className="text-gray-600">Total Charges:</span>
+            <span className="text-gray-600">{t('agreementPrint.totalCharges')}:</span>
             <span className="font-semibold">{formatCurrency(agreement.total_charges)}</span>
           </div>
           <div className="flex justify-between">
@@ -1664,18 +1664,18 @@ function SettlementModal({
             <span className="font-semibold">{formatCurrency(agreement.net_adjustments ?? 0)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Total Payments:</span>
+            <span className="text-gray-600">{t('agreementPrint.totalPayments')}:</span>
             <span className="font-semibold text-green-600">
               {formatCurrency(agreement.total_payments)}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Deposit Held:</span>
+            <span className="text-gray-600">{t('ledger.depositHeld')}:</span>
             <span className="font-semibold">{formatCurrency(depositHeld)}</span>
           </div>
           <hr />
           <div className="flex justify-between text-lg">
-            <span className="font-medium">Balance Due:</span>
+            <span className="font-medium">{t('agreementPrint.balanceDue')}:</span>
             <span className={`font-bold ${balanceDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
               {formatCurrency(balanceDue)}
             </span>
@@ -1726,7 +1726,7 @@ function SettlementModal({
             className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
             title={!canClose ? 'Balance must be zero to close' : ''}
           >
-            {isLoading ? 'Processing...' : 'Close Agreement'}
+            {isLoading ? t('forms.processing') : t('agreementActions.closeAgreement')}
           </button>
         </div>
 
@@ -2015,7 +2015,7 @@ function CancelConfirmModal({
             disabled={isLoading}
             className="rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
           >
-            {isLoading ? 'Cancelling...' : 'Yes, Cancel Agreement'}
+            {isLoading ? t('forms.cancelling') : t('agreementActions.yesCancelAgreement')}
           </button>
         </div>
       </div>

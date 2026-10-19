@@ -204,7 +204,7 @@ export default function InspectionTemplatesPage() {
                       ? 'bg-green-100 text-green-700' 
                       : 'bg-gray-100 text-gray-600'
                   }`}>
-                    {selectedTemplate.is_active ? 'Active' : 'Inactive'}
+                    {selectedTemplate.is_active ? t('common.active') : t('common.inactive')}
                   </span>
                 </div>
               </div>

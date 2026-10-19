@@ -114,7 +114,7 @@ export default function VendorUpsertPage() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{isEdit ? 'Edit Vendor' : 'Add Vendor'}</h1>
+            <h1 className="text-xl font-bold text-gray-900">{isEdit ? t('vendorForm.edit') : t('vendorForm.add')}</h1>
             <p className="text-sm text-gray-500">{t('vendorPage.detailsAndContact')}</p>
           </div>
         </div>
@@ -132,7 +132,7 @@ export default function VendorUpsertPage() {
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <SelectField
-                  label="Type"
+                  label={t('vendorForm.type')}
                   value={formData.vendor_type}
                   onChange={e => setFormData({...formData, vendor_type: e.target.value})}
                   error={fieldErrors.vendor_type}
@@ -145,7 +145,7 @@ export default function VendorUpsertPage() {
               {isCompany && (
                 <div>
                   <Field
-                  label="Company Name"
+                  label={t('customerDetail.companyName')}
                   required
                   type="text"
                   value={formData.company_name}
@@ -157,7 +157,7 @@ export default function VendorUpsertPage() {
 
               <div className={!isCompany ? 'col-span-1' : 'col-span-2'}>
                 <Field
-                  label="Contact Person"
+                  label={t('vendorForm.contactPerson')}
                   type="text"
                   value={formData.contact_person}
                   onChange={e => setFormData({...formData, contact_person: e.target.value})}
@@ -167,7 +167,7 @@ export default function VendorUpsertPage() {
 
               <div>
                 <Field
-                  label="Primary Phone"
+                  label={t('customerCreate.primaryPhoneRequired').replace(' *', '')}
                   required
                   type="tel"
                   value={formData.phone_primary}
@@ -178,7 +178,7 @@ export default function VendorUpsertPage() {
 
               <div>
                 <Field
-                  label="Secondary Phone"
+                  label={t('customerCreate.secondaryPhone')}
                   type="tel"
                   value={formData.phone_secondary}
                   onChange={e => setFormData({...formData, phone_secondary: e.target.value})}
@@ -188,7 +188,7 @@ export default function VendorUpsertPage() {
 
               <div>
                 <Field
-                  label="Email"
+                  label={t('customerCreate.email')}
                   type="email"
                   value={formData.email}
                   onChange={e => setFormData({...formData, email: e.target.value})}
@@ -198,7 +198,7 @@ export default function VendorUpsertPage() {
 
               <div>
                 <Field
-                  label="City"
+                  label={t('agreementCreate.city')}
                   type="text"
                   value={formData.city}
                   onChange={e => setFormData({...formData, city: e.target.value})}
@@ -208,7 +208,7 @@ export default function VendorUpsertPage() {
 
               <div className="col-span-2">
                 <Field
-                  label="Address"
+                  label={t('customerCreate.address')}
                   type="text"
                   value={formData.address}
                   onChange={e => setFormData({...formData, address: e.target.value})}
@@ -222,7 +222,7 @@ export default function VendorUpsertPage() {
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <Field
-                    label="Commission Rate (%)"
+                    label={t('vendorForm.commissionRate')}
                     required
                     type="number"
                     min={0}
@@ -242,7 +242,7 @@ export default function VendorUpsertPage() {
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <Field
-                  label="Bank Name"
+                  label={t('vendorForm.bankName')}
                   type="text"
                   value={formData.bank_name}
                   onChange={e => setFormData({...formData, bank_name: e.target.value})}
@@ -251,7 +251,7 @@ export default function VendorUpsertPage() {
                 </div>
                 <div>
                   <Field
-                  label="Account Number"
+                  label={t('vendorForm.accountNumber')}
                   type="text"
                   value={formData.bank_account_number}
                   onChange={e => setFormData({...formData, bank_account_number: e.target.value})}
@@ -260,7 +260,7 @@ export default function VendorUpsertPage() {
                 </div>
                 <div className="col-span-2">
                   <Field
-                  label="Account Holder"
+                  label={t('vendorForm.accountHolder')}
                   type="text"
                   value={formData.bank_account_holder}
                   onChange={e => setFormData({...formData, bank_account_holder: e.target.value})}
@@ -273,7 +273,7 @@ export default function VendorUpsertPage() {
             <div className="border-t border-gray-100 pt-6">
               <div>
                 <TextareaField
-                  label="Notes"
+                  label={t('agreementCreate.notes')}
                   rows={3}
                   value={formData.notes}
                   onChange={e => setFormData({...formData, notes: e.target.value})}
@@ -295,7 +295,7 @@ export default function VendorUpsertPage() {
                 disabled={isLoading} 
                 className="rounded-lg bg-primary px-6 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
-                {isLoading ? 'Saving…' : 'Save Vendor'}
+                {isLoading ? t('forms.saving') : t('vendorForm.save')}
               </button>
             </div>
           </form>

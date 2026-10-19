@@ -41,7 +41,7 @@ export default function CollateralDetailPage() {
           onClick={() => (customerIdNum ? navigate(`/customers/${customerIdNum}`) : navigate('/collaterals'))}
           className="mt-4 text-blue-600 hover:underline"
         >
-          {customerIdNum ? 'Back to Customer' : 'Back to Collaterals'}
+          {customerIdNum ? t('collateralDetail.backToCustomer') : t('collateralDetail.backToCollaterals')}
         </button>
       </div>
     )
@@ -92,7 +92,7 @@ export default function CollateralDetailPage() {
                 <h2 className="text-lg font-semibold">{t('customerCreate.personalInformation')}</h2>
               </div>
               <dl className="space-y-3">
-                <InfoRow label="Full Name" value={`${collateral.first_name} ${collateral.last_name}`} />
+                <InfoRow label={t('users.fullName')} value={`${collateral.first_name} ${collateral.last_name}`} />
                 <InfoRow label={t('collaterals.columns.relationship')} value={relationshipLabel} />
               </dl>
             </div>
@@ -103,9 +103,9 @@ export default function CollateralDetailPage() {
                 <h2 className="text-lg font-semibold">{t('customerCreate.contactInformation')}</h2>
               </div>
               <dl className="space-y-3">
-                <InfoRow label="Primary Phone" value={collateral.phone_primary} />
-                {collateral.phone_secondary && <InfoRow label="Secondary Phone" value={collateral.phone_secondary} />}
-                {collateral.email && <InfoRow label="Email" value={collateral.email} icon={<Mail className="h-4 w-4" />} />}
+                <InfoRow label={t('customerCreate.primaryPhoneRequired').replace(' *', '')} value={collateral.phone_primary} />
+                {collateral.phone_secondary && <InfoRow label={t('customerCreate.secondaryPhone')} value={collateral.phone_secondary} />}
+                {collateral.email && <InfoRow label={t('customerCreate.email')} value={collateral.email} icon={<Mail className="h-4 w-4" />} />}
               </dl>
             </div>
 
@@ -115,8 +115,8 @@ export default function CollateralDetailPage() {
                 <h2 className="text-lg font-semibold">{t('customerDetail.identification')}</h2>
               </div>
               <dl className="space-y-3">
-                <InfoRow label="ID Type" value={collateral.id_type || '-'} />
-                <InfoRow label="ID Number" value={collateral.id_number || '-'} />
+                <InfoRow label={t('agreementCreate.idType')} value={collateral.id_type || '-'} />
+                <InfoRow label={t('agreementCreate.idNumber')} value={collateral.id_number || '-'} />
               </dl>
             </div>
 
@@ -126,10 +126,10 @@ export default function CollateralDetailPage() {
                 <h2 className="text-lg font-semibold">{t('customerCreate.address')}</h2>
               </div>
               <dl className="space-y-3">
-                {collateral.house_number && <InfoRow label="House Number" value={collateral.house_number} />}
-                {collateral.wereda && <InfoRow label="Wereda" value={collateral.wereda} />}
-                {collateral.subcity && <InfoRow label="Subcity" value={collateral.subcity} />}
-                <InfoRow label="City" value={collateral.city || 'Addis Ababa'} />
+                {collateral.house_number && <InfoRow label={t('customerCreate.houseNumber')} value={collateral.house_number} />}
+                {collateral.wereda && <InfoRow label={t('customerCreate.wereda')} value={collateral.wereda} />}
+                {collateral.subcity && <InfoRow label={t('customerCreate.subcity')} value={collateral.subcity} />}
+                <InfoRow label={t('agreementCreate.city')} value={collateral.city || t('customerDetail.defaultCity')} />
               </dl>
             </div>
           </div>

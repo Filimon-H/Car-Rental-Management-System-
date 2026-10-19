@@ -688,7 +688,10 @@
       "daily": "ቀን",
       "monthly": "ወር",
       "yearly": "ዓመት"
-    }
+    },
+    "reversalReasonPlaceholder": "ይህ መዝገብ ለምን እንደሚሰረዝ ያብራሩ…",
+    "outgoingPayments": "እነዚህ ከኖድ የመኪና ኪራይ ወደ አቅራቢው የተላኩ ክፍያዎች ናቸው",
+    "noEntries": "እስካሁን የሂሳብ መዝገብ የለም"
   },
   "users": {
     "activeAccount": "ንቁ መለያ",
@@ -744,7 +747,9 @@
     "ownerVendor": "ባለቤት (አቅራቢ)",
     "plate": "የሰሌዳ ቁጥር",
     "serviceFuel": "አገልግሎት / ነዳጅ",
-    "typeSeats": "ዓይነት / መቀመጫ"
+    "typeSeats": "ዓይነት / መቀመጫ",
+    "notFound": "ተሽከርካሪው አልተገኘም።",
+    "active": "ንቁ"
   },
   "collateralDetail": {
     "addCollateralPerson": "የዋስትና ሰው ጨምር",
@@ -752,7 +757,9 @@
     "editCollateralPerson": "የዋስትና ሰው አርትዕ",
     "noCollateralPersons": "ምንም የዋስትና ሰው አልተጨመረም",
     "notFound": "የዋስትና ሰው አልተገኘም",
-    "title": "የዋስትና ዝርዝር"
+    "title": "የዋስትና ዝርዝር",
+    "backToCustomer": "ወደ ደንበኛው ተመለስ",
+    "backToCollaterals": "ወደ ዋሶች ተመለስ"
   },
   "adminLookups": {
     "addValue": "ዋጋ ጨምር",
@@ -846,7 +853,12 @@
     "returnMustBeLater": "አዲሱ የመመለሻ ቀን ከአሁኑ የመመለሻ ቀን በኋላ መሆን አለበት።",
     "settlementActions": "የማወራረድ እርምጃዎች",
     "settlementClose": "ማወራረድና ውል መዝጋት",
-    "approvingBooking": "በማጽደቅ ላይ…"
+    "approvingBooking": "በማጽደቅ ላይ…",
+    "printAgreement": "ውሉን አትም",
+    "postPayment": "ክፍያ መዝግብ",
+    "confirmReturn": "መመለሱን አረጋግጥ",
+    "yesCancelAgreement": "አዎ፣ ውሉን ሰርዝ",
+    "returnNotesPlaceholder": "ስለ መመለሻ ሁኔታው ማስታወሻ…"
   },
   "sections": {
     "bankInformation": "የባንክ መረጃ",
@@ -1170,5 +1182,127 @@
     "cbe_birr": "ሲቢኢ ብር",
     "check": "ቼክ",
     "other": "ሌላ"
+  },
+  "forms": {
+    "saving": "በማስቀመጥ ላይ…",
+    "processing": "በሂደት ላይ…",
+    "creating": "በመፍጠር ላይ…",
+    "cancelling": "በመሰረዝ ላይ…",
+    "submit": "አስገባ",
+    "saveAndClose": "አስቀምጥና ዝጋ",
+    "saveAndNext": "አስቀምጥና ቀጥል →",
+    "saveChanges": "ለውጦችን አስቀምጥ",
+    "personalInfo": "የግል መረጃ",
+    "contactInfo": "የመገናኛ መረጃ",
+    "idAndLicense": "መታወቂያና መንጃ ፈቃድ",
+    "idInfo": "የመታወቂያ መረጃ",
+    "checkingDuplicates": "ተደጋጋሚ መዝገብ በመፈለግ ላይ…",
+    "selectRelationship": "ዝምድና ይምረጡ…",
+    "idDocument": "የ{{type}} ሰነድ",
+    "customerNotesPlaceholder": "ስለዚህ ደንበኛ ተጨማሪ ማስታወሻ…",
+    "collateralNotesPlaceholder": "ስለዚህ ዋስ ተጨማሪ ማስታወሻ…",
+    "notesPlaceholder": "ተጨማሪ ማስታወሻ ያስገቡ…",
+    "ngo": "መንግሥታዊ ያልሆነ ድርጅት"
+  },
+  "vendorForm": {
+    "add": "አቅራቢ ጨምር",
+    "edit": "አቅራቢ አስተካክል",
+    "save": "አቅራቢውን አስቀምጥ",
+    "type": "ዓይነት",
+    "contactPerson": "የሚገናኙት ሰው",
+    "commissionRate": "የኮሚሽን መጠን (%)",
+    "bankName": "የባንክ ስም",
+    "accountNumber": "የሂሳብ ቁጥር",
+    "accountHolder": "የሂሳብ ባለቤት"
+  },
+  "inspectionForm": {
+    "location": "ቦታ",
+    "estCost": "ግምታዊ ወጪ",
+    "create": "ፍተሻ ፍጠር"
+  },
+  "lookups": {
+    "subtitle": "በስርዓቱ ውስጥ የሚጠቀሙ የምርጫ ዝርዝሮችን ያስተዳድሩ",
+    "loadFailed": "ነባሪ ዝርዝሮችን መጫን አልተቻለም።",
+    "selectOrAdd": "ምድብ ይምረጡ ወይም የመጀመሪያ እሴት ያክሉ።",
+    "noValues": "በዚህ ምድብ ውስጥ እሴት የለም።",
+    "addValue": "እሴት ጨምር",
+    "editValue": "እሴት አስተካክል",
+    "activate": "አግብር",
+    "deactivate": "አቦዝን"
+  },
+  "collateralNew": {
+    "selectCustomerFirst": "መጀመሪያ ይህ ዋስ የሚገናኝበትን ደንበኛ ይምረጡ",
+    "searchPlaceholder": "ደንበኞችን በስም፣ በስልክ ወይም በመታወቂያ ይፈልጉ…",
+    "noCustomers": "ምንም ደንበኛ አልተገኘም።"
+  },
+  "customerForm": {
+    "add": "ደንበኛ ጨምር",
+    "edit": "ደንበኛ አስተካክል"
+  },
+  "driverForm": {
+    "add": "ሾፌር ጨምር",
+    "edit": "ሾፌር አስተካክል"
+  },
+  "dashboardBot": {
+    "label": "ቦት",
+    "refreshCode": "ኮድ አድስ",
+    "generateCode": "ኮድ አመንጭ"
+  },
+  "usersForm": {
+    "create": "የሰራተኛ ተጠቃሚ ፍጠር",
+    "edit": "የሰራተኛ ተጠቃሚ አስተካክል",
+    "resetPassword": "የይለፍ ቃል ዳግም አስጀምር"
+  },
+  "weddingForm": {
+    "optionalLink": "አማራጭ - ከደንበኛ የሠርግ ውል ጋር ያገናኙ"
+  },
+  "vendorPayment": {
+    "referencePlaceholder": "የግብይት መለያ፣ የቼክ ቁጥር…",
+    "save": "ክፍያውን አስቀምጥ"
+  },
+  "upload": {
+    "clickToUpload": "ለመጫን ይጫኑ",
+    "orDragAndDrop": "ወይም ጎትተው ያስቀምጡ",
+    "uploading": "በመጫን ላይ…",
+    "uploaded": "ተጭኗል",
+    "documentTypes": "JPG፣ PNG፣ WebP ወይም PDF (እስከ 10MB)",
+    "csvOnly": "የCSV ፋይሎች ብቻ",
+    "selectDifferent": "ሌላ ፋይል ለመምረጥ ይጫኑ"
+  },
+  "bulkUpload": {
+    "title": "ደንበኞችን በጅምላ ይጫኑ",
+    "instructions": "መመሪያዎች",
+    "step1": "ከታች ያለውን የCSV ቅጽ ያውርዱ",
+    "step2": "የደንበኛ መረጃ ይሙሉ (በአንድ ረድፍ አንድ ደንበኛ)",
+    "step3": "አስፈላጊ መስኮች፦ first_name፣ last_name፣ phone_primary",
+    "step4": "ለግለሰቦች፦ id_number እና driver_license_number ያስፈልጋሉ",
+    "step5": "ለድርጅቶች፦ company_name ያስፈልጋል",
+    "step6": "የተሞላውን የCSV ፋይል ይጫኑ"
+  },
+  "lightbox": {
+    "close": "የምስል ቅድመ እይታን ዝጋ",
+    "zoomOut": "አሳንስ",
+    "zoomIn": "አጉላ",
+    "resetZoom": "መጠኑን መልስ"
+  },
+  "search": {
+    "clear": "ፍለጋውን አጽዳ"
+  },
+  "account": {
+    "changePassword": "የይለፍ ቃል ቀይር",
+    "currentPassword": "የአሁኑ የይለፍ ቃል",
+    "newPassword": "አዲስ የይለፍ ቃል",
+    "confirmNewPassword": "አዲሱን የይለፍ ቃል ያረጋግጡ",
+    "changeFailed": "የይለፍ ቃሉን መቀየር አልተቻለም",
+    "mismatch": "አዲሶቹ የይለፍ ቃላት አይመሳሰሉም",
+    "tooShort": "አዲሱ የይለፍ ቃል ቢያንስ 8 ቁምፊዎች መሆን አለበት",
+    "signOut": "ውጣ",
+    "closeUserMenu": "የተጠቃሚ ምናሌን ዝጋ"
+  },
+  "shell": {
+    "mainNavigation": "ዋና ማውጫ",
+    "lightMode": "ወደ ብርሃን ገጽታ ቀይር",
+    "darkMode": "ወደ ጨለማ ገጽታ ቀይር",
+    "closeLanguageMenu": "የቋንቋ ምናሌን ዝጋ"
   }
 }

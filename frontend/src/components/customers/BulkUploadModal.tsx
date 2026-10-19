@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { X, Upload, Download, FileSpreadsheet, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { customersService, BulkUploadResult } from '@/services/customers'
 
 interface BulkUploadModalProps {
@@ -8,6 +9,7 @@ interface BulkUploadModalProps {
 }
 
 export function BulkUploadModal({ onClose, onSuccess }: BulkUploadModalProps) {
+  const { t } = useTranslation()
   const [file, setFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [result, setResult] = useState<BulkUploadResult | null>(null)
@@ -84,7 +86,7 @@ export function BulkUploadModal({ onClose, onSuccess }: BulkUploadModalProps) {
         <div className="flex items-center justify-between border-b px-6 py-4">
           <div className="flex items-center gap-3">
             <FileSpreadsheet className="h-6 w-6 text-blue-600" />
-            <h2 className="text-xl font-bold text-gray-900">Bulk Upload Customers</h2>
+            <h2 className="text-xl font-bold text-gray-900">{t('bulkUpload.title')}</h2>
           </div>
           <button
             onClick={handleClose}
@@ -99,14 +101,14 @@ export function BulkUploadModal({ onClose, onSuccess }: BulkUploadModalProps) {
         <div className="p-6 space-y-6">
           {/* Instructions */}
           <div className="rounded-lg bg-blue-50 p-4">
-            <h3 className="font-medium text-blue-800">Instructions</h3>
+            <h3 className="font-medium text-blue-800">{t('bulkUpload.instructions')}</h3>
             <ul className="mt-2 space-y-1 text-sm text-blue-700">
-              <li>• Download the template CSV file below</li>
-              <li>• Fill in customer data (one customer per row)</li>
-              <li>• Required fields: first_name, last_name, phone_primary</li>
-              <li>• For individuals: id_number and driver_license_number are required</li>
-              <li>• For companies: company_name is required</li>
-              <li>• Upload the completed CSV file</li>
+              <li>• {t('bulkUpload.step1')}</li>
+              <li>• {t('bulkUpload.step2')}</li>
+              <li>• {t('bulkUpload.step3')}</li>
+              <li>• {t('bulkUpload.step4')}</li>
+              <li>• {t('bulkUpload.step5')}</li>
+              <li>• {t('bulkUpload.step6')}</li>
             </ul>
           </div>
 
@@ -147,15 +149,15 @@ export function BulkUploadModal({ onClose, onSuccess }: BulkUploadModalProps) {
                   <p className="text-sm text-green-600">
                     {(file.size / 1024).toFixed(1)} KB
                   </p>
-                  <p className="mt-2 text-xs text-gray-500">Click to select a different file</p>
+                  <p className="mt-2 text-xs text-gray-500">{t('upload.selectDifferent')}</p>
                 </div>
               ) : (
                 <>
                   <Upload className="mx-auto h-10 w-10 text-gray-400" />
                   <p className="mt-2 text-gray-600">
-                    <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
+                    <span className="font-medium text-blue-600">{t('upload.clickToUpload')}</span> {t('upload.orDragAndDrop')}
                   </p>
-                  <p className="mt-1 text-sm text-gray-500">CSV files only</p>
+                  <p className="mt-1 text-sm text-gray-500">{t('upload.csvOnly')}</p>
                 </>
               )}
             </div>
@@ -219,7 +221,7 @@ export function BulkUploadModal({ onClose, onSuccess }: BulkUploadModalProps) {
             disabled={isUploading}
             className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
-            {result ? 'Close' : 'Cancel'}
+            {result ? t('common.close') : t('common.cancel')}
           </button>
           
           {!result && (

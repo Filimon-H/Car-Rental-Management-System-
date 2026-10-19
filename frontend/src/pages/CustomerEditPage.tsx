@@ -343,10 +343,10 @@ export default function CustomerEditPage() {
         <div className="w-64 border-r bg-white p-6">
           <h3 className="mb-4 text-sm font-semibold text-gray-500 uppercase">{t('customerCreate.progress')}</h3>
           <div className="space-y-3">
-            <ChecklistItem label="Personal Info" complete={isPersonalComplete} />
-            <ChecklistItem label="Contact Info" complete={isContactComplete} />
-            {isIndividual && <ChecklistItem label="ID & License" complete={isIdComplete} />}
-            <ChecklistItem label="Address" complete={isAddressComplete} />
+            <ChecklistItem label={t('forms.personalInfo')} complete={isPersonalComplete} />
+            <ChecklistItem label={t('forms.contactInfo')} complete={isContactComplete} />
+            {isIndividual && <ChecklistItem label={t('forms.idAndLicense')} complete={isIdComplete} />}
+            <ChecklistItem label={t('customerCreate.address')} complete={isAddressComplete} />
           </div>
 
           <div className="mt-8 border-t pt-6">
@@ -390,7 +390,7 @@ export default function CustomerEditPage() {
                     <option value="company">{t('customerCreate.company')}</option>
                     <option value="government">{t('customerCreate.government')}</option>
                     <option value="embassy">{t('customerCreate.embassy')}</option>
-                    <option value="ngo">NGO</option>
+                    <option value="ngo">{t('forms.ngo')}</option>
                     <option value="church">{t('customerCreate.church')}</option>
                   </select>
                 </div>
@@ -522,7 +522,7 @@ export default function CustomerEditPage() {
             {isIndividual && (
               <Section icon={<FileText className="h-5 w-5" />} title={t('customerCreate.idAndLicense')}>
                 {checkingDuplicate && (
-                  <div className="mb-4 text-sm text-gray-500">Checking for duplicates...</div>
+                  <div className="mb-4 text-sm text-gray-500">{t('forms.checkingDuplicates')}</div>
                 )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -579,7 +579,7 @@ export default function CustomerEditPage() {
                     <DocumentDropzone
                       customerId={customerIdNum}
                       docType={formData.id_type as DocumentType}
-                      label={`${formData.id_type === 'passport' ? 'Passport' : formData.id_type === 'national_id' ? 'National ID' : 'Kebele ID'} Document`}
+                      label={t('forms.idDocument', { type: formData.id_type === 'passport' ? t('customerCreate.passport') : formData.id_type === 'national_id' ? t('customerCreate.nationalId') : t('customerCreate.kebeleId') })}
                       existingDocument={getDocumentByType(formData.id_type as DocumentType)}
                       onUploadComplete={() => queryClient.invalidateQueries({ queryKey: ['customer-documents', customerIdNum] })}
                     />
@@ -588,7 +588,7 @@ export default function CustomerEditPage() {
                     <DocumentDropzone
                       customerId={customerIdNum}
                       docType="driver_license"
-                      label="Driver License"
+                      label={t('customerCreate.driverLicense')}
                       existingDocument={getDocumentByType('driver_license')}
                       onUploadComplete={() => queryClient.invalidateQueries({ queryKey: ['customer-documents', customerIdNum] })}
                     />
@@ -653,7 +653,7 @@ export default function CustomerEditPage() {
                 value={formData.notes}
                 onChange={(e) => updateField('notes', e.target.value)}
                 rows={3}
-                placeholder="Any additional notes about this customer..."
+                placeholder={t('forms.customerNotesPlaceholder')}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </Section>
@@ -674,7 +674,7 @@ export default function CustomerEditPage() {
                   disabled={!canSave}
                   className="rounded-lg border border-blue-600 px-6 py-2 text-blue-600 hover:bg-blue-50 disabled:opacity-50"
                 >
-                  {isLoading ? 'Saving...' : 'Save & Close'}
+                  {isLoading ? t('forms.saving') : t('forms.saveAndClose')}
                 </button>
                 <button
                   type="button"
@@ -682,7 +682,7 @@ export default function CustomerEditPage() {
                   disabled={!canSave}
                   className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isLoading ? 'Saving...' : 'Save & Next →'}
+                  {isLoading ? t('forms.saving') : t('forms.saveAndNext')}
                 </button>
               </div>
             </div>

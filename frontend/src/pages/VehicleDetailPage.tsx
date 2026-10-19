@@ -45,7 +45,7 @@ export default function VehicleDetailPage() {
         <button onClick={() => navigate('/vehicles')} className="mb-4 inline-flex items-center gap-2 rounded-lg border px-3 py-2 hover:bg-gray-50">
           <ArrowLeft className="h-4 w-4" /> {t('common.back')}
         </button>
-        <div className="rounded-lg border bg-white p-6 text-gray-600">Vehicle not found.</div>
+        <div className="rounded-lg border bg-white p-6 text-gray-600">{t('vehicleDetail.notFound')}</div>
       </div>
     )
   }
@@ -129,7 +129,7 @@ export default function VehicleDetailPage() {
               <div className="rounded-lg bg-gray-50 p-4">
                 <div className="text-xs font-medium uppercase text-gray-500">{t('vehicleDetail.mileage')}</div>
                 <div className="mt-1 text-sm text-gray-900">{vehicle.current_mileage ?? '—'}</div>
-                <div className="text-sm text-gray-600">Active: {vehicle.is_active ? 'Yes' : 'No'}</div>
+                <div className="text-sm text-gray-600">{t('vehicleDetail.active')}: {vehicle.is_active ? t('common.yes') : t('common.no')}</div>
               </div>
             </div>
 

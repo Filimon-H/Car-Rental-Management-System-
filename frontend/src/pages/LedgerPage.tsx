@@ -90,7 +90,7 @@ function ReverseModal({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={3}
-            placeholder="Explain why this entry is being reversed..."
+            placeholder={t('ledger.reversalReasonPlaceholder')}
             className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
@@ -686,7 +686,7 @@ function VendorsTab() {
           <div className="flex h-64 items-center justify-center rounded-lg bg-white shadow">
             <div className="text-center text-gray-500">
               <Truck className="mx-auto mb-2 h-12 w-12 opacity-30" />
-              <p>Select a vendor to view their payment history</p>
+              <p>{t('ledger.selectVendor')}</p>
             </div>
           </div>
         ) : (
@@ -718,7 +718,7 @@ function VendorsTab() {
             <div className="overflow-hidden rounded-lg bg-white shadow">
               <div className="border-b px-5 py-3">
                 <h3 className="font-semibold text-gray-700">Payment History — Money Paid to Vendor</h3>
-                <p className="text-xs text-gray-500">These are outgoing payments from NOD Car Rental to the vendor</p>
+                <p className="text-xs text-gray-500">{t('ledger.outgoingPayments')}</p>
               </div>
               {paymentsLoading ? (
                 <div className="flex h-24 items-center justify-center">

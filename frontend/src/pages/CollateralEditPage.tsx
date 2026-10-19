@@ -326,10 +326,10 @@ export default function CollateralEditPage() {
         <div className="w-64 border-r bg-white p-6">
           <h3 className="mb-4 text-sm font-semibold text-gray-500 uppercase">{t('customerCreate.progress')}</h3>
           <div className="space-y-3">
-            <ChecklistItem label="Personal Info" complete={isPersonalComplete} />
-            <ChecklistItem label="Contact Info" complete={isContactComplete} />
-            <ChecklistItem label="ID Info" complete={isIdComplete} />
-            <ChecklistItem label="Relationship" complete={isRelationshipComplete} />
+            <ChecklistItem label={t('forms.personalInfo')} complete={isPersonalComplete} />
+            <ChecklistItem label={t('forms.contactInfo')} complete={isContactComplete} />
+            <ChecklistItem label={t('forms.idInfo')} complete={isIdComplete} />
+            <ChecklistItem label={t('agreementCreate.relationship')} complete={isRelationshipComplete} />
           </div>
 
           <div className="mt-8 border-t pt-6">
@@ -388,7 +388,7 @@ export default function CollateralEditPage() {
                   required
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 >
-                  <option value="">Select relationship...</option>
+                  <option value="">{t('forms.selectRelationship')}</option>
                   {RELATIONSHIPS.map((r) => (
                     <option key={r.value} value={r.value}>{t(`options.${r.value}`, r.label)}</option>
                   ))}
@@ -482,7 +482,7 @@ export default function CollateralEditPage() {
                   ownerType="collateral"
                   collateralId={collateralIdNum}
                   docType={formData.id_type as DocumentType}
-                  label={`${formData.id_type === 'passport' ? 'Passport' : formData.id_type === 'national_id' ? 'National ID' : 'Kebele ID'} Document`}
+                  label={t('forms.idDocument', { type: formData.id_type === 'passport' ? t('customerCreate.passport') : formData.id_type === 'national_id' ? t('customerCreate.nationalId') : t('customerCreate.kebeleId') })}
                   disabled={false}
                   existingDocument={getDocumentByType(formData.id_type as DocumentType)}
                   onUploadComplete={() => queryClient.invalidateQueries({ queryKey: ['collateral-documents', collateralIdNum] })}
@@ -579,7 +579,7 @@ export default function CollateralEditPage() {
                 value={formData.notes}
                 onChange={(e) => updateField('notes', e.target.value)}
                 rows={3}
-                placeholder="Any additional notes about this collateral person..."
+                placeholder={t('forms.collateralNotesPlaceholder')}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </Section>
@@ -599,7 +599,7 @@ export default function CollateralEditPage() {
                 disabled={!canSave}
                 className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
               >
-                {isLoading ? 'Saving...' : 'Save Changes'}
+                {isLoading ? t('forms.saving') : t('forms.saveChanges')}
               </button>
             </div>
           </form>

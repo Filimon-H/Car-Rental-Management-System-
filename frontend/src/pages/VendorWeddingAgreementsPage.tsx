@@ -327,7 +327,7 @@ function CreateVendorSupplyModal({ onClose }: { onClose: () => void }) {
               placeholder="e.g., WED-20250101-1234"
               className="w-full rounded-lg border px-3 py-2"
             />
-            <p className="mt-1 text-xs text-gray-500">Optional - link to a customer wedding agreement</p>
+            <p className="mt-1 text-xs text-gray-500">{t('weddingForm.optionalLink')}</p>
           </div>
 
           {/* Notes */}

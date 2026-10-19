@@ -852,7 +852,7 @@ export default function DashboardPage() {
               </div>
 
               <div className="rounded-xl bg-slate-900 p-4 text-white">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Bot</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('dashboardBot.label')}</p>
                 <p className="mt-2 text-sm font-semibold">
                   {botUsername ? `@${botUsername}` : 'Not configured'}
                 </p>
@@ -880,7 +880,7 @@ export default function DashboardPage() {
                 <RefreshCw
                   className={`h-4 w-4 ${createLinkCodeMutation.isPending ? 'animate-spin' : ''}`}
                 />
-                {activeLinkCode ? 'Refresh code' : 'Generate code'}
+                {activeLinkCode ? t('dashboardBot.refreshCode') : t('dashboardBot.generateCode')}
               </button>
               {telegramStatus?.linked && (
                 <button

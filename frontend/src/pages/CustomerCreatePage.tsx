@@ -597,7 +597,7 @@ export default function CustomerCreatePage() {
             {isIndividual && (
               <Section icon={<FileText className="h-5 w-5" />} title={t('customerCreate.idAndLicense')}>
                 {checkingDuplicate && (
-                  <div className="mb-4 text-sm text-gray-500">Checking for duplicates...</div>
+                  <div className="mb-4 text-sm text-gray-500">{t('forms.checkingDuplicates')}</div>
                 )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -649,7 +649,7 @@ export default function CustomerCreatePage() {
                   <DocumentDropzone
                     customerId={null}
                     docType={formData.id_type as DocumentType}
-                    label={`${formData.id_type === 'passport' ? 'Passport' : formData.id_type === 'national_id' ? 'National ID' : 'Kebele ID'} Document`}
+                    label={t('forms.idDocument', { type: formData.id_type === 'passport' ? t('customerCreate.passport') : formData.id_type === 'national_id' ? t('customerCreate.nationalId') : t('customerCreate.kebeleId') })}
                     disabled={false}
                     onFileSelected={(file) =>
                       setStagedDocuments((prev) => {
@@ -668,7 +668,7 @@ export default function CustomerCreatePage() {
                   <DocumentDropzone
                     customerId={null}
                     docType="driver_license"
-                    label="Driver License"
+                    label={t('customerCreate.driverLicense')}
                     disabled={false}
                     onFileSelected={(file) =>
                       setStagedDocuments((prev) => {

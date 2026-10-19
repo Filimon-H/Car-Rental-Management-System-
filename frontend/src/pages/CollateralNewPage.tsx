@@ -30,7 +30,7 @@ export default function CollateralNewPage() {
           </button>
           <div>
             <h1 className="text-xl font-bold text-gray-900">{t('collateralDetail.addCollateralPerson')}</h1>
-            <p className="text-sm text-gray-500">First select the customer this collateral person belongs to</p>
+            <p className="text-sm text-gray-500">{t('collateralNew.selectCustomerFirst')}</p>
           </div>
         </div>
       </div>
@@ -42,16 +42,16 @@ export default function CollateralNewPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search customers by name, phone, or ID..."
+              placeholder={t('collateralNew.searchPlaceholder')}
               className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
           <div className="overflow-hidden rounded-lg border bg-white">
             {isLoading ? (
-              <div className="p-6 text-center text-gray-500">Loading...</div>
+              <div className="p-6 text-center text-gray-500">{t('common.loading')}</div>
             ) : customers.length === 0 ? (
-              <div className="p-6 text-center text-gray-500">No customers found.</div>
+              <div className="p-6 text-center text-gray-500">{t('collateralNew.noCustomers')}</div>
             ) : (
               <div className="divide-y">
                 {customers.map((c) => (

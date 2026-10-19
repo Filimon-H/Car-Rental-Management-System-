@@ -205,7 +205,7 @@ function VendorDetailPanel({ vendor, onClose, onEdit }: { vendor: Vendor; onClos
                         type="text"
                         value={payForm.payment_reference || ''}
                         onChange={(e) => setPayForm({ ...payForm, payment_reference: e.target.value })}
-                        placeholder="Transaction ID, cheque number…"
+                        placeholder={t('vendorPayment.referencePlaceholder')}
                         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary focus:outline-none"
                       />
                     </div>
@@ -231,7 +231,7 @@ function VendorDetailPanel({ vendor, onClose, onEdit }: { vendor: Vendor; onClos
                         disabled={payMutation.isPending || !payForm.amount}
                         className="flex-1 rounded-lg bg-primary py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
                       >
-                        {payMutation.isPending ? 'Saving…' : 'Save Payment'}
+                        {payMutation.isPending ? t('forms.saving') : t('vendorPayment.save')}
                       </button>
                     </div>
                   </div>

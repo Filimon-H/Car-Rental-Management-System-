@@ -383,7 +383,7 @@ export default function InspectionCreatePage() {
                     </select>
                     <input
                       type="text"
-                      placeholder="Location"
+                      placeholder={t('inspectionForm.location')}
                       value={damage.location}
                       onChange={(e) => updateDamageRecord(damage.id, { location: e.target.value })}
                       className="rounded border px-2 py-1"
@@ -399,7 +399,7 @@ export default function InspectionCreatePage() {
                     </select>
                     <input
                       type="number"
-                      placeholder="Est. Cost"
+                      placeholder={t('inspectionForm.estCost')}
                       value={damage.estimated_cost || ''}
                       onChange={(e) => updateDamageRecord(damage.id, { estimated_cost: parseFloat(e.target.value) || 0 })}
                       className="rounded border px-2 py-1"
@@ -426,7 +426,7 @@ export default function InspectionCreatePage() {
             onChange={(e) => setNotes(e.target.value)}
             rows={4}
             className="w-full rounded-lg border px-3 py-2"
-            placeholder="Enter any additional notes..."
+            placeholder={t('forms.notesPlaceholder')}
           />
         </div>
 
@@ -444,7 +444,7 @@ export default function InspectionCreatePage() {
             disabled={createMutation.isPending || !vehicleId}
             className="rounded-lg bg-blue-500 px-6 py-2 text-white hover:bg-blue-600 disabled:opacity-50"
           >
-            {createMutation.isPending ? 'Creating...' : 'Create Inspection'}
+            {createMutation.isPending ? t('forms.creating') : t('inspectionForm.create')}
           </button>
         </div>
       </form>
