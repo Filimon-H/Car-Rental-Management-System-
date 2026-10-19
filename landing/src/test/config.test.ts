@@ -403,3 +403,30 @@ describe('the booking page is translated', () => {
     expect(code('BookingPage.tsx')).toMatch(/startsWith\('am'\) \? 'am-ET'/)
   })
 })
+
+describe('landing basics', () => {
+  it('an unknown path renders a 404 page, not a blank one', () => {
+    expect(code('App.tsx')).toContain('<Route path="*" element={<NotFoundPage />} />')
+  })
+
+  it('a render error shows a recovery screen, not a blank page', () => {
+    expect(code('main.tsx')).toMatch(/<ErrorBoundary>\s*<App \/>\s*<\/ErrorBoundary>/)
+  })
+
+  it('the mobile menu tells assistive tech whether it is open', () => {
+    const header = code('Header.tsx')
+    expect(header).toContain('aria-expanded={isMenuOpen}')
+    expect(header).toContain('aria-controls="mobile-menu"')
+    expect(header).toContain('id="mobile-menu"')
+  })
+
+  it('below-the-fold images load lazily', () => {
+    for (const file of ['Services.tsx', 'About.tsx', 'Footer.tsx']) {
+      expect(code(file)).toContain('loading="lazy"')
+    }
+  })
+
+  it('the error and 404 strings exist in both languages', () => {
+    expect(Object.keys(amLocale.errors).sort()).toEqual(Object.keys(enLocale.errors).sort())
+  })
+})

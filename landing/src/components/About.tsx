@@ -51,7 +51,7 @@ export default function About() {
           </div>
 
           <div className="relative">
-            <img
+            <img loading="lazy" decoding="async"
               src="https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&q=80&w=800"
               alt="Nod Car Rent fleet"
               className="rounded-2xl w-full object-cover"

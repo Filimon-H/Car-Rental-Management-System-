@@ -42,7 +42,7 @@ export default function Services() {
           {services.map((service) => (
             <div key={service.number} className="group relative rounded-2xl overflow-hidden card-hover">
               <div className="relative h-64">
-                <img
+                <img loading="lazy" decoding="async"
                   src={service.image}
                   alt={service.title}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"

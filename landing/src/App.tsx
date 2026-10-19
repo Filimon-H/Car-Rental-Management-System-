@@ -13,6 +13,7 @@ import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import BookingPage from './pages/BookingPage'
 import MyBookingsPage from './pages/MyBookingsPage'
+import NotFoundPage from './pages/NotFoundPage'
 import { useAuthStore } from './services/auth'
 
 function LandingPage() {
@@ -102,6 +103,7 @@ function App() {
           </RequireAuth>
         }
       />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }

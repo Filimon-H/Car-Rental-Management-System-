@@ -104,7 +104,7 @@ function PhotoCarousel({
       onTouchEnd={onTouchEnd}
     >
       {photos.map((src, i) => (
-        <img
+        <img loading="lazy" decoding="async"
           key={src}
           src={src}
           alt={`${label} — photo ${i + 1} of ${photos.length}`}

@@ -130,10 +130,17 @@ export default function Header() {
           </div>
 
           {/* Mobile menu toggle */}
+          {/*
+            Had no aria-expanded, so a screen reader announced "Toggle menu"
+            with no hint whether the menu was open or which element it drove.
+          */}
           <button
+            type="button"
             className="lg:hidden text-white"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            aria-label="Toggle menu"
+            aria-expanded={isMenuOpen}
+            aria-controls="mobile-menu"
+            aria-label={isMenuOpen ? t('nav.closeMenu') : t('nav.openMenu')}
           >
             {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -141,7 +148,7 @@ export default function Header() {
 
         {/* Mobile menu */}
         {isMenuOpen && (
-          <div className="lg:hidden py-4 border-t border-gray-800">
+          <div id="mobile-menu" className="lg:hidden py-4 border-t border-gray-800">
             <nav className="flex flex-col gap-4">
               {navLinks.map((link) => (
                 <a

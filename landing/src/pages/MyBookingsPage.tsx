@@ -196,7 +196,7 @@ export default function MyBookingsPage() {
         </div>
 
         <div className="flex items-center mb-2">
-          <img
+          <img loading="lazy" decoding="async"
             src="/logo.png"
             alt="Nod Car Rent"
             className="w-44 h-auto"
