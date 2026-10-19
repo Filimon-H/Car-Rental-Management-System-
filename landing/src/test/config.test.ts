@@ -441,10 +441,10 @@ describe('the fleet date search can actually produce a booking', () => {
     expect(fleet).toContain('Free for your dates')
   })
 
-  it('the booking page accepts a reserved car and checks the dates instead', () => {
+  it('the booking page judges the dates, not today\'s status', () => {
     const page = code('BookingPage.tsx')
-    expect(page).toContain("if (v.status === 'rented') {")
     expect(page).not.toContain("if (v.status !== 'available') {")
+    expect(page).not.toContain("if (v.status === 'rented') {")
     expect(page).toContain('setFreeForDates(free.some((v) => v.id === vehicle.id))')
   })
 

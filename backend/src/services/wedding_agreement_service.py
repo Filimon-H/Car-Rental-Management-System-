@@ -144,8 +144,10 @@ def create_wedding_agreement(
         vehicle = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
         if vehicle and start_dt <= datetime.now(start_dt.tzinfo):
             vehicle.status = VehicleStatus.RENTED
-        elif vehicle:
-            # Mark as reserved for future start
+        elif vehicle and vehicle.status != VehicleStatus.RENTED:
+            # Mark as reserved for future start. A car out on another rental
+            # stays RENTED until it comes back; availability now lets a wedding
+            # be booked for after that return.
             vehicle.status = VehicleStatus.RESERVED
     
     # Store total agreed rate
@@ -252,7 +254,7 @@ def add_vehicle_to_wedding(
     # Update vehicle status
     if vehicle and start_datetime <= datetime.now(timezone.utc):
         vehicle.status = VehicleStatus.RENTED
-    elif vehicle:
+    elif vehicle and vehicle.status != VehicleStatus.RENTED:
         vehicle.status = VehicleStatus.RESERVED
     
     db.commit()

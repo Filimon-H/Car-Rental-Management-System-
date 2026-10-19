@@ -15,6 +15,48 @@ from src.models.vehicle import Vehicle, VehicleStatus
 # caught by the overlap check.
 _BOOKABLE_STATUSES = (VehicleStatus.AVAILABLE, VehicleStatus.RESERVED)
 
+#: A rented car can be offered for a later window only while its current
+#: rental is on time, since only then is its return date known.
+_RENTED = VehicleStatus.RENTED
+
+
+def _vehicles_with_agreement_in(statuses, exclude_agreement_id: int | None = None):
+    """Subquery of vehicle ids holding an agreement in one of these statuses."""
+    from sqlalchemy import select
+
+    q = (
+        select(AgreementVehicleSegment.vehicle_id)
+        .join(Agreement)
+        .filter(Agreement.status.in_(list(statuses)))
+    )
+    if exclude_agreement_id:
+        q = q.filter(Agreement.id != exclude_agreement_id)
+    return q.distinct()
+
+
+def _status_allows_future_window(db: Session, vehicle: Vehicle, exclude_agreement_id: int | None) -> bool:
+    """Whether today's status lets the car be promised for some window.
+
+    The gate used to refuse every RENTED car, so one due back on the 10th
+    could not be offered or approved for the 20th. Today's status says the
+    car is out, not when it is free — the overlap check answers that.
+
+    What status cannot tell us is when an overdue car will be back: its
+    return date has passed without a return. Such a car is never offered,
+    whatever its status says, and neither is one marked RENTED with no
+    rental behind it, since nothing records when it returns.
+    """
+    if vehicle.status not in (*_BOOKABLE_STATUSES, _RENTED):
+        return False
+    overdue = db.query(_vehicles_with_agreement_in([AgreementStatus.OVERDUE], exclude_agreement_id).subquery())
+    if vehicle.id in {row[0] for row in overdue.all()}:
+        return False
+    if vehicle.status == _RENTED:
+        active = db.query(_vehicles_with_agreement_in([AgreementStatus.ACTIVE], exclude_agreement_id).subquery())
+        return vehicle.id in {row[0] for row in active.all()}
+    return True
+
+
 #: Statuses that never occupy a vehicle.
 _RELEASED_STATUSES = [
     AgreementStatus.CANCELLED,
@@ -75,7 +117,7 @@ def check_vehicle_available(
 
     # Check vehicle status. Skipped only for extensions, where the vehicle is
     # legitimately RENTED by the very agreement being extended.
-    if not skip_status_check and vehicle.status not in _BOOKABLE_STATUSES:
+    if not skip_status_check and not _status_allows_future_window(db, vehicle, exclude_agreement_id):
         return False
     
     # Check for overlapping segments
@@ -141,10 +183,18 @@ def get_available_vehicles(
     # any upcoming rental, so a vehicle free in October vanished from the list
     # because of a booking in September — while the single-vehicle check
     # correctly reported it as available.
+    # Same rule as check_vehicle_available: a rented car qualifies while its
+    # rental is on time (the overlap check then confines it to windows after
+    # the return); an overdue one never does.
     query = db.query(Vehicle).filter(
         Vehicle.is_active == True,
-        Vehicle.status.in_(_BOOKABLE_STATUSES),
+        Vehicle.status.in_([*_BOOKABLE_STATUSES, _RENTED]),
         Vehicle.id.not_in(booked_vehicle_ids_sq),
+        Vehicle.id.not_in(_vehicles_with_agreement_in([AgreementStatus.OVERDUE])),
+        or_(
+            Vehicle.status != _RENTED,
+            Vehicle.id.in_(_vehicles_with_agreement_in([AgreementStatus.ACTIVE])),
+        ),
     )
     
     if vehicle_type:

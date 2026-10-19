@@ -610,11 +610,12 @@ export default function BookingPage() {
       .then((v) => {
         // Bouncing to / with no message left the customer wondering what
         // they had done wrong.
-        // A reserved car is only booked for some other window; refusing it
-        // here meant a car the fleet search had just offered could not be
-        // booked. A rented car is out now and staff approval refuses it, so
-        // that still redirects. The chosen dates are checked on step 2.
-        if (v.status === 'rented') {
+        // Today's status says nothing about the window being booked: a
+        // reserved car is held for other dates, and a rented one may be back
+        // long before them. Step 2 checks the chosen dates against the
+        // server, which refuses an overdue car for any window. Only a car the
+        // public API no longer lists at all is turned away.
+        if (!v) {
           navigate('/', {
             replace: true,
             state: { notice: t('booking.carUnavailable') },

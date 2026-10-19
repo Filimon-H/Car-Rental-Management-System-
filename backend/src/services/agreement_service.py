@@ -263,8 +263,12 @@ def create_standard_agreement(
     )
     db.add(segment)
 
-    # Reserve the vehicle — only move to RENTED when the agreement is activated (handover done)
-    vehicle.status = VehicleStatus.RESERVED
+    # Reserve the vehicle — only move to RENTED when the agreement is activated
+    # (handover done). A car already out on another rental stays RENTED: this
+    # booking starts after it comes back, and marking it RESERVED would show a
+    # car on the road as parked. Its return derives RESERVED from this hold.
+    if vehicle.status != VehicleStatus.RENTED:
+        vehicle.status = VehicleStatus.RESERVED
 
     # Calculate and post initial rental charge. The vehicle's weekly/monthly rates
     # are applied when they beat the daily price for this duration; when unset this
@@ -922,7 +926,10 @@ def approve_booking_request(
                 f"requested dates.{detail}",
             )
 
-        vehicle.status = VehicleStatus.RESERVED
+        # Approving a booking for after a current rental must not mark the car
+        # on the road as parked; see create_standard_agreement.
+        if vehicle.status != VehicleStatus.RENTED:
+            vehicle.status = VehicleStatus.RESERVED
 
     # Post the initial rental charge now that we're committing the booking.
     # Tier rates come from the first booked vehicle, matching how the quote was shown.
