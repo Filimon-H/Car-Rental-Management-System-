@@ -64,6 +64,8 @@ def _register_all(app: FastAPI, api_prefix: str, include_in_schema: bool = True)
     # Inspections routes
     from src.api.routers import inspections
     app.include_router(inspections.router, prefix=f"{api_prefix}/inspections", tags=["inspections"], include_in_schema=include_in_schema)
+    from src.api.routers import inspection_photos
+    app.include_router(inspection_photos.router, prefix=f"{api_prefix}/inspections", tags=["inspections"], include_in_schema=include_in_schema)
 
     # Documents routes
     from src.api.routers import documents

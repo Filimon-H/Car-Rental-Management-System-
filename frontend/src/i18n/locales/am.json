@@ -1085,5 +1085,18 @@
       "inspection": "ፍተሻ",
       "other": "ሌላ"
     }
+  },
+  "inspectionPhotos": {
+    "title": "ፎቶዎች",
+    "add": "ፎቶ ጨምር",
+    "uploading": "በመጫን ላይ…",
+    "empty": "እስካሁን የተያያዘ ፎቶ የለም።",
+    "locked": "ይህ ፍተሻ ተፈርሟል፤ ፎቶዎቹ ከእንግዲህ ሊቀየሩ አይችሉም።",
+    "rejected": "አልተጨመሩም (ፎቶ ብቻ፣ እስከ 10MB)፦ {{names}}",
+    "view": "ፎቶ ተመልከት፦ {{name}}",
+    "deleteOne": "ፎቶ ሰርዝ፦ {{name}}",
+    "deleteTitle": "ይህ ፎቶ ይሰረዝ?",
+    "deleteMessage": "\"{{name}}\" ከፍተሻው ይወገዳል።",
+    "deleteConfirm": "ፎቶ ሰርዝ"
   }
 }

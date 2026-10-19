@@ -5,13 +5,13 @@
  * app never called it, so there was nowhere to log an oil change or see that
  * a car was past its service.
  *
- * The component imports lib/utils, which initialises i18n, so strings render
- * in English here rather than as keys.
+ * i18n is loaded explicitly so strings render in English rather than as keys.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import '@/i18n'
 import { MaintenanceSection } from '@/components/vehicles/MaintenanceSection'
 import { useAuthStore } from '@/services/auth'
 import { maintenanceService } from '@/services/maintenance'

@@ -8,6 +8,7 @@ import { getErrorMessage } from '@/services/apiClient'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { documentsService } from '@/services/documents'
+import { InspectionPhotos } from '@/components/inspections/InspectionPhotos'
 
 export default function InspectionDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -254,6 +255,8 @@ export default function InspectionDetailPage() {
             </ul>
           )}
         </section>
+
+        <InspectionPhotos inspectionId={inspection.id} status={inspection.status} />
 
         {inspection.notes && (
           <section className="rounded-lg border bg-white p-4 md:col-span-2">

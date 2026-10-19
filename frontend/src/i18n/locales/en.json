@@ -1085,5 +1085,18 @@
       "inspection": "Inspection",
       "other": "Other"
     }
+  },
+  "inspectionPhotos": {
+    "title": "Photos",
+    "add": "Add photos",
+    "uploading": "Uploading…",
+    "empty": "No photos attached yet.",
+    "locked": "This inspection is signed, so its photos can no longer change.",
+    "rejected": "Not added (photos only, up to 10MB): {{names}}",
+    "view": "View photo: {{name}}",
+    "deleteOne": "Delete photo: {{name}}",
+    "deleteTitle": "Delete this photo?",
+    "deleteMessage": "\"{{name}}\" will be removed from the inspection.",
+    "deleteConfirm": "Delete photo"
   }
 }
