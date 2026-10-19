@@ -24,6 +24,8 @@ import { useTranslation } from 'react-i18next'
 import { toast } from '@/hooks/use-toast'
 import { dashboardService } from '@/services/dashboard'
 import { telegramService } from '@/services/telegram'
+import { maintenanceService } from '@/services/maintenance'
+import { formatDate } from '@/lib/utils'
 
 const toneMap = {
   primary: 'bg-primary text-white',
@@ -192,6 +194,12 @@ export default function DashboardPage() {
     queryKey: ['dashboard'],
     queryFn: () => dashboardService.getStats(),
     refetchInterval: 60_000,
+  })
+
+  const { data: serviceDue = [] } = useQuery({
+    queryKey: ['maintenance-due'],
+    queryFn: maintenanceService.due,
+    staleTime: 5 * 60_000,
   })
 
   const { data: telegramStatus, isLoading: isTelegramLoading } = useQuery({
@@ -752,6 +760,45 @@ export default function DashboardPage() {
               </span>
             </div>
           </div>
+        </div>
+
+        {/*
+          Service due. The backend has computed which cars are past a service
+          date or mileage for some time; nothing on the dashboard showed it,
+          so a car could run well past its service before anyone noticed.
+        */}
+        <div className="app-panel p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Wrench className="h-4 w-4 text-amber-500" />
+            <p className="app-kicker text-amber-600 m-0">{t('maintenance.dueTitle')}</p>
+          </div>
+          <div className="text-3xl font-bold tracking-tight text-slate-900">{serviceDue.length}</div>
+          {serviceDue.length === 0 ? (
+            <p className="mt-1 text-sm text-slate-500">{t('maintenance.dueEmpty')}</p>
+          ) : (
+            <ul className="mt-4 space-y-2 border-t border-slate-100 pt-3">
+              {serviceDue.slice(0, 5).map((item) => (
+                <li key={item.vehicle_id}>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/vehicles/${item.vehicle_id}`)}
+                    className="flex w-full items-center justify-between gap-3 text-left text-sm hover:text-primary"
+                  >
+                    <span className="truncate text-slate-700">
+                      {item.plate_number} · {item.vehicle}
+                    </span>
+                    <span className="shrink-0 text-xs font-medium text-amber-600">
+                      {item.due_reason.includes('date') && item.next_due_date
+                        ? formatDate(item.next_due_date)
+                        : item.next_due_mileage != null
+                          ? `${item.next_due_mileage.toLocaleString()} km`
+                          : ''}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
 

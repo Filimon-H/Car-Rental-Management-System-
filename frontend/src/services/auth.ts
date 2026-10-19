@@ -71,7 +71,10 @@ export const useAuthStore = create<AuthState>()(
 
       hasPermission: (permission: string) => {
         const { user } = get()
-        return user?.permissions.includes(permission) ?? false
+        // /auth/me does not send permissions, so user.permissions is
+        // undefined in practice; without the ?. this threw for any caller.
+        // Gate on roles (hasRole) until the server sends them.
+        return user?.permissions?.includes(permission) ?? false
       },
 
       hasRole: (...roles: string[]) => {

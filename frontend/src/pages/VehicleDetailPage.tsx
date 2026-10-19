@@ -4,6 +4,7 @@ import { ArrowLeft, Car, Pencil } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { vehiclesService } from '@/services/vehicles'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
+import { MaintenanceSection } from '@/components/vehicles/MaintenanceSection'
 import { useTranslation } from 'react-i18next'
 
 const toUploadUrl = (relativePath: string) => {
@@ -202,6 +203,8 @@ export default function VehicleDetailPage() {
               <ImageLightbox open={lightboxOpen} src={lightboxSrc} alt={lightboxAlt} onClose={() => setLightboxOpen(false)} />
             )}
           </div>
+
+          <MaintenanceSection vehicleId={vehicle.id} currentMileage={vehicle.current_mileage} />
         </div>
       </div>
     </div>

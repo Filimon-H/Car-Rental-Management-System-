@@ -1048,5 +1048,42 @@
       "van": "Van",
       "convertible": "Convertible"
     }
+  },
+  "maintenance": {
+    "title": "Service history",
+    "logService": "Log service",
+    "save": "Save record",
+    "empty": "No service recorded for this vehicle yet.",
+    "loadFailed": "Could not load the service history.",
+    "date": "Date",
+    "type": "Service",
+    "description": "Work done",
+    "odometer": "Odometer",
+    "cost": "Cost",
+    "costEtb": "Cost (ETB)",
+    "provider": "Garage / provider",
+    "notes": "Notes",
+    "nextDue": "Next due",
+    "nextDueDate": "Next service date",
+    "nextDueMileage": "Next service at (km)",
+    "descriptionRequired": "Describe the work that was done.",
+    "notInFuture": "The service date can't be in the future.",
+    "nextDueAfter": "The next service must be after this one.",
+    "deleteTitle": "Delete this service record?",
+    "deleteMessage": "The {{type}} on {{date}} will be removed from the history.",
+    "deleteConfirm": "Delete record",
+    "deleteRecord": "Delete service record from {{date}}",
+    "dueTitle": "Service due",
+    "dueEmpty": "No vehicles are due for service.",
+    "types": {
+      "routine_service": "Routine service",
+      "oil_change": "Oil change",
+      "tire_replacement": "Tyre replacement",
+      "brake_service": "Brake service",
+      "repair": "Repair",
+      "bodywork": "Bodywork",
+      "inspection": "Inspection",
+      "other": "Other"
+    }
   }
 }

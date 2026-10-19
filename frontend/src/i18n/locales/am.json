@@ -1048,5 +1048,42 @@
       "van": "ቫን",
       "convertible": "ጣሪያው የሚከፈት"
     }
+  },
+  "maintenance": {
+    "title": "የአገልግሎት ታሪክ",
+    "logService": "አገልግሎት መዝግብ",
+    "save": "መዝገብ አስቀምጥ",
+    "empty": "ለዚህ ተሽከርካሪ እስካሁን የተመዘገበ አገልግሎት የለም።",
+    "loadFailed": "የአገልግሎት ታሪኩን መጫን አልተቻለም።",
+    "date": "ቀን",
+    "type": "አገልግሎት",
+    "description": "የተሰራው ሥራ",
+    "odometer": "ኦዶሜትር",
+    "cost": "ወጪ",
+    "costEtb": "ወጪ (ብር)",
+    "provider": "ጋራዥ / አቅራቢ",
+    "notes": "ማስታወሻ",
+    "nextDue": "ቀጣይ ጊዜ",
+    "nextDueDate": "የቀጣይ አገልግሎት ቀን",
+    "nextDueMileage": "ቀጣይ አገልግሎት በ (ኪ.ሜ)",
+    "descriptionRequired": "የተሰራውን ሥራ ይግለጹ።",
+    "notInFuture": "የአገልግሎት ቀኑ ወደፊት ሊሆን አይችልም።",
+    "nextDueAfter": "ቀጣዩ አገልግሎት ከዚህኛው በኋላ መሆን አለበት።",
+    "deleteTitle": "ይህ የአገልግሎት መዝገብ ይሰረዝ?",
+    "deleteMessage": "በ{{date}} የተደረገው {{type}} ከታሪኩ ይወገዳል።",
+    "deleteConfirm": "መዝገቡን ሰርዝ",
+    "deleteRecord": "የ{{date}} የአገልግሎት መዝገብ ሰርዝ",
+    "dueTitle": "አገልግሎት የደረሰባቸው",
+    "dueEmpty": "አገልግሎት የደረሰበት ተሽከርካሪ የለም።",
+    "types": {
+      "routine_service": "መደበኛ አገልግሎት",
+      "oil_change": "ዘይት መቀየር",
+      "tire_replacement": "ጎማ መቀየር",
+      "brake_service": "የፍሬን አገልግሎት",
+      "repair": "ጥገና",
+      "bodywork": "የአካል ሥራ",
+      "inspection": "ፍተሻ",
+      "other": "ሌላ"
+    }
   }
 }
