@@ -67,13 +67,9 @@ const TYPE_META: Record<string, TypeMeta> = {
   },
 }
 
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  cash: 'Cash',
-  bank_transfer: 'Bank Transfer',
-  telebirr: 'TeleBirr',
-  credit_card: 'Credit Card',
-  cheque: 'Cheque',
-}
+// Labels come from i18n paymentMethods.*, keyed by the backend's values.
+// This map listed credit_card and cheque, which the backend never sends,
+// and missed cbe_birr, check and other, so those showed as raw codes.
 
 interface LedgerTableProps {
   agreementId: number
@@ -295,7 +291,7 @@ export default function LedgerTable({ agreementId, onReverse, onReceipt }: Ledge
                     </p>
                     {entry.payment_method && (
                       <p className="mt-0.5 text-xs text-gray-500">
-                        {PAYMENT_METHOD_LABELS[entry.payment_method] ?? entry.payment_method}
+                        {t(`paymentMethods.${entry.payment_method}`, entry.payment_method)}
                         {entry.payment_reference && (
                           <> · Ref: <span className="font-mono">{entry.payment_reference}</span></>
                         )}

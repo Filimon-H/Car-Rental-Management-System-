@@ -42,14 +42,8 @@ const TYPE_BADGE: Record<string, string> = {
   late_fee: 'bg-orange-100 text-orange-800',
 }
 
-const PAYMENT_LABELS: Record<string, string> = {
-  cash: 'Cash',
-  bank_transfer: 'Bank Transfer',
-  telebirr: 'TeleBirr',
-  cbe_birr: 'CBE Birr',
-  check: 'Cheque',
-  other: 'Other',
-}
+// Payment method labels live in i18n (paymentMethods.*), keyed by the
+// backend's PaymentMethod values, shared with the agreement ledger.
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB' }).format(Math.abs(n))
@@ -85,7 +79,7 @@ function ReverseModal({
           </button>
         </div>
         <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-          <p className="font-medium">Entry to reverse:</p>
+          <p className="font-medium">{t('ledger.entryToReverse')}</p>
           <p className="mt-1">{entry.description} — {entry.amount > 0 ? '+' : ''}{entry.amount.toLocaleString()} ETB</p>
         </div>
         <div className="mb-4">
@@ -109,7 +103,7 @@ function ReverseModal({
             disabled={!reason.trim() || isLoading}
             className="flex-1 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
           >
-            {isLoading ? 'Reversing...' : 'Confirm Reversal'}
+            {isLoading ? t('ledger.reversing') : t('ledger.confirmReversal')}
           </button>
         </div>
       </div>
@@ -223,7 +217,7 @@ function CustomersTab() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Type name or phone..."
+                placeholder={t('ledger.searchNameOrPhone')}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="w-full rounded-lg border py-2 pl-10 pr-4 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
@@ -287,9 +281,9 @@ function CustomersTab() {
             {/* Summary cards */}
             {entries && entries.length > 0 && (
               <div className="grid grid-cols-4 gap-3">
-                <SummaryCard label="Total Charged" value={fmt(totalCharged)} color="red" />
-                <SummaryCard label="Total Paid" value={fmt(totalPaid)} color="green" />
-                <SummaryCard label="Deposit Held" value={fmt(totalDeposits)} color="blue" />
+                <SummaryCard label={t('ledger.totalCharged')} value={fmt(totalCharged)} color="red" />
+                <SummaryCard label={t('ledger.totalPaid')} value={fmt(totalPaid)} color="green" />
+                <SummaryCard label={t('ledger.depositHeld')} value={fmt(totalDeposits)} color="blue" />
                 <SummaryCard
                   label={balance > 0 ? t('ledger.balanceDue') : balance < 0 ? t('ledger.overpaid') : t('ledger.settled')}
                   value={fmt(balance)}
@@ -370,7 +364,7 @@ function CustomersTab() {
                                   </td>
                                   <td className="max-w-xs px-4 py-2.5">
                                     <p className={`text-gray-700 ${reversed ? 'line-through' : ''}`}>{e.description}</p>
-                                    {e.payment_method && <p className="text-xs text-gray-500">{PAYMENT_LABELS[e.payment_method] ?? e.payment_method}{e.payment_reference && ` · Ref: ${e.payment_reference}`}</p>}
+                                    {e.payment_method && <p className="text-xs text-gray-500">{t(`paymentMethods.${e.payment_method}`, e.payment_method)}{e.payment_reference && ` · ${t('ledger.ref')}: ${e.payment_reference}`}</p>}
                                   </td>
                                   <td className="whitespace-nowrap px-4 py-2.5 text-right">
                                     {toNumber(e.amount) > 0 ? <span className="font-semibold text-red-600">{fmt(e.amount)}</span> : <span className="text-gray-300">—</span>}
@@ -479,7 +473,7 @@ function AgreementsTab() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={t('ledger.search')}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="w-full rounded-lg border py-2 pl-10 pr-4 text-sm"
@@ -514,9 +508,9 @@ function AgreementsTab() {
         ) : (
           <>
             <div className="mb-4 grid grid-cols-4 gap-3">
-              <SummaryCard label="Total Charged" value={formatCurrency(totalCharges)} color="red" />
-              <SummaryCard label="Total Paid" value={formatCurrency(totalPayments)} color="green" />
-              <SummaryCard label="Deposit Held" value={formatCurrency(depositHeld)} color="blue" />
+              <SummaryCard label={t('ledger.totalCharged')} value={formatCurrency(totalCharges)} color="red" />
+              <SummaryCard label={t('ledger.totalPaid')} value={formatCurrency(totalPayments)} color="green" />
+              <SummaryCard label={t('ledger.depositHeld')} value={formatCurrency(depositHeld)} color="blue" />
               <SummaryCard
                 label={currentBalance > 0 ? t('ledger.balanceDue') : currentBalance < 0 ? t('ledger.overpaid') : t('ledger.settled')}
                 value={formatCurrency(Math.abs(currentBalance))}
@@ -644,7 +638,7 @@ function VendorsTab() {
   const totalPaid = payments?.reduce((s, p) => s + toNumber(p.amount), 0) ?? 0
 
   const vendorName = (v: { company_name: string | null; contact_person: string | null }) =>
-    v.company_name || v.contact_person || 'Unknown'
+    v.company_name || v.contact_person || t('common.unknown')
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
@@ -705,7 +699,7 @@ function VendorsTab() {
                 </div>
                 <div>
                   <p className="font-semibold text-gray-800">{selectedVendor.name}</p>
-                  <p className="text-xs text-gray-500">{payments?.length ?? 0} payments recorded</p>
+                  <p className="text-xs text-gray-500">{t('ledger.paymentsRecorded', { count: payments?.length ?? 0 })}</p>
                 </div>
               </div>
             </div>
@@ -713,10 +707,10 @@ function VendorsTab() {
             {/* Summary */}
             {summary && (
               <div className="grid grid-cols-4 gap-3">
-                <SummaryCard label="Total Earned" value={fmt(summary.earned_amount)} color="blue" sub="from completed rentals" />
-                <SummaryCard label="Total Paid Out" value={fmt(summary.paid_amount)} color="green" sub="payments sent to vendor" />
-                <SummaryCard label="Outstanding" value={fmt(summary.outstanding_payable)} color={summary.outstanding_payable > 0 ? 'orange' : 'gray'} sub="still owed to vendor" />
-                <SummaryCard label="Agreements" value={String(summary.agreement_count)} color="gray" sub="total rentals" />
+                <SummaryCard label={t('ledger.totalEarned')} value={fmt(summary.earned_amount)} color="blue" sub={t('ledger.fromCompletedRentals')} />
+                <SummaryCard label={t('ledger.totalPaidOut')} value={fmt(summary.paid_amount)} color="green" sub={t('ledger.paymentsSentToVendor')} />
+                <SummaryCard label={t('ledger.outstanding')} value={fmt(summary.outstanding_payable)} color={summary.outstanding_payable > 0 ? 'orange' : 'gray'} sub={t('ledger.stillOwedToVendor')} />
+                <SummaryCard label={t('ledger.agreementsLabel')} value={String(summary.agreement_count)} color="gray" sub={t('ledger.totalRentals')} />
               </div>
             )}
 
@@ -755,7 +749,7 @@ function VendorsTab() {
                         </td>
                         <td className="px-4 py-3">
                           <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
-                            {PAYMENT_LABELS[p.payment_method] ?? p.payment_method}
+                            {t(`paymentMethods.${p.payment_method}`, p.payment_method)}
                           </span>
                           {p.payment_reference && <p className="mt-0.5 text-xs text-gray-500">Ref: {p.payment_reference}</p>}
                         </td>
@@ -802,7 +796,6 @@ function SummaryTab() {
   const grandVendorPaid = periods?.reduce((s, p) => s + p.vendor_paid, 0) ?? 0
   const grandNet = periods?.reduce((s, p) => s + p.net_revenue, 0) ?? 0
 
-  const GRAN_LABELS = { daily: 'Day', monthly: 'Month', yearly: 'Year' }
 
   return (
     <div className="space-y-6">
@@ -823,7 +816,7 @@ function SummaryTab() {
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              {g.charAt(0).toUpperCase() + g.slice(1)}
+              {t(`ledger.granularity.${g}`)}
             </button>
           ))}
         </div>
@@ -831,16 +824,16 @@ function SummaryTab() {
 
       {/* Grand totals */}
       <div className="grid grid-cols-4 gap-3">
-        <SummaryCard label="All-time Revenue Charged" value={fmt(grandTotalCharged)} color="red" sub="total billed to customers" />
-        <SummaryCard label="All-time Payments Received" value={fmt(grandTotalPayments)} color="green" sub="cash collected from customers" />
-        <SummaryCard label="All-time Vendor Paid Out" value={fmt(grandVendorPaid)} color="blue" sub="sent to vehicle vendors" />
-        <SummaryCard label="Net Revenue" value={fmt(Math.abs(grandNet))} color={grandNet >= 0 ? 'teal' : 'orange'} sub={grandNet >= 0 ? 'profit after vendor costs' : 'net loss'} />
+        <SummaryCard label={t('ledger.allTimeCharged')} value={fmt(grandTotalCharged)} color="red" sub={t('ledger.totalBilledToCustomers')} />
+        <SummaryCard label={t('ledger.allTimeReceived')} value={fmt(grandTotalPayments)} color="green" sub={t('ledger.cashCollected')} />
+        <SummaryCard label={t('ledger.allTimeVendorPaid')} value={fmt(grandVendorPaid)} color="blue" sub={t('ledger.sentToVendors')} />
+        <SummaryCard label={t('ledger.netRevenue')} value={fmt(Math.abs(grandNet))} color={grandNet >= 0 ? 'teal' : 'orange'} sub={grandNet >= 0 ? t('ledger.profitAfterVendor') : t('ledger.netLoss')} />
       </div>
 
       {/* Period table */}
       <div className="overflow-hidden rounded-lg bg-white shadow">
         <div className="border-b px-5 py-3">
-          <h3 className="font-semibold text-gray-700">By {GRAN_LABELS[granularity]}</h3>
+          <h3 className="font-semibold text-gray-700">{t('ledger.byPeriod', { period: t(`ledger.period.${granularity}`) })}</h3>
         </div>
         {isLoading ? (
           <div className="flex h-32 items-center justify-center">
@@ -852,7 +845,7 @@ function SummaryTab() {
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{GRAN_LABELS[granularity]}</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{t(`ledger.period.${granularity}`)}</th>
                 <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-red-500">{t('ledger.charged')}</th>
                 <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-green-600">{t('ledger.collected')}</th>
                 <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-blue-500">{t('ledger.deposits')}</th>

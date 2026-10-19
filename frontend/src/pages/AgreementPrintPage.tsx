@@ -118,20 +118,20 @@ export default function AgreementPrintPage() {
           <div>
             <h2 className="mb-2 border-b font-bold uppercase text-gray-700">{t('agreementPrint.lessorCompany')}</h2>
             <p className="font-semibold">{t('auth.carRentalManagement')}</p>
-            <p>Addis Ababa, Ethiopia</p>
+            <p>{t('agreementPrint.companyLocation')}</p>
             {/* Was the literal placeholder "+251 XXX XXX XXX" on a signed document. */}
-            <p>Phone: {COMPANY_PHONE}</p>
+            <p>{t('agreementPrint.phone')}: {COMPANY_PHONE}</p>
           </div>
           <div>
             <h2 className="mb-2 border-b font-bold uppercase text-gray-700">{t('agreementPrint.lesseeCustomer')}</h2>
             <p className="font-semibold">{customer?.full_name || agreement.customer_name}</p>
-            <p>Phone: {customer?.phone_primary || 'N/A'}</p>
+            <p>{t('agreementPrint.phone')}: {customer?.phone_primary || '—'}</p>
             {customer?.id_type && (
               <p>
                 {customer.id_type}: {customer.id_number}
               </p>
             )}
-            {customer?.subcity && <p>Address: {customer.subcity}, {customer.city || 'Addis Ababa'}</p>}
+            {customer?.subcity && <p>{t('agreementPrint.address')}: {customer.subcity}, {customer.city || t('customerDetail.defaultCity')}</p>}
           </div>
         </div>
 
@@ -141,17 +141,17 @@ export default function AgreementPrintPage() {
         */}
         {agreement.driver && (
           <div className="mb-6">
-            <h2 className="mb-2 border-b font-bold uppercase text-gray-700">Driver</h2>
+            <h2 className="mb-2 border-b font-bold uppercase text-gray-700">{t('agreementPrint.driver')}</h2>
             <table className="w-full text-sm">
               <tbody>
                 <tr>
-                  <td className="py-1 pr-4 font-medium">Name:</td>
+                  <td className="py-1 pr-4 font-medium">{t('agreementPrint.name')}:</td>
                   <td>{agreement.driver.first_name} {agreement.driver.last_name}</td>
-                  <td className="py-1 pr-4 font-medium">Phone:</td>
+                  <td className="py-1 pr-4 font-medium">{t('agreementPrint.phone')}:</td>
                   <td>{agreement.driver.phone_primary}</td>
                 </tr>
                 <tr>
-                  <td className="py-1 pr-4 font-medium">Licence:</td>
+                  <td className="py-1 pr-4 font-medium">{t('agreementPrint.licence')}:</td>
                   <td colSpan={3}>{agreement.driver.license_number}</td>
                 </tr>
               </tbody>
@@ -165,21 +165,21 @@ export default function AgreementPrintPage() {
           <table className="w-full text-sm">
             <tbody>
               <tr>
-                <td className="py-1 pr-4 font-medium">Plate Number:</td>
+                <td className="py-1 pr-4 font-medium">{t('agreementPrint.plateNumber')}:</td>
                 <td>{vehicle?.plate_number || agreement.vehicle_segments?.[0]?.plate_number || 'N/A'}</td>
-                <td className="py-1 pr-4 font-medium">Make/Model:</td>
+                <td className="py-1 pr-4 font-medium">{t('agreementPrint.makeModel')}:</td>
                 <td>{vehicle ? `${vehicle.make} ${vehicle.model}` : 'N/A'}</td>
               </tr>
               <tr>
-                <td className="py-1 pr-4 font-medium">Year:</td>
+                <td className="py-1 pr-4 font-medium">{t('agreementPrint.year')}:</td>
                 <td>{vehicle?.year || 'N/A'}</td>
-                <td className="py-1 pr-4 font-medium">Color:</td>
+                <td className="py-1 pr-4 font-medium">{t('agreementPrint.color')}:</td>
                 <td>{vehicle?.color || 'N/A'}</td>
               </tr>
               <tr>
-                <td className="py-1 pr-4 font-medium">Fuel Type:</td>
+                <td className="py-1 pr-4 font-medium">{t('agreementPrint.fuelType')}:</td>
                 <td>{vehicle?.fuel_type || 'N/A'}</td>
-                <td className="py-1 pr-4 font-medium">Transmission:</td>
+                <td className="py-1 pr-4 font-medium">{t('agreementPrint.transmission')}:</td>
                 <td>{vehicle?.transmission || 'N/A'}</td>
               </tr>
             </tbody>
@@ -192,20 +192,20 @@ export default function AgreementPrintPage() {
           <table className="w-full text-sm">
             <tbody>
               <tr>
-                <td className="py-1 pr-4 font-medium">Pickup Date/Time:</td>
+                <td className="py-1 pr-4 font-medium">{t('agreementPrint.pickupDateTime')}:</td>
                 <td>{formatDateTime(agreement.pickup_datetime)}</td>
               </tr>
               <tr>
-                <td className="py-1 pr-4 font-medium">Expected Return:</td>
+                <td className="py-1 pr-4 font-medium">{t('agreementPrint.expectedReturn')}:</td>
                 <td>{formatDateTime(agreement.expected_return_datetime)}</td>
               </tr>
               <tr>
-                <td className="py-1 pr-4 font-medium">Pickup Location:</td>
-                <td>{agreement.pickup_location || 'Office'}</td>
+                <td className="py-1 pr-4 font-medium">{t('agreementPrint.pickupLocation')}:</td>
+                <td>{agreement.pickup_location || t('agreementPrint.office')}</td>
               </tr>
               <tr>
-                <td className="py-1 pr-4 font-medium">Return Location:</td>
-                <td>{agreement.return_location || 'Office'}</td>
+                <td className="py-1 pr-4 font-medium">{t('agreementPrint.returnLocation')}:</td>
+                <td>{agreement.return_location || t('agreementPrint.office')}</td>
               </tr>
             </tbody>
           </table>
@@ -217,23 +217,23 @@ export default function AgreementPrintPage() {
           <table className="w-full text-sm">
             <tbody>
               <tr>
-                <td className="py-1 pr-4 font-medium">Daily Rate:</td>
+                <td className="py-1 pr-4 font-medium">{t('agreementPrint.dailyRate')}:</td>
                 <td>{formatCurrency(agreement.agreed_daily_rate)}</td>
               </tr>
               <tr>
-                <td className="py-1 pr-4 font-medium">Security Deposit:</td>
+                <td className="py-1 pr-4 font-medium">{t('agreementPrint.securityDeposit')}:</td>
                 <td>{formatCurrency(agreement.deposit_amount || 0)}</td>
               </tr>
               <tr>
-                <td className="py-1 pr-4 font-medium">Total Charges:</td>
+                <td className="py-1 pr-4 font-medium">{t('agreementPrint.totalCharges')}:</td>
                 <td>{formatCurrency(agreement.total_charges)}</td>
               </tr>
               <tr>
-                <td className="py-1 pr-4 font-medium">Total Payments:</td>
+                <td className="py-1 pr-4 font-medium">{t('agreementPrint.totalPayments')}:</td>
                 <td>{formatCurrency(agreement.total_payments)}</td>
               </tr>
               <tr className="font-bold">
-                <td className="py-1 pr-4">Balance Due:</td>
+                <td className="py-1 pr-4">{t('agreementPrint.balanceDue')}:</td>
                 <td>{formatCurrency(agreement.balance_due ?? agreement.balance)}</td>
               </tr>
             </tbody>
@@ -247,15 +247,15 @@ export default function AgreementPrintPage() {
             <table className="w-full text-sm">
               <tbody>
                 <tr>
-                  <td className="py-1 pr-4 font-medium">Name:</td>
+                  <td className="py-1 pr-4 font-medium">{t('agreementPrint.name')}:</td>
                   <td>{collateral.first_name} {collateral.last_name}</td>
                 </tr>
                 <tr>
-                  <td className="py-1 pr-4 font-medium">Phone:</td>
+                  <td className="py-1 pr-4 font-medium">{t('agreementPrint.phone')}:</td>
                   <td>{collateral.phone_primary}</td>
                 </tr>
                 <tr>
-                  <td className="py-1 pr-4 font-medium">Relationship:</td>
+                  <td className="py-1 pr-4 font-medium">{t('agreementPrint.relationship')}:</td>
                   <td>{collateral.relationship_to_customer || 'N/A'}</td>
                 </tr>
               </tbody>
@@ -267,6 +267,11 @@ export default function AgreementPrintPage() {
         <div className="mb-6">
           <h2 className="mb-2 border-b font-bold uppercase text-gray-700">{t('agreementPrint.termsAndConditions')}</h2>
           <ol className="list-inside list-decimal space-y-1 text-xs">
+            {/*
+              The terms stay in English on purpose. They are binding contract
+              wording; an Amharic version should come from the business or its
+              lawyer, not from a translation pass that could shift the meaning.
+            */}
             <li>The Lessee agrees to return the vehicle in the same condition as received.</li>
             <li>The Lessee is responsible for all traffic violations during the rental period.</li>
             <li>The vehicle must not be used for illegal purposes or driven outside agreed areas.</li>

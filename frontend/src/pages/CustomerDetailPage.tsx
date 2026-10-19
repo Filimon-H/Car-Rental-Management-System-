@@ -130,13 +130,13 @@ export default function CustomerDetailPage() {
                 <h2 className="text-lg font-semibold">{t('customerCreate.personalInformation')}</h2>
               </div>
               <dl className="space-y-3">
-                <InfoRow label="Full Name" value={customer.full_name} />
+                <InfoRow label={t('users.fullName')} value={customer.full_name} />
                 <InfoRow label={t('customerCreate.businessType')} value={businessTypeLabels[customer.business_type] || customer.business_type} />
                 {!isIndividual && customer.company_name && (
-                  <InfoRow label="Company Name" value={customer.company_name} />
+                  <InfoRow label={t('customerDetail.companyName')} value={customer.company_name} />
                 )}
                 {customer.tin_number && (
-                  <InfoRow label="TIN Number" value={customer.tin_number} />
+                  <InfoRow label={t('customerCreate.tinNumber')} value={customer.tin_number} />
                 )}
               </dl>
             </div>
@@ -148,12 +148,12 @@ export default function CustomerDetailPage() {
                 <h2 className="text-lg font-semibold">{t('customerCreate.contactInformation')}</h2>
               </div>
               <dl className="space-y-3">
-                <InfoRow label="Primary Phone" value={customer.phone_primary} />
+                <InfoRow label={t('customerCreate.primaryPhoneRequired').replace(' *', '')} value={customer.phone_primary} />
                 {customer.phone_secondary && (
-                  <InfoRow label="Secondary Phone" value={customer.phone_secondary} />
+                  <InfoRow label={t('customerCreate.secondaryPhone')} value={customer.phone_secondary} />
                 )}
                 {customer.email && (
-                  <InfoRow label="Email" value={customer.email} icon={<Mail className="h-4 w-4" />} />
+                  <InfoRow label={t('customerCreate.email')} value={customer.email} icon={<Mail className="h-4 w-4" />} />
                 )}
               </dl>
             </div>
@@ -167,13 +167,13 @@ export default function CustomerDetailPage() {
                 </div>
                 <dl className="space-y-3">
                   <InfoRow label={t('customerCreate.idTypeRequired').replace(' *', '')} value={customer.id_type ? (idTypeLabels[customer.id_type] || customer.id_type) : '-'} />
-                  <InfoRow label="ID Number" value={customer.id_number || '-'} />
+                  <InfoRow label={t('agreementCreate.idNumber')} value={customer.id_number || '-'} />
                   {customer.id_expiry_date && (
-                    <InfoRow label="ID Expiry" value={sharedFormatDate(customer.id_expiry_date)} icon={<Calendar className="h-4 w-4" />} />
+                    <InfoRow label={t('customerDetail.idExpiry')} value={sharedFormatDate(customer.id_expiry_date)} icon={<Calendar className="h-4 w-4" />} />
                   )}
-                  <InfoRow label="Driver License" value={customer.driver_license_number || '-'} />
+                  <InfoRow label={t('customerCreate.driverLicense')} value={customer.driver_license_number || '-'} />
                   {customer.driver_license_expiry && (
-                    <InfoRow label="License Expiry" value={sharedFormatDate(customer.driver_license_expiry)} icon={<Calendar className="h-4 w-4" />} />
+                    <InfoRow label={t('drivers.columns.licenseExpiry')} value={sharedFormatDate(customer.driver_license_expiry)} icon={<Calendar className="h-4 w-4" />} />
                   )}
                 </dl>
               </div>
@@ -186,10 +186,10 @@ export default function CustomerDetailPage() {
                 <h2 className="text-lg font-semibold">{t('customerCreate.address')}</h2>
               </div>
               <dl className="space-y-3">
-                {customer.house_number && <InfoRow label="House Number" value={customer.house_number} />}
-                {customer.wereda && <InfoRow label="Wereda" value={customer.wereda} />}
-                {customer.subcity && <InfoRow label="Subcity" value={customer.subcity} />}
-                <InfoRow label="City" value={customer.city || 'Addis Ababa'} />
+                {customer.house_number && <InfoRow label={t('customerCreate.houseNumber')} value={customer.house_number} />}
+                {customer.wereda && <InfoRow label={t('customerCreate.wereda')} value={customer.wereda} />}
+                {customer.subcity && <InfoRow label={t('customerCreate.subcity')} value={customer.subcity} />}
+                <InfoRow label={t('agreementCreate.city')} value={customer.city || t('customerDetail.defaultCity')} />
               </dl>
             </div>
           </div>
@@ -277,7 +277,7 @@ export default function CustomerDetailPage() {
                   className="flex items-center gap-2 bg-telegram hover:bg-telegram-dark disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
                 >
                   <Send className="h-4 w-4" />
-                  {generatingBotCode ? 'Generating…' : 'Generate Bot Link Code'}
+                  {generatingBotCode ? t('customerDetail.generatingCode') : t('customerDetail.generateBotCode')}
                 </button>
               </div>
             ) : (
@@ -294,7 +294,7 @@ export default function CustomerDetailPage() {
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    Expires: {sharedFormatDateTime(botLinkCode.expires_at)} · Single-use
+                    {t('customerDetail.expiresSingleUse', { time: sharedFormatDateTime(botLinkCode.expires_at) })}
                   </p>
                 </div>
 
@@ -307,7 +307,7 @@ export default function CustomerDetailPage() {
                     onClick={() => copyToClipboard(botLinkCode.bot_message, 'msg')}
                     className="mt-2 flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 transition-colors"
                   >
-                    {copiedMsg ? <><Check className="h-3.5 w-3.5" />Copied!</> : <><Copy className="h-3.5 w-3.5" />{t('customerDetail.copyFullMessage')}</>}
+                    {copiedMsg ? <><Check className="h-3.5 w-3.5" />{t('common.copied')}</> : <><Copy className="h-3.5 w-3.5" />{t('customerDetail.copyFullMessage')}</>}
                   </button>
                 </div>
 
@@ -320,7 +320,7 @@ export default function CustomerDetailPage() {
                       className="flex items-center gap-1.5 text-sm text-telegram hover:underline"
                     >
                       <Send className="h-4 w-4" />
-                      Open {botLinkCode.telegram_username} on Telegram
+                      {t('customerDetail.openOnTelegram', { username: botLinkCode.telegram_username })}
                     </a>
                   )}
                   <button
@@ -348,10 +348,10 @@ export default function CustomerDetailPage() {
           {/* Metadata */}
           <div className="rounded-lg border bg-gray-50 p-4 text-sm text-gray-500">
             <div className="flex gap-6">
-              <span>Created: {sharedFormatDateTime(customer.created_at)}</span>
-              <span>Updated: {sharedFormatDateTime(customer.updated_at)}</span>
+              <span>{t('customerDetail.created')}: {sharedFormatDateTime(customer.created_at)}</span>
+              <span>{t('customerDetail.updated')}: {sharedFormatDateTime(customer.updated_at)}</span>
               <span className={`font-medium ${customer.is_active ? 'text-green-600' : 'text-red-600'}`}>
-                {customer.is_active ? 'Active' : 'Inactive'}
+                {customer.is_active ? t('common.active') : t('common.inactive')}
               </span>
             </div>
           </div>

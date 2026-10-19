@@ -656,7 +656,39 @@
     "vendorPaid": "Vendor Paid",
     "vendorsDesc": "Payments made to external car suppliers",
     "vendorsTab": "Vendors",
-    "depositHelper": "Deposit is deductible for damage and late fees. Apply it to charges, then refund any remaining amount."
+    "depositHelper": "Deposit is deductible for damage and late fees. Apply it to charges, then refund any remaining amount.",
+    "reversing": "Reversing…",
+    "confirmReversal": "Confirm Reversal",
+    "entryToReverse": "Entry to reverse:",
+    "paymentsRecorded": "{{count}} payments recorded",
+    "totalEarned": "Total Earned",
+    "fromCompletedRentals": "from completed rentals",
+    "paymentsSentToVendor": "payments sent to vendor",
+    "stillOwedToVendor": "still owed to vendor",
+    "agreementsLabel": "Agreements",
+    "totalRentals": "total rentals",
+    "allTimeCharged": "All-time Revenue Charged",
+    "totalBilledToCustomers": "total billed to customers",
+    "allTimeReceived": "All-time Payments Received",
+    "cashCollected": "cash collected from customers",
+    "allTimeVendorPaid": "All-time Vendor Paid Out",
+    "sentToVendors": "sent to vehicle vendors",
+    "profitAfterVendor": "profit after vendor costs",
+    "netLoss": "net loss",
+    "byPeriod": "By {{period}}",
+    "searchNameOrPhone": "Type name or phone…",
+    "search": "Search…",
+    "ref": "Ref",
+    "granularity": {
+      "daily": "Daily",
+      "monthly": "Monthly",
+      "yearly": "Yearly"
+    },
+    "period": {
+      "daily": "Day",
+      "monthly": "Month",
+      "yearly": "Year"
+    }
   },
   "users": {
     "activeAccount": "Active account",
@@ -694,7 +726,16 @@
     "sendViaTelegram": "Send it to their Telegram handle",
     "telegramBotAccess": "Telegram Bot Access",
     "title": "Customer Details",
-    "uploadedDocuments": "Uploaded Documents"
+    "uploadedDocuments": "Uploaded Documents",
+    "companyName": "Company Name",
+    "idExpiry": "ID Expiry",
+    "created": "Created",
+    "updated": "Updated",
+    "generatingCode": "Generating…",
+    "generateBotCode": "Generate Bot Link Code",
+    "expiresSingleUse": "Expires {{time}} · single-use",
+    "openOnTelegram": "Open {{username}} on Telegram",
+    "defaultCity": "Addis Ababa"
   },
   "vehicleDetail": {
     "conditionTransmission": "Condition / Transmission",
@@ -730,7 +771,30 @@
     "lessorSignature": "Lessor Signature",
     "notFound": "Agreement not found",
     "printSavePdf": "Print / Save as PDF",
-    "termsAndConditions": "Terms and Conditions"
+    "termsAndConditions": "Terms and Conditions",
+    "plateNumber": "Plate Number",
+    "makeModel": "Make/Model",
+    "year": "Year",
+    "color": "Color",
+    "fuelType": "Fuel Type",
+    "transmission": "Transmission",
+    "pickupDateTime": "Pickup Date/Time",
+    "expectedReturn": "Expected Return",
+    "pickupLocation": "Pickup Location",
+    "returnLocation": "Return Location",
+    "dailyRate": "Daily Rate",
+    "securityDeposit": "Security Deposit",
+    "totalCharges": "Total Charges",
+    "totalPayments": "Total Payments",
+    "balanceDue": "Balance Due",
+    "relationship": "Relationship",
+    "driver": "Driver",
+    "name": "Name",
+    "phone": "Phone",
+    "licence": "Licence",
+    "address": "Address",
+    "office": "Office",
+    "companyLocation": "Addis Ababa, Ethiopia"
   },
   "payment": {
     "bankTransfer": "Bank Transfer",
@@ -1098,5 +1162,13 @@
     "deleteTitle": "Delete this photo?",
     "deleteMessage": "\"{{name}}\" will be removed from the inspection.",
     "deleteConfirm": "Delete photo"
+  },
+  "paymentMethods": {
+    "cash": "Cash",
+    "bank_transfer": "Bank Transfer",
+    "telebirr": "TeleBirr",
+    "cbe_birr": "CBE Birr",
+    "check": "Cheque",
+    "other": "Other"
   }
 }

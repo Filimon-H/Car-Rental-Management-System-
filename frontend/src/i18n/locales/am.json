@@ -656,7 +656,39 @@
     "vendorPaid": "ለአቅራቢ የተከፈለ",
     "vendorsDesc": "ለውጭ የመኪና አቅራቢዎች የተከፈሉ ክፍያዎች",
     "vendorsTab": "አቅራቢዎች",
-    "depositHelper": "ተቀማጩ ለጉዳትና ለዘገየ ክፍያ ይውላል። ለክፍያዎች ይተግብሩት፣ የቀረውንም ይመልሱ።"
+    "depositHelper": "ተቀማጩ ለጉዳትና ለዘገየ ክፍያ ይውላል። ለክፍያዎች ይተግብሩት፣ የቀረውንም ይመልሱ።",
+    "reversing": "በመሰረዝ ላይ…",
+    "confirmReversal": "መሰረዙን አረጋግጥ",
+    "entryToReverse": "የሚሰረዘው መዝገብ፦",
+    "paymentsRecorded": "{{count}} ክፍያዎች ተመዝግበዋል",
+    "totalEarned": "ጠቅላላ ገቢ",
+    "fromCompletedRentals": "ከተጠናቀቁ ኪራዮች",
+    "paymentsSentToVendor": "ለአቅራቢው የተላኩ ክፍያዎች",
+    "stillOwedToVendor": "ለአቅራቢው ገና ያልተከፈለ",
+    "agreementsLabel": "ውሎች",
+    "totalRentals": "ጠቅላላ ኪራዮች",
+    "allTimeCharged": "እስካሁን የተጠየቀ ጠቅላላ ገቢ",
+    "totalBilledToCustomers": "ለደንበኞች የተጠየቀ ጠቅላላ",
+    "allTimeReceived": "እስካሁን የተቀበሉ ክፍያዎች",
+    "cashCollected": "ከደንበኞች የተሰበሰበ ገንዘብ",
+    "allTimeVendorPaid": "እስካሁን ለአቅራቢዎች የተከፈለ",
+    "sentToVendors": "ለተሽከርካሪ አቅራቢዎች የተላከ",
+    "profitAfterVendor": "ከአቅራቢ ወጪ በኋላ ያለ ትርፍ",
+    "netLoss": "የተጣራ ኪሳራ",
+    "byPeriod": "በ{{period}}",
+    "searchNameOrPhone": "ስም ወይም ስልክ ያስገቡ…",
+    "search": "ፈልግ…",
+    "ref": "ማጣቀሻ",
+    "granularity": {
+      "daily": "በየቀኑ",
+      "monthly": "በየወሩ",
+      "yearly": "በየዓመቱ"
+    },
+    "period": {
+      "daily": "ቀን",
+      "monthly": "ወር",
+      "yearly": "ዓመት"
+    }
   },
   "users": {
     "activeAccount": "ንቁ መለያ",
@@ -694,7 +726,16 @@
     "sendViaTelegram": "ወደ ቴሌግራም መለያቸው ይላኩ",
     "telegramBotAccess": "የቴሌግራም ቦት መዳረሻ",
     "title": "የደንበኛ ዝርዝር",
-    "uploadedDocuments": "የተጫኑ ሰነዶች"
+    "uploadedDocuments": "የተጫኑ ሰነዶች",
+    "companyName": "የድርጅት ስም",
+    "idExpiry": "የመታወቂያ ማብቂያ",
+    "created": "የተፈጠረው",
+    "updated": "የተሻሻለው",
+    "generatingCode": "በማመንጨት ላይ…",
+    "generateBotCode": "የቦት ማገናኛ ኮድ አመንጭ",
+    "expiresSingleUse": "የሚያበቃው {{time}} · አንድ ጊዜ ብቻ",
+    "openOnTelegram": "{{username}}ን በቴሌግራም ክፈት",
+    "defaultCity": "አዲስ አበባ"
   },
   "vehicleDetail": {
     "conditionTransmission": "ሁኔታ / ማስተላለፊያ",
@@ -730,7 +771,30 @@
     "lessorSignature": "የአከራይ ፊርማ",
     "notFound": "ውል አልተገኘም",
     "printSavePdf": "አትም / እንደ PDF አስቀምጥ",
-    "termsAndConditions": "ውሎች እና ሁኔታዎች"
+    "termsAndConditions": "ውሎች እና ሁኔታዎች",
+    "plateNumber": "የሰሌዳ ቁጥር",
+    "makeModel": "አምራች/ሞዴል",
+    "year": "ዓመት",
+    "color": "ቀለም",
+    "fuelType": "የነዳጅ ዓይነት",
+    "transmission": "ማርሽ",
+    "pickupDateTime": "የመረከቢያ ቀን/ሰዓት",
+    "expectedReturn": "የሚጠበቅ መመለሻ",
+    "pickupLocation": "የመረከቢያ ቦታ",
+    "returnLocation": "የመመለሻ ቦታ",
+    "dailyRate": "የቀን ዋጋ",
+    "securityDeposit": "የዋስትና ተቀማጭ",
+    "totalCharges": "ጠቅላላ ክፍያ",
+    "totalPayments": "ጠቅላላ የተከፈለ",
+    "balanceDue": "ቀሪ ሂሳብ",
+    "relationship": "ዝምድና",
+    "driver": "ሾፌር",
+    "name": "ስም",
+    "phone": "ስልክ",
+    "licence": "መንጃ ፈቃድ",
+    "address": "አድራሻ",
+    "office": "ቢሮ",
+    "companyLocation": "አዲስ አበባ፣ ኢትዮጵያ"
   },
   "payment": {
     "bankTransfer": "የባንክ ዝውውር",
@@ -1098,5 +1162,13 @@
     "deleteTitle": "ይህ ፎቶ ይሰረዝ?",
     "deleteMessage": "\"{{name}}\" ከፍተሻው ይወገዳል።",
     "deleteConfirm": "ፎቶ ሰርዝ"
+  },
+  "paymentMethods": {
+    "cash": "ጥሬ ገንዘብ",
+    "bank_transfer": "የባንክ ዝውውር",
+    "telebirr": "ቴሌብር",
+    "cbe_birr": "ሲቢኢ ብር",
+    "check": "ቼክ",
+    "other": "ሌላ"
   }
 }

@@ -156,8 +156,8 @@ export default function VehicleDetailPage() {
               </div>
               <div className="rounded-lg bg-gray-50 p-4">
                 <div className="text-xs font-medium uppercase text-gray-500">{t('common.metadata')}</div>
-                <div className="mt-1 text-sm text-gray-900">Created: {sharedFormatDateTime(vehicle.created_at)}</div>
-                <div className="text-sm text-gray-600">Updated: {sharedFormatDateTime(vehicle.updated_at)}</div>
+                <div className="mt-1 text-sm text-gray-900">{t('customerDetail.created')}: {sharedFormatDateTime(vehicle.created_at)}</div>
+                <div className="text-sm text-gray-600">{t('customerDetail.updated')}: {sharedFormatDateTime(vehicle.updated_at)}</div>
               </div>
             </div>
 
