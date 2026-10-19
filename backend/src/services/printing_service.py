@@ -58,13 +58,126 @@ def format_payment_method(method) -> str:
 
 
 def format_date(dt: datetime) -> str:
-    """Format datetime for documents."""
+    """Format a true instant (created_at, a payment time) for documents."""
     return _to_local(dt).strftime("%B %d, %Y")
 
 
 def format_datetime(dt: datetime) -> str:
-    """Format datetime with time for documents."""
+    """Format a true instant with time for documents."""
     return _to_local(dt).strftime("%B %d, %Y at %I:%M %p")
+
+
+def format_business_datetime(dt: datetime | None) -> str:
+    """Format a business date — pickup, return, inspection — as stored.
+
+    These are local wall-clock values with no offset. Running them through
+    _to_local, which assumes a naive value is UTC, printed every pickup and
+    return three hours late: a 09:00 pickup came out as 12:00 PM.
+    """
+    if dt is None:
+        return "—"
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(ZoneInfo(settings.scheduler_timezone)).replace(tzinfo=None)
+    return dt.strftime("%B %d, %Y at %I:%M %p")
+
+
+def _customer_address(customer: Customer) -> str:
+    parts = [customer.house_number, customer.wereda, customer.subcity, customer.city]
+    return ", ".join(p for p in parts if p) or "—"
+
+
+# ---------------------------------------------------------------------------
+# HTML rendering
+#
+# Documents used to be .txt files that the admin app downloaded, so there was
+# nothing to print or sign. They are now self-contained HTML that a browser
+# prints or saves as PDF, with no extra dependency.
+#
+# The page opens on the admin app's origin, so every value is escaped by
+# _e(). An unescaped customer name or note could otherwise run script with a
+# staff session token in reach.
+# ---------------------------------------------------------------------------
+
+from html import escape as _escape
+
+
+def _e(value) -> str:
+    return _escape("" if value is None else str(value), quote=True)
+
+
+_STYLE = """
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { font: 13px/1.5 -apple-system, "Segoe UI", "Noto Sans Ethiopic", Arial, sans-serif;
+         color: #1a1a1a; margin: 0; padding: 32px 16px; background: #f4f4f2; }
+  .page { max-width: 760px; margin: 0 auto; background: #fff; padding: 40px 44px;
+          border: 1px solid #ddd; }
+  header { display: flex; justify-content: space-between; align-items: flex-start;
+           border-bottom: 2px solid #1a1a1a; padding-bottom: 14px; margin-bottom: 22px; gap: 16px; }
+  h1 { font-size: 20px; margin: 0 0 2px; letter-spacing: .02em; }
+  .muted { color: #666; }
+  .ref { text-align: right; font-size: 12px; }
+  .ref strong { display: block; font-size: 14px; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #555;
+       border-bottom: 1px solid #e3e3e3; padding-bottom: 4px; margin: 22px 0 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { text-align: left; padding: 4px 0; vertical-align: top; }
+  td.k { width: 38%; color: #555; }
+  .grid th { font-size: 11px; color: #555; border-bottom: 1px solid #e3e3e3; padding: 6px 4px; }
+  .grid td { padding: 6px 4px; border-bottom: 1px solid #f0f0f0; }
+  .total td { font-weight: 700; border-top: 1px solid #1a1a1a; padding-top: 8px; }
+  ol { margin: 0; padding-left: 18px; } li { margin: 3px 0; }
+  .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; margin-top: 40px; }
+  .sign div { border-top: 1px solid #1a1a1a; padding-top: 6px; font-size: 12px; color: #555; }
+  .toolbar { max-width: 760px; margin: 0 auto 12px; text-align: right; }
+  .toolbar button { font: inherit; padding: 8px 18px; border: 1px solid #1a1a1a;
+                    background: #1a1a1a; color: #fff; cursor: pointer; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .page { border: 0; padding: 0; max-width: none; }
+    .toolbar { display: none; }
+    @page { margin: 16mm; }
+  }
+"""
+
+
+def _rows(pairs: list[tuple[str, object]]) -> str:
+    return "".join(f'<tr><td class="k">{_e(k)}</td><td>{_e(v)}</td></tr>' for k, v in pairs)
+
+
+def _section(title: str, body: str) -> str:
+    return f"<h2>{_e(title)}</h2>{body}"
+
+
+def _page(title: str, reference: str, subtitle: str, body: str, signatures: tuple[str, str]) -> str:
+    left, right = signatures
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{_e(title)} — {_e(reference)}</title>
+<style>{_STYLE}</style>
+</head>
+<body>
+<div class="toolbar"><button onclick="window.print()">Print or save as PDF</button></div>
+<main class="page">
+  <header>
+    <div><h1>{_e(title)}</h1><div class="muted">Nod Car Rent · Addis Ababa</div></div>
+    <div class="ref"><strong>{_e(reference)}</strong>{_e(subtitle)}</div>
+  </header>
+  {body}
+  <div class="sign"><div>{_e(left)} — signature &amp; date</div><div>{_e(right)} — signature &amp; date</div></div>
+</main>
+</body>
+</html>
+"""
+
+
+def _write(filename: str, content: str) -> Path:
+    filepath = OUTPUT_DIR / filename
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(content)
+    return filepath
 
 
 def generate_agreement_document(
@@ -72,79 +185,98 @@ def generate_agreement_document(
     agreement_id: int,
     template_name: str = "rental_agreement",
 ) -> dict:
-    """
-    Generate a rental agreement document.
-    
-    Returns dict with document info and path.
-    """
+    """Generate a printable rental agreement."""
+    from src.services import agreement_service
+
     ensure_output_dir()
-    
+
     agreement = db.query(Agreement).filter(Agreement.id == agreement_id).first()
     if not agreement:
         raise ValueError("Agreement not found")
-    
+
     customer = agreement.customer
-    
-    # Get vehicle info from first segment
-    vehicle_info = ""
+
+    vehicle_info = "—"
     if agreement.vehicle_segments:
-        segment = agreement.vehicle_segments[0]
-        vehicle = segment.vehicle
-        vehicle_info = f"{vehicle.make} {vehicle.model} ({vehicle.year}) - {vehicle.plate_number}"
-    
-    # Calculate totals
-    balance = ledger_service.get_agreement_balance(db, agreement_id)
-    total_charges = ledger_service.get_total_charges(db, agreement_id)
-    total_payments = ledger_service.get_total_payments(db, agreement_id)
-    
-    # Build document data
-    doc_data = {
-        "agreement_number": agreement.agreement_number,
-        "agreement_type": agreement.agreement_type.value,
-        "status": agreement.status.value,
-        "created_date": format_date(agreement.created_at),
-        
-        # Customer info
-        "customer_name": customer.full_name,
-        "customer_phone": customer.phone_primary,
-        "customer_id_type": customer.id_type,
-        "customer_id_number": customer.id_number,
-        "customer_address": customer.address or "N/A",
-        
-        # Vehicle info
-        "vehicle_info": vehicle_info,
-        
-        # Dates
-        "pickup_datetime": format_datetime(agreement.pickup_datetime),
-        "return_datetime": format_datetime(agreement.expected_return_datetime),
-        "pickup_location": agreement.pickup_location or "Office",
-        "return_location": agreement.return_location or "Office",
-        
-        # Pricing
-        "daily_rate": format_currency(agreement.agreed_daily_rate),
-        "deposit": format_currency(agreement.deposit_amount),
-        "total_charges": format_currency(total_charges),
-        "total_payments": format_currency(total_payments),
-        "balance_due": format_currency(balance),
-        
-        # Notes
-        "notes": agreement.notes or "",
-    }
-    
-    # Generate filename
+        vehicle = agreement.vehicle_segments[0].vehicle
+        vehicle_info = f"{vehicle.make} {vehicle.model} ({vehicle.year}) — {vehicle.plate_number}"
+
+    # The shared breakdown, as every other screen and the receipt use. The
+    # signed row sum this used before nets the held deposit off the total,
+    # so the agreement read 5,000 lower than the header and the ledger tab.
+    breakdown = agreement_service.get_balance_breakdown(db, agreement_id)
+
+    body = _section(
+        "Customer",
+        "<table>" + _rows([
+            ("Name", customer.full_name),
+            ("Phone", customer.phone_primary),
+            ("ID", f"{customer.id_type or '—'} {customer.id_number or ''}".strip()),
+            ("Address", _customer_address(customer)),
+        ]) + "</table>",
+    )
+
+    # A with-driver agreement that never named the driver left nobody
+    # accountable for the car on paper.
+    if agreement.driver is not None:
+        d = agreement.driver
+        body += _section(
+            "Driver",
+            "<table>" + _rows([
+                ("Name", d.full_name),
+                ("Phone", d.phone_primary),
+                ("Licence", f"{d.license_number}" + (f" (class {d.license_class})" if d.license_class else "")),
+            ]) + "</table>",
+        )
+
+    body += _section("Vehicle", "<table>" + _rows([("Vehicle", vehicle_info)]) + "</table>")
+    body += _section(
+        "Rental period",
+        "<table>" + _rows([
+            ("Pickup", format_business_datetime(agreement.pickup_datetime)),
+            ("Pickup location", agreement.pickup_location or "Office"),
+            ("Return", format_business_datetime(agreement.expected_return_datetime)),
+            ("Return location", agreement.return_location or "Office"),
+        ]) + "</table>",
+    )
+    body += _section(
+        "Charges",
+        "<table>" + _rows([
+            ("Daily rate", format_currency(agreement.agreed_daily_rate)),
+            ("Security deposit", format_currency(agreement.deposit_amount or Decimal("0"))),
+            ("Total charges", format_currency(breakdown["total_charges"])),
+            ("Paid", format_currency(breakdown["total_payments"])),
+        ]) + f'<tr class="total"><td class="k">Balance due</td><td>{_e(format_currency(breakdown["balance_due"]))}</td></tr>'
+        + "</table>",
+    )
+    body += _section(
+        "Terms",
+        "<ol>"
+        "<li>The renter will return the vehicle in the condition it was received.</li>"
+        "<li>The renter is responsible for traffic violations during the rental.</li>"
+        "<li>Fuel is to be returned at the pickup level.</li>"
+        "<li>Any damage must be reported immediately.</li>"
+        "<li>The deposit is refunded on satisfactory return of the vehicle.</li>"
+        "<li>Late returns incur additional charges at 1.5× the daily rate.</li>"
+        "</ol>",
+    )
+    if agreement.notes:
+        body += _section("Notes", f"<p>{_e(agreement.notes)}</p>")
+
+    content = _page(
+        "Car Rental Agreement",
+        agreement.agreement_number,
+        f"{agreement.agreement_type.value.replace('_', ' ')} · {agreement.status.value.replace('_', ' ')} · "
+        f"issued {format_date(agreement.created_at)}",
+        body,
+        ("Renter", "For Nod Car Rent"),
+    )
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{agreement.agreement_number}_{timestamp}.txt"
-    filepath = OUTPUT_DIR / filename
-    
-    # For now, generate a simple text document
-    # In production, this would use python-docx or similar
-    content = _generate_text_agreement(doc_data)
-    
-    with open(filepath, "w") as f:
-        f.write(content)
-    
+    filename = f"{agreement.agreement_number}_{timestamp}.html"
+    filepath = _write(filename, content)
     logger.info(f"Generated agreement document: {filepath}")
-    
+
     return {
         "filename": filename,
         "filepath": str(filepath),
@@ -154,96 +286,18 @@ def generate_agreement_document(
     }
 
 
-def _generate_text_agreement(data: dict) -> str:
-    """Generate text version of agreement document."""
-    return f"""
-================================================================================
-                        CAR RENTAL AGREEMENT
-================================================================================
-
-Agreement Number: {data['agreement_number']}
-Agreement Type: {data['agreement_type'].upper()}
-Status: {data['status'].upper()}
-Date: {data['created_date']}
-
---------------------------------------------------------------------------------
-                            CUSTOMER DETAILS
---------------------------------------------------------------------------------
-
-Name: {data['customer_name']}
-Phone: {data['customer_phone']}
-ID Type: {data['customer_id_type']}
-ID Number: {data['customer_id_number']}
-Address: {data['customer_address']}
-
---------------------------------------------------------------------------------
-                            VEHICLE DETAILS
---------------------------------------------------------------------------------
-
-Vehicle: {data['vehicle_info']}
-
---------------------------------------------------------------------------------
-                            RENTAL PERIOD
---------------------------------------------------------------------------------
-
-Pickup: {data['pickup_datetime']}
-Location: {data['pickup_location']}
-
-Return: {data['return_datetime']}
-Location: {data['return_location']}
-
---------------------------------------------------------------------------------
-                            PRICING DETAILS
---------------------------------------------------------------------------------
-
-Daily Rate: {data['daily_rate']}
-Security Deposit: {data['deposit']}
-
-Total Charges: {data['total_charges']}
-Total Payments: {data['total_payments']}
-Balance Due: {data['balance_due']}
-
---------------------------------------------------------------------------------
-                            TERMS AND CONDITIONS
---------------------------------------------------------------------------------
-
-1. The renter agrees to return the vehicle in the same condition as received.
-2. The renter is responsible for all traffic violations during the rental period.
-3. Fuel should be returned at the same level as pickup.
-4. Any damages must be reported immediately.
-5. The deposit will be refunded upon satisfactory vehicle return.
-6. Late returns will incur additional charges at 1.5x the daily rate.
-
---------------------------------------------------------------------------------
-                            NOTES
---------------------------------------------------------------------------------
-
-{data['notes'] or 'No additional notes.'}
-
---------------------------------------------------------------------------------
-                            SIGNATURES
---------------------------------------------------------------------------------
-
-Renter: ________________________    Date: ______________
-
-Staff: _________________________    Date: ______________
-
-================================================================================
-"""
-
-
 def generate_receipt(
     db: Session,
     agreement_id: int,
     payment_id: Optional[int] = None,
 ) -> dict:
-    """Generate a payment receipt document."""
+    """Generate a printable payment receipt."""
     ensure_output_dir()
-    
+
     agreement = db.query(Agreement).filter(Agreement.id == agreement_id).first()
     if not agreement:
         raise ValueError("Agreement not found")
-    
+
     customer = agreement.customer
     entries = ledger_service.get_ledger_entries(db, agreement_id)
 
@@ -279,48 +333,42 @@ def generate_receipt(
         raise BusinessError(
             ErrorCode.INVALID_INPUT, "No payment on this agreement to receipt"
         )
-    
-    # Generate filename
+
+    body = _section(
+        "Received from",
+        "<table>" + _rows([
+            ("Customer", customer.full_name),
+            ("Phone", customer.phone_primary),
+            ("Agreement", agreement.agreement_number),
+        ]) + "</table>",
+    )
+    body += _section(
+        "Payment",
+        "<table>"
+        + f'<tr class="total"><td class="k">Amount paid</td><td>{_e(format_currency(abs(payment.amount)))}</td></tr>'
+        + _rows([
+            ("Method", format_payment_method(payment.payment_method)),
+            ("Reference", payment.payment_reference or "—"),
+            ("Received", format_datetime(payment.created_at)),
+            ("Remaining balance", format_currency(balance)),
+        ])
+        + "</table>",
+    )
+    body += "<p class='muted' style='margin-top:20px'>Thank you for your payment.</p>"
+
+    content = _page(
+        "Payment Receipt",
+        f"Receipt #{payment.id}",
+        f"issued {format_datetime(datetime.now(timezone.utc))}",
+        body,
+        ("Received by", "Customer"),
+    )
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"receipt_{agreement.agreement_number}_{timestamp}.txt"
-    filepath = OUTPUT_DIR / filename
-    
-    content = f"""
-================================================================================
-                          PAYMENT RECEIPT
-================================================================================
-
-Receipt Date: {format_datetime(datetime.now(timezone.utc))}
-Agreement: {agreement.agreement_number}
-
-Customer: {customer.full_name}
-Phone: {customer.phone_primary}
-
---------------------------------------------------------------------------------
-                          PAYMENT DETAILS
---------------------------------------------------------------------------------
-
-Amount Paid: {format_currency(abs(payment.amount))}
-Payment Method: {format_payment_method(payment.payment_method)}
-Reference: {payment.payment_reference or 'N/A'}
-Date: {format_datetime(payment.created_at)}
-
---------------------------------------------------------------------------------
-
-Remaining Balance: {format_currency(balance)}
-
---------------------------------------------------------------------------------
-
-Thank you for your payment!
-
-================================================================================
-"""
-    
-    with open(filepath, "w") as f:
-        f.write(content)
-    
+    filename = f"receipt_{agreement.agreement_number}_{timestamp}.html"
+    filepath = _write(filename, content)
     logger.info(f"Generated receipt: {filepath}")
-    
+
     return {
         "filename": filename,
         "filepath": str(filepath),
@@ -334,104 +382,78 @@ def generate_inspection_report(
     db: Session,
     inspection_id: int,
 ) -> dict:
-    """Generate an inspection report document."""
+    """Generate a printable inspection report."""
     from src.models.inspection import Inspection
-    
+
     ensure_output_dir()
-    
+
     inspection = db.query(Inspection).filter(Inspection.id == inspection_id).first()
     if not inspection:
         raise ValueError("Inspection not found")
-    
+
     vehicle = inspection.vehicle
-    
-    # Generate filename
+
+    checklist_rows = "".join(
+        f"<tr><td>{_e(item_id)}</td><td>{_e(result.get('status', '—'))}</td>"
+        f"<td>{_e(result.get('notes', ''))}</td></tr>"
+        for item_id, result in (inspection.checklist_results or {}).items()
+    )
+    damage_rows = "".join(
+        f"<tr><td>{_e(d.get('category', '—'))}</td><td>{_e(d.get('location', '—'))}</td>"
+        f"<td>{_e(d.get('severity', '—'))}</td><td>{_e(d.get('description', ''))}</td>"
+        f"<td>{_e(format_currency(Decimal(str(d.get('estimated_cost', 0) or 0))))}</td></tr>"
+        for d in (inspection.damage_records or [])
+    )
+
+    body = _section(
+        "Vehicle",
+        "<table>" + _rows([
+            ("Vehicle", f"{vehicle.make} {vehicle.model} ({vehicle.year})"),
+            ("Plate", vehicle.plate_number),
+            ("Mileage", f"{inspection.mileage} km" if inspection.mileage is not None else "—"),
+            ("Fuel level", f"{inspection.fuel_level}%" if inspection.fuel_level is not None else "—"),
+        ]) + "</table>",
+    )
+    body += _section(
+        "People",
+        "<table>" + _rows([
+            ("Inspector", inspection.inspector_name or "—"),
+            ("Customer present", inspection.customer_name or "—"),
+        ]) + "</table>",
+    )
+    body += _section(
+        "Checklist",
+        f'<table class="grid"><tr><th>Item</th><th>Result</th><th>Notes</th></tr>{checklist_rows}</table>'
+        if checklist_rows else "<p class='muted'>No checklist items recorded.</p>",
+    )
+    body += _section(
+        "Damage",
+        '<table class="grid"><tr><th>Type</th><th>Location</th><th>Severity</th>'
+        f"<th>Description</th><th>Est. cost</th></tr>{damage_rows}</table>"
+        if damage_rows else "<p class='muted'>No damage recorded.</p>",
+    )
+    body += _section(
+        "Assessment",
+        "<table>" + _rows([
+            ("Condition", f"{inspection.condition_rating}/5" if inspection.condition_rating else "—"),
+            ("Notes", inspection.notes or "—"),
+        ]) + "</table>",
+    )
+
+    content = _page(
+        "Vehicle Inspection Report",
+        f"Inspection #{inspection.id}",
+        f"{str(inspection.inspection_type).replace('_', ' ')} · "
+        f"{format_business_datetime(inspection.inspection_datetime)}",
+        body,
+        ("Inspector", "Customer"),
+    )
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"inspection_{inspection.id}_{timestamp}.txt"
-    filepath = OUTPUT_DIR / filename
-    
-    # Build checklist results
-    checklist_text = ""
-    for item_id, result in inspection.checklist_results.items():
-        status = result.get("status", "N/A")
-        notes = result.get("notes", "")
-        checklist_text += f"  - {item_id}: {status}"
-        if notes:
-            checklist_text += f" ({notes})"
-        checklist_text += "\n"
-    
-    # Build damage records
-    damage_text = ""
-    for i, damage in enumerate(inspection.damage_records, 1):
-        damage_text += f"""
-  {i}. {damage.get('category', 'Unknown').upper()}
-     Location: {damage.get('location', 'N/A')}
-     Severity: {damage.get('severity', 'N/A')}
-     Description: {damage.get('description', 'N/A')}
-     Est. Cost: {format_currency(Decimal(str(damage.get('estimated_cost', 0))))}
-"""
-    
-    content = f"""
-================================================================================
-                        VEHICLE INSPECTION REPORT
-================================================================================
-
-Inspection ID: {inspection.id}
-Type: {inspection.inspection_type.upper()}
-Date: {format_datetime(inspection.inspection_datetime)}
-Status: {inspection.status.upper()}
-
---------------------------------------------------------------------------------
-                            VEHICLE DETAILS
---------------------------------------------------------------------------------
-
-Vehicle: {vehicle.make} {vehicle.model} ({vehicle.year})
-Plate: {vehicle.plate_number}
-Mileage: {inspection.mileage or 'N/A'} km
-Fuel Level: {inspection.fuel_level or 'N/A'}%
-
---------------------------------------------------------------------------------
-                            INSPECTOR
---------------------------------------------------------------------------------
-
-Name: {inspection.inspector_name or 'N/A'}
-Customer Present: {inspection.customer_name or 'N/A'}
-
---------------------------------------------------------------------------------
-                            CHECKLIST RESULTS
---------------------------------------------------------------------------------
-
-{checklist_text or '  No checklist items recorded.'}
-
---------------------------------------------------------------------------------
-                            DAMAGE RECORDS
---------------------------------------------------------------------------------
-
-{damage_text or '  No damage recorded.'}
-
---------------------------------------------------------------------------------
-                            OVERALL ASSESSMENT
---------------------------------------------------------------------------------
-
-Condition Rating: {inspection.condition_rating or 'N/A'}/5
-Notes: {inspection.notes or 'No additional notes.'}
-
---------------------------------------------------------------------------------
-                            SIGNATURES
---------------------------------------------------------------------------------
-
-Inspector: ________________________    Date: ______________
-
-Customer: _________________________    Date: ______________
-
-================================================================================
-"""
-    
-    with open(filepath, "w") as f:
-        f.write(content)
-    
+    filename = f"inspection_{inspection.id}_{timestamp}.html"
+    filepath = _write(filename, content)
     logger.info(f"Generated inspection report: {filepath}")
-    
+
     return {
         "filename": filename,
         "filepath": str(filepath),

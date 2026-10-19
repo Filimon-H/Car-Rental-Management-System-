@@ -7,6 +7,9 @@ import { vehiclesService } from '@/services/vehicles'
 import { ArrowLeft, Printer } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+/** The office line printed on agreements. Matches the public site. */
+const COMPANY_PHONE = '+251 911 669414'
+
 export default function AgreementPrintPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
@@ -115,7 +118,8 @@ export default function AgreementPrintPage() {
             <h2 className="mb-2 border-b font-bold uppercase text-gray-700">{t('agreementPrint.lessorCompany')}</h2>
             <p className="font-semibold">{t('auth.carRentalManagement')}</p>
             <p>Addis Ababa, Ethiopia</p>
-            <p>Phone: +251 XXX XXX XXX</p>
+            {/* Was the literal placeholder "+251 XXX XXX XXX" on a signed document. */}
+            <p>Phone: {COMPANY_PHONE}</p>
           </div>
           <div>
             <h2 className="mb-2 border-b font-bold uppercase text-gray-700">{t('agreementPrint.lesseeCustomer')}</h2>
@@ -129,6 +133,30 @@ export default function AgreementPrintPage() {
             {customer?.subcity && <p>Address: {customer.subcity}, {customer.city || 'Addis Ababa'}</p>}
           </div>
         </div>
+
+        {/*
+          A with-driver agreement never named the driver, so the signed copy
+          left nobody on paper responsible for the car while it was out.
+        */}
+        {agreement.driver && (
+          <div className="mb-6">
+            <h2 className="mb-2 border-b font-bold uppercase text-gray-700">Driver</h2>
+            <table className="w-full text-sm">
+              <tbody>
+                <tr>
+                  <td className="py-1 pr-4 font-medium">Name:</td>
+                  <td>{agreement.driver.first_name} {agreement.driver.last_name}</td>
+                  <td className="py-1 pr-4 font-medium">Phone:</td>
+                  <td>{agreement.driver.phone_primary}</td>
+                </tr>
+                <tr>
+                  <td className="py-1 pr-4 font-medium">Licence:</td>
+                  <td colSpan={3}>{agreement.driver.license_number}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Vehicle Details */}
         <div className="mb-6">

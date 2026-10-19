@@ -146,8 +146,12 @@ async def download_document(
     if not str(filepath.resolve()).startswith(str(output_dir.resolve())):
         raise HTTPException(status_code=403, detail="Access denied")
     
+    # Generated documents are printable HTML; the admin app opens them in a
+    # tab to print or save as PDF. Older .txt files on disk still download.
+    is_html = filepath.suffix == ".html"
     return FileResponse(
         path=str(filepath),
         filename=filename,
-        media_type="application/octet-stream",
+        media_type="text/html; charset=utf-8" if is_html else "application/octet-stream",
+        content_disposition_type="inline" if is_html else "attachment",
     )
