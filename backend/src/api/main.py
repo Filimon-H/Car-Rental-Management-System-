@@ -133,11 +133,15 @@ def create_app() -> FastAPI:
     async def general_exception_handler(request: Request, exc: Exception):
         import traceback
         logger.error(f"Unhandled exception: {exc}\n{traceback.format_exc()}")
+        # The exception text stays in the log. It used to be sent back in
+        # development, which is also the default APP_ENV: a failed signup
+        # showed the customer the SQL statement with their email and
+        # password hash in it.
         return JSONResponse(
             status_code=500,
             content={
                 "error_code": "INTERNAL_ERROR",
-                "detail": str(exc) if settings.is_development else "Internal server error",
+                "detail": "Internal server error",
             },
         )
 

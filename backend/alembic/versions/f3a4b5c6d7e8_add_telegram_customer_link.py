@@ -23,7 +23,7 @@ def upgrade() -> None:
         sa.Column("chat_id", sa.BigInteger(), nullable=False),
         sa.Column("telegram_username", sa.String(length=255), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
-        sa.Column("linked_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("linked_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("last_seen_at", sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(["customer_user_id"], ["customer_users.id"]),
         sa.PrimaryKeyConstraint("id"),
@@ -39,7 +39,7 @@ def upgrade() -> None:
         sa.Column("code", sa.String(length=32), nullable=False),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("used_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.ForeignKeyConstraint(["customer_user_id"], ["customer_users.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
