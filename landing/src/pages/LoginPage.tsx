@@ -115,8 +115,9 @@ export default function LoginPage() {
           {mode === 'customer' ? (
             <form onSubmit={handleCustomerSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1.5">{t('login.emailAddress')}</label>
+                <label htmlFor="login-email" className="block text-sm text-gray-400 mb-1.5">{t('login.emailAddress')}</label>
                 <input
+                  id="login-email"
                   type="email"
                   required
                   value={email}
@@ -126,8 +127,9 @@ export default function LoginPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1.5">{t('login.password')}</label>
+                <label htmlFor="login-password" className="block text-sm text-gray-400 mb-1.5">{t('login.password')}</label>
                 <input
+                  id="login-password"
                   type="password"
                   required
                   value={password}
@@ -147,8 +149,9 @@ export default function LoginPage() {
           ) : (
             <form onSubmit={handleAdminSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1.5">{t('login.username')}</label>
+                <label htmlFor="login-username" className="block text-sm text-gray-400 mb-1.5">{t('login.username')}</label>
                 <input
+                  id="login-username"
                   type="text"
                   required
                   autoComplete="username"
@@ -159,8 +162,9 @@ export default function LoginPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1.5">{t('login.password')}</label>
+                <label htmlFor="login-staff-password" className="block text-sm text-gray-400 mb-1.5">{t('login.password')}</label>
                 <input
+                  id="login-staff-password"
                   type="password"
                   required
                   autoComplete="current-password"

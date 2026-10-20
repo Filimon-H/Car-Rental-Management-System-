@@ -72,8 +72,9 @@ export default function SignupPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm text-gray-400 mb-1.5">First name</label>
+                <label htmlFor="signup-first-name" className="block text-sm text-gray-400 mb-1.5">First name</label>
                 <input
+                  id="signup-first-name"
                   required
                   value={form.first_name}
                   onChange={set('first_name')}
@@ -82,8 +83,9 @@ export default function SignupPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1.5">Last name</label>
+                <label htmlFor="signup-last-name" className="block text-sm text-gray-400 mb-1.5">Last name</label>
                 <input
+                  id="signup-last-name"
                   required
                   value={form.last_name}
                   onChange={set('last_name')}
@@ -93,8 +95,9 @@ export default function SignupPage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1.5">Email address</label>
+              <label htmlFor="signup-email" className="block text-sm text-gray-400 mb-1.5">Email address</label>
               <input
+                id="signup-email"
                 type="email"
                 required
                 value={form.email}
@@ -104,8 +107,9 @@ export default function SignupPage() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1.5">Phone number</label>
+              <label htmlFor="signup-phone" className="block text-sm text-gray-400 mb-1.5">Phone number</label>
               <input
+                id="signup-phone"
                 type="tel"
                 required
                 value={form.phone}
@@ -115,8 +119,9 @@ export default function SignupPage() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1.5">Password</label>
+              <label htmlFor="signup-password" className="block text-sm text-gray-400 mb-1.5">Password</label>
               <input
+                id="signup-password"
                 type="password"
                 required
                 value={form.password}
@@ -126,8 +131,9 @@ export default function SignupPage() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1.5">Confirm password</label>
+              <label htmlFor="signup-confirm" className="block text-sm text-gray-400 mb-1.5">Confirm password</label>
               <input
+                id="signup-confirm"
                 type="password"
                 required
                 value={form.confirm}

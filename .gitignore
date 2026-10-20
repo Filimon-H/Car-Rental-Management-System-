@@ -108,3 +108,9 @@ backend/*.jpeg
 *.pem
 *.key
 secrets/
+
+# End-to-end tests
+e2e/.tmp/
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
