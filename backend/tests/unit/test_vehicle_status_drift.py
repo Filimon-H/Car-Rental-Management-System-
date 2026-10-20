@@ -138,6 +138,12 @@ def test_settling_returned_agreement_keeps_next_rental_rented(db, customer, vehi
     current = wedding(db, customer, vehicle, offset=-1)
     current.status = AgreementStatus.OVERDUE
     db.commit()
+    # A RETURNED agreement only closes once it is paid.
+    from src.models.ledger_entry import PaymentMethod
+    from src.services import ledger_service
+    owed = agreement_service.get_balance_breakdown(db, old.id)["balance_due"]
+    if owed:
+        ledger_service.post_payment(db, old.id, owed, PaymentMethod.CASH)
     agreement_service.close_agreement(db, old.id, returned_at)
     db.refresh(vehicle)
     assert vehicle.status == VehicleStatus.RENTED

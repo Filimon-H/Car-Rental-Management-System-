@@ -212,7 +212,10 @@ class TestCloseAgreement:
         )
         backdate_agreement(db, agreement, pickup, expected_return)
         agreement_service.activate_agreement(db, agreement.id)
-        
+        # Paid up, so the return closes it rather than leaving it RETURNED.
+        owed = agreement_service.get_balance_breakdown(db, agreement.id)["balance_due"]
+        ledger_service.post_payment(db, agreement.id, owed, PaymentMethod.CASH)
+
         # Close on time
         closed = agreement_service.close_agreement(
             db=db,
@@ -266,7 +269,7 @@ class TestCloseAgreement:
         # Late fee should have been added (2 days @ 1.5x rate = 4500)
         assert balance_after > balance_before
 
-    def test_return_endpoint_runs_full_close_and_settlement(
+    def test_return_with_money_owed_leaves_the_agreement_returned(
         self,
         client: TestClient,
         db: Session,
@@ -298,12 +301,79 @@ class TestCloseAgreement:
             headers=auth_headers,
         )
 
+        # Rental plus late fee is more than the 5,000 deposit, so money is
+        # still owed. It used to close anyway, hiding the debt.
         assert response.status_code == 200
-        assert response.json()["status"] == "closed"
+        assert response.json()["status"] == "returned"
         summary = agreement_service.get_agreement_summary(db, agreement.id)
         assert summary["deposit_applied"] == Decimal("5000.00")
         assert summary["deposit_held"] == Decimal("0.00")
+        owed = summary["balance_due"]
+        assert owed > 0
         assert any(e.entry_type.value == "late_fee" for e in summary["ledger_entries"])
+        db.refresh(test_vehicle)
+        assert test_vehicle.status == VehicleStatus.AVAILABLE
+
+        # Closing is refused until the balance is paid, then allowed.
+        refused = client.post(
+            f"/api/agreements/{agreement.id}/close",
+            json={"actual_return_datetime": local_now.isoformat()},
+            headers=auth_headers,
+        )
+        assert refused.status_code == 400
+        assert f"{owed:,.2f} is still owed" in refused.json()["detail"]
+        ledger_service.post_payment(db, agreement.id, owed, PaymentMethod.CASH)
+        closed = client.post(
+            f"/api/agreements/{agreement.id}/close",
+            json={"actual_return_datetime": local_now.isoformat()},
+            headers=auth_headers,
+        )
+        assert closed.status_code == 200
+        assert closed.json()["status"] == "closed"
+        # The late fee was posted at return, not again at close.
+        summary = agreement_service.get_agreement_summary(db, agreement.id)
+        assert sum(1 for e in summary["ledger_entries"] if e.entry_type.value == "late_fee") == 1
+
+    def test_return_when_paid_up_closes_and_hands_back_the_deposit(
+        self,
+        client: TestClient,
+        db: Session,
+        test_customer: Customer,
+        test_vehicle: Vehicle,
+        auth_headers: dict,
+    ):
+        lead = datetime.now(timezone.utc) + timedelta(days=1)
+        agreement = agreement_service.create_standard_agreement(
+            db=db,
+            customer_id=test_customer.id,
+            vehicle_id=test_vehicle.id,
+            pickup_datetime=lead,
+            expected_return_datetime=lead + timedelta(days=3),
+            daily_rate=Decimal("1500.00"),
+        )
+        backdate_agreement(
+            db, agreement,
+            datetime.now(timezone.utc) - timedelta(days=3),
+            # A day ahead: the request below sends local wall-clock time.
+            datetime.now(timezone.utc) + timedelta(days=1),
+        )
+        agreement_service.activate_agreement(db, agreement.id)
+        ledger_service.post_deposit(db, agreement.id, Decimal("2000.00"), PaymentMethod.CASH)
+        owed = agreement_service.get_balance_breakdown(db, agreement.id)["balance_due"]
+        ledger_service.post_payment(db, agreement.id, owed, PaymentMethod.CASH)
+
+        response = client.post(
+            f"/api/agreements/{agreement.id}/return",
+            json={"actual_return_datetime": datetime.now().replace(microsecond=0).isoformat()},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "closed"
+        summary = agreement_service.get_agreement_summary(db, agreement.id)
+        assert summary["deposit_returned"] == Decimal("2000.00")
+        assert summary["balance_due"] == Decimal("0")
+
+
 
 
 class TestPaymentFlow:

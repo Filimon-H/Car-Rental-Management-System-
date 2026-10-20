@@ -5,7 +5,7 @@ from decimal import Decimal
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, false, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.db import Base, UtcDateTime
@@ -114,6 +114,12 @@ class Agreement(Base):
     fuel_level_out: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fuel_level_in: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fuel_charge_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+
+    # Set once the late fee, excess mileage and fuel charges for the return
+    # have been posted, so closing a RETURNED agreement never posts them twice.
+    return_charges_posted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     
     # Additional info
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

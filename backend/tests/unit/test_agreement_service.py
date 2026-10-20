@@ -700,8 +700,18 @@ class TestCloseAgreement:
         )
         return agreement_service.activate_agreement(db, ag.id)
 
+    def _paid_agreement(self, db, customer, vehicle) -> Agreement:
+        """An active rental with its charges paid, so returning it closes it."""
+        from src.models.ledger_entry import PaymentMethod
+
+        # Due back tomorrow, so returning it now adds no late fee.
+        ag = self._active_agreement(db, customer, vehicle, return_days=1)
+        owed = agreement_service.get_balance_breakdown(db, ag.id)["balance_due"]
+        ledger_service.post_payment(db=db, agreement_id=ag.id, amount=owed, payment_method=PaymentMethod.CASH)
+        return ag
+
     def test_close_active_sets_closed_status(self, db, customer, vehicle):
-        ag = self._active_agreement(db, customer, vehicle)
+        ag = self._paid_agreement(db, customer, vehicle)
         closed = agreement_service.close_agreement(
             db=db,
             agreement_id=ag.id,
@@ -720,7 +730,7 @@ class TestCloseAgreement:
         assert closed.actual_return_datetime is not None
 
     def test_close_sets_closed_at(self, db, customer, vehicle):
-        ag = self._active_agreement(db, customer, vehicle)
+        ag = self._paid_agreement(db, customer, vehicle)
         closed = agreement_service.close_agreement(
             db=db,
             agreement_id=ag.id,
@@ -801,7 +811,7 @@ class TestCloseAgreement:
         assert late_fee.description == "Late return fee: 2 days × ETB 2,250.00 (1.5× daily rate)"
 
     def test_close_already_closed_raises(self, db, customer, vehicle):
-        ag = self._active_agreement(db, customer, vehicle)
+        ag = self._paid_agreement(db, customer, vehicle)
         agreement_service.close_agreement(
             db=db,
             agreement_id=ag.id,
@@ -833,7 +843,7 @@ class TestCloseAgreement:
 
     def test_close_returned_agreement_succeeds(self, db, customer, vehicle):
         """RETURNED status can transition to CLOSED (settlement step)."""
-        ag = self._active_agreement(db, customer, vehicle)
+        ag = self._paid_agreement(db, customer, vehicle)
         agreement_service.mark_agreement_returned(
             db=db,
             agreement_id=ag.id,
@@ -846,8 +856,102 @@ class TestCloseAgreement:
         )
         assert closed.status == AgreementStatus.CLOSED
 
+    def test_returning_with_money_owed_leaves_it_open(self, db, customer, vehicle):
+        """The car is back but unpaid: RETURNED, not CLOSED, and the car is free."""
+        ag = self._active_agreement(db, customer, vehicle, return_days=1)
+        rental = agreement_service.get_balance_breakdown(db, ag.id)["balance_due"]
+        returned = agreement_service.close_agreement(
+            db=db,
+            agreement_id=ag.id,
+            actual_return_datetime=datetime.now(timezone.utc),
+        )
+        assert returned.status == AgreementStatus.RETURNED
+        assert returned.closed_at is None
+        assert returned.actual_return_datetime is not None
+        db.refresh(vehicle)
+        assert vehicle.status == VehicleStatus.AVAILABLE
+        assert agreement_service.get_balance_breakdown(db, ag.id)["balance_due"] == rental > 0
+
+    def test_a_returned_agreement_cannot_close_while_money_is_owed(self, db, customer, vehicle):
+        ag = self._active_agreement(db, customer, vehicle, return_days=1)
+        agreement_service.close_agreement(db=db, agreement_id=ag.id, actual_return_datetime=datetime.now(timezone.utc))
+        owed = agreement_service.get_balance_breakdown(db, ag.id)["balance_due"]
+        with pytest.raises(BusinessError) as exc_info:
+            agreement_service.close_agreement(db=db, agreement_id=ag.id, actual_return_datetime=datetime.now(timezone.utc))
+        assert f"{owed:,.2f} is still owed" in str(exc_info.value)
+        db.refresh(ag)
+        assert ag.status == AgreementStatus.RETURNED
+
+    def test_paying_the_balance_lets_a_returned_agreement_close(self, db, customer, vehicle):
+        from src.models.ledger_entry import PaymentMethod
+
+        ag = self._active_agreement(db, customer, vehicle, return_days=1)
+        agreement_service.close_agreement(db=db, agreement_id=ag.id, actual_return_datetime=datetime.now(timezone.utc))
+        owed = agreement_service.get_balance_breakdown(db, ag.id)["balance_due"]
+        ledger_service.post_payment(db=db, agreement_id=ag.id, amount=owed, payment_method=PaymentMethod.CASH)
+        closed = agreement_service.close_agreement(db=db, agreement_id=ag.id, actual_return_datetime=datetime.now(timezone.utc))
+        assert closed.status == AgreementStatus.CLOSED
+
+    def test_late_fee_is_posted_once_across_return_and_close(self, db, customer, vehicle):
+        """Charged when the car comes back, not again when the account is settled."""
+        from src.models.ledger_entry import PaymentMethod
+
+        expected_return = past(2)
+        ag = create_started_agreement(
+            db, customer, vehicle,
+            pickup=past(5),
+            expected_return=expected_return,
+            daily_rate=Decimal("1500.00"),
+        )
+        agreement_service.activate_agreement(db, ag.id)
+        actual = expected_return + timedelta(days=2)
+        agreement_service.close_agreement(db=db, agreement_id=ag.id, actual_return_datetime=actual)
+        owed = agreement_service.get_balance_breakdown(db, ag.id)["balance_due"]
+        ledger_service.post_payment(db=db, agreement_id=ag.id, amount=owed, payment_method=PaymentMethod.CASH)
+        agreement_service.close_agreement(db=db, agreement_id=ag.id, actual_return_datetime=actual)
+
+        late_fees = [
+            e for e in ledger_service.get_ledger_entries(db, ag.id)
+            if e.entry_type == LedgerEntryType.LATE_FEE
+        ]
+        assert len(late_fees) == 1
+
+    def test_a_legacy_returned_agreement_gets_its_charges_when_closed(self, db, customer, vehicle):
+        """Returned before charges were posted at return time: posted once on close."""
+        expected_return = past(2)
+        ag = create_started_agreement(
+            db, customer, vehicle,
+            pickup=past(5),
+            expected_return=expected_return,
+            daily_rate=Decimal("1500.00"),
+        )
+        agreement_service.activate_agreement(db, ag.id)
+        ag.status = AgreementStatus.RETURNED
+        ag.actual_return_datetime = expected_return + timedelta(days=2)
+        ag.return_charges_posted = False
+        db.commit()
+
+        from src.models.ledger_entry import PaymentMethod
+
+        def pay_and_close():
+            owed = agreement_service.get_balance_breakdown(db, ag.id)["balance_due"]
+            ledger_service.post_payment(db=db, agreement_id=ag.id, amount=owed, payment_method=PaymentMethod.CASH)
+            return agreement_service.close_agreement(db=db, agreement_id=ag.id, actual_return_datetime=datetime.now(timezone.utc))
+
+        # Paying the rental alone is not enough: the late fee is posted on close.
+        with pytest.raises(BusinessError):
+            pay_and_close()
+        # That refusal rolled back, late fee included; once it is paid, it closes.
+        db.refresh(ag)
+        assert not ag.return_charges_posted
+        ledger_service.post_payment(db=db, agreement_id=ag.id, amount=Decimal("4500.00"), payment_method=PaymentMethod.CASH)
+        closed = agreement_service.close_agreement(db=db, agreement_id=ag.id, actual_return_datetime=datetime.now(timezone.utc))
+        assert closed.status == AgreementStatus.CLOSED
+        late_fees = [e for e in ledger_service.get_ledger_entries(db, ag.id) if e.entry_type == LedgerEntryType.LATE_FEE]
+        assert [e.amount for e in late_fees] == [Decimal("4500.00")]
+
     def test_close_appends_notes(self, db, customer, vehicle):
-        ag = self._active_agreement(db, customer, vehicle)
+        ag = self._paid_agreement(db, customer, vehicle)
         agreement_service.close_agreement(
             db=db,
             agreement_id=ag.id,
@@ -1357,3 +1461,37 @@ class TestVehicleStatusOnReturn:
         )
         db.refresh(vehicle)
         assert vehicle.status == VehicleStatus.RESERVED
+
+
+def test_signed_return_inspection_posts_return_charges_once(db, customer, vehicle):
+    """A return inspection is the car coming back: the late fee is posted then,
+    and closing the agreement afterwards does not post it again."""
+    from src.models.inspection import Inspection
+    from src.models.ledger_entry import PaymentMethod
+    from src.services import inspection_service
+
+    expected_return = past(2)
+    ag = create_started_agreement(
+        db, customer, vehicle,
+        pickup=past(5),
+        expected_return=expected_return,
+        daily_rate=Decimal("1500.00"),
+    )
+    agreement_service.activate_agreement(db, ag.id)
+    inspection = Inspection(
+        agreement_id=ag.id, vehicle_id=vehicle.id, inspection_type="return",
+        inspection_datetime=expected_return + timedelta(days=2), status="draft", mileage=100,
+    )
+    db.add(inspection)
+    db.commit()
+    inspection_service.sign_inspection(db, inspection, "Test customer")
+    db.refresh(ag)
+    assert ag.status == AgreementStatus.RETURNED
+    assert ag.return_charges_posted
+
+    owed = agreement_service.get_balance_breakdown(db, ag.id)["balance_due"]
+    ledger_service.post_payment(db=db, agreement_id=ag.id, amount=owed, payment_method=PaymentMethod.CASH)
+    closed = agreement_service.close_agreement(db=db, agreement_id=ag.id, actual_return_datetime=datetime.now(timezone.utc))
+    assert closed.status == AgreementStatus.CLOSED
+    late_fees = [e for e in ledger_service.get_ledger_entries(db, ag.id) if e.entry_type == LedgerEntryType.LATE_FEE]
+    assert [e.amount for e in late_fees] == [Decimal("4500.00")]

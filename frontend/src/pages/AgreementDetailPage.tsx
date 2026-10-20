@@ -1338,7 +1338,9 @@ function PaymentModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    // Above the settlement dialog, which opens this one from its Record
+    // Payment button: at the same z-index it rendered underneath, out of reach.
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
       <div
         role="dialog"
         aria-modal="true"
@@ -1553,14 +1555,20 @@ function ReturnModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md rounded-lg bg-white p-6">
-        <h2 className="mb-4 text-xl font-bold">{t('agreementActions.markVehicleReturned')}</h2>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="return-title"
+        className="w-full max-w-md rounded-lg bg-white p-6"
+      >
+        <h2 id="return-title" className="mb-4 text-xl font-bold">{t('agreementActions.markVehicleReturned')}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label htmlFor="return-datetime" className="mb-1 block text-sm font-medium text-gray-700">
               {t('agreementActions.returnDateTime')}
             </label>
             <input
+              id="return-datetime"
               type="datetime-local"
               value={returnDate}
               onChange={(e) => setReturnDate(e.target.value)}
@@ -1569,10 +1577,11 @@ function ReturnModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label htmlFor="return-mileage" className="mb-1 block text-sm font-medium text-gray-700">
               {t('agreementActions.returnMileageOptional')}
             </label>
             <input
+              id="return-mileage"
               type="number"
               value={mileage}
               onChange={(e) => setMileage(e.target.value)}
@@ -1581,10 +1590,11 @@ function ReturnModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label htmlFor="return-fuel" className="mb-1 block text-sm font-medium text-gray-700">
               {t('agreementActions.fuelLevelIn')}
             </label>
             <input
+              id="return-fuel"
               type="number"
               min="0"
               max="100"
@@ -1595,10 +1605,11 @@ function ReturnModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label htmlFor="return-notes" className="mb-1 block text-sm font-medium text-gray-700">
               {t('ledger.notesOptional')}
             </label>
             <textarea
+              id="return-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
@@ -1659,8 +1670,13 @@ function SettlementModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-lg rounded-lg bg-white p-6">
-        <h2 className="mb-4 text-xl font-bold">{t('agreementActions.settlementClose')}</h2>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settlement-title"
+        className="w-full max-w-lg rounded-lg bg-white p-6"
+      >
+        <h2 id="settlement-title" className="mb-4 text-xl font-bold">{t('agreementActions.settlementClose')}</h2>
 
         <div className="mb-6 space-y-3 rounded-lg bg-gray-50 p-4">
           <div className="flex justify-between">

@@ -130,7 +130,8 @@ export const STATUS_LABELS: Record<string, string> = {
   booking_requested: 'Pending Review',
   pending_payment: 'Confirmed – Payment Required Before Pickup',
   active: 'Active',
-  returned: 'Returned',
+  // A return closes the rental unless money is still owed.
+  returned: 'Returned – Balance Due',
   closed: 'Closed',
   cancelled: 'Cancelled',
   overdue: 'Overdue',
@@ -140,7 +141,7 @@ export const STATUS_COLORS: Record<string, string> = {
   booking_requested: 'text-yellow-400 bg-yellow-400/10',
   pending_payment: 'text-blue-400 bg-blue-400/10',
   active: 'text-green-400 bg-green-400/10',
-  returned: 'text-gray-400 bg-gray-400/10',
+  returned: 'text-amber-400 bg-amber-400/10',
   closed: 'text-gray-400 bg-gray-400/10',
   cancelled: 'text-red-400 bg-red-400/10',
   overdue: 'text-orange-400 bg-orange-400/10',
