@@ -19,3 +19,6 @@ export const SEEDED = {
   // Held by a pending-payment booking from day 30 to day 37.
   held: '2024 Toyota Corolla',
 }
+
+/** Days 60 to 65 from today, every seeded car is booked. */
+export const FULLY_BOOKED = { from: 60, to: 65 }
