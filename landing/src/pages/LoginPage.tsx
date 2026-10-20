@@ -5,12 +5,12 @@ import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../services/auth'
 import { useAdminAuthStore } from '../services/adminAuth'
 import { ADMIN_BASE_URL } from '../services/apiClient'
+import { returnTarget, returnToFrom } from '../lib/returnTo'
 
 export default function LoginPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/'
   const login = useAuthStore((s) => s.login)
   const adminLogin = useAdminAuthStore((s) => s.adminLogin)
 
@@ -33,7 +33,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login(email, password)
-      navigate(from, { replace: true })
+      navigate(...returnTarget(location))
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('login.loginFailed'))
     } finally {
@@ -187,7 +187,13 @@ export default function LoginPage() {
           {mode === 'customer' && (
             <p className="text-center text-gray-500 text-sm mt-6">
               {t('login.dontHaveAccount')}{' '}
-              <Link to="/signup" className="text-gold hover:text-gold-light">
+              <Link
+                to="/signup"
+                // Carry the page they were heading for, so signing up instead
+                // still lands them back on it.
+                state={returnToFrom(location) ? { from: returnToFrom(location) } : undefined}
+                className="text-gold hover:text-gold-light"
+              >
                 {t('login.createOne')}
               </Link>
             </p>

@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../services/auth'
+import { returnTarget, returnToFrom } from '../lib/returnTo'
 
 export default function SignupPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const signup = useAuthStore((s) => s.signup)
 
   const [form, setForm] = useState({
@@ -40,7 +42,7 @@ export default function SignupPage() {
         phone: form.phone,
         password: form.password,
       })
-      navigate('/', { replace: true })
+      navigate(...returnTarget(location))
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed')
     } finally {
@@ -153,7 +155,11 @@ export default function SignupPage() {
 
           <p className="text-center text-gray-500 text-sm mt-6">
             Already have an account?{' '}
-            <Link to="/login" className="text-gold hover:text-gold-light">
+            <Link
+              to="/login"
+              state={returnToFrom(location) ? { from: returnToFrom(location) } : undefined}
+              className="text-gold hover:text-gold-light"
+            >
               Sign in
             </Link>
           </p>
