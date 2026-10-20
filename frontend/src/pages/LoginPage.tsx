@@ -5,6 +5,21 @@ import { AlertCircle, Car, Eye, EyeOff, Lock, User } from 'lucide-react'
 import { useAuthStore } from '@/services/auth'
 import apiClient, { getErrorMessage } from '@/services/apiClient'
 
+/**
+ * The banner title for a failed sign-in.
+ *
+ * It always said "Incorrect username or password", so a server that was down
+ * or a rate limit read as a wrong password, and staff went to reset one that
+ * was fine. Only a 401 means the credentials were wrong.
+ */
+function failureTitleKey(err: unknown): string {
+  const status = (err as { response?: { status?: number } })?.response?.status
+  if (status === undefined) return 'authErrors.serverUnreachable'
+  if (status === 401) return 'authErrors.incorrectCredentials'
+  if (status === 429) return 'authErrors.tooManyAttempts'
+  return 'authErrors.signInFailed'
+}
+
 export default function LoginPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -14,6 +29,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [errorTitle, setErrorTitle] = useState('authErrors.incorrectCredentials')
   const [shake, setShake] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -46,6 +62,7 @@ export default function LoginPage() {
       const error = err as { response?: { data?: { detail?: string } }, message?: string }
       const message =
         getErrorMessage(error, t('auth.invalidCredentials'))
+      setErrorTitle(failureTitleKey(err))
       setError(message)
       setShake(true)
       setTimeout(() => setShake(false), 600)
@@ -124,7 +141,7 @@ export default function LoginPage() {
                 <div className={`flex items-start gap-3 rounded-xl border-2 border-red-400 bg-red-50 p-4 ${shake ? 'animate-[shake_0.5s_ease-in-out]' : ''}`}>
                   <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
                   <div>
-                    <p className="text-sm font-bold text-red-700">{t('authErrors.incorrectCredentials')}</p>
+                    <p className="text-sm font-bold text-red-700">{t(errorTitle)}</p>
                     <p className="mt-0.5 text-xs text-red-600">{error}</p>
                   </div>
                 </div>

@@ -905,7 +905,7 @@ export default function AgreementDetailPage() {
                   {t('ledger.financialLedger')}
                 </h3>
                 <p className="text-xs text-gray-500">
-                  Append-only audit trail — every charge, payment, and adjustment
+                  {t('ledger.auditTrail')}
                 </p>
               </div>
               {canPostPayment && (
@@ -913,7 +913,7 @@ export default function AgreementDetailPage() {
                   onClick={() => setShowPaymentModal(true)}
                   className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
                 >
-                  + Post Payment
+                  + {t('ledger.postPayment')}
                 </button>
               )}
             </div>
@@ -1339,14 +1339,20 @@ function PaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md rounded-lg bg-white p-6">
-        <h2 className="mb-4 text-xl font-bold">{t('ledger.postPayment')}</h2>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="payment-title"
+        className="w-full max-w-md rounded-lg bg-white p-6"
+      >
+        <h2 id="payment-title" className="mb-4 text-xl font-bold">{t('ledger.postPayment')}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label htmlFor="payment-amount" className="mb-1 block text-sm font-medium text-gray-700">
               {t('ledger.amountEtb')}
             </label>
             <input
+              id="payment-amount"
               type="number"
               step="0.01"
               value={amount}
@@ -1360,10 +1366,11 @@ function PaymentModal({
             {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label htmlFor="payment-method" className="mb-1 block text-sm font-medium text-gray-700">
               {t('ledger.paymentMethod')}
             </label>
             <select
+              id="payment-method"
               value={method}
               onChange={(e) => setMethod(e.target.value as PostPaymentData['payment_method'])}
               className="w-full rounded-lg border border-gray-300 px-3 py-2"
@@ -1377,10 +1384,11 @@ function PaymentModal({
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label htmlFor="payment-reference" className="mb-1 block text-sm font-medium text-gray-700">
               {t('ledger.referenceOptional')}
             </label>
             <input
+              id="payment-reference"
               type="text"
               value={reference}
               onChange={(e) => setReference(e.target.value)}

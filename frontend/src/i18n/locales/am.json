@@ -575,6 +575,7 @@
     }
   },
   "ledger": {
+    "auditTrail": "የማይሰረዝ የሂሳብ መዝገብ — እያንዳንዱ ክፍያ፣ ገቢ እና ማስተካከያ",
     "addAdjustment": "ማስተካከያ ጨምር",
     "adjustmentHint": "አሉታዊ = ቅናሽ፣ አዎንታዊ = ተጨማሪ ክፍያ።",
     "advancePayment": "ቅድሚያ ክፍያ",
@@ -990,7 +991,10 @@
     "newWeddingSupply": "አዲስ የሠርግ አቅርቦት"
   },
   "authErrors": {
-    "incorrectCredentials": "የተጠቃሚ ስም ወይም የይለፍ ቃል ትክክል አይደለም"
+    "incorrectCredentials": "የተጠቃሚ ስም ወይም የይለፍ ቃል ትክክል አይደለም",
+    "serverUnreachable": "ከአገልጋዩ ጋር መገናኘት አልተቻለም",
+    "tooManyAttempts": "በጣም ብዙ የመግቢያ ሙከራዎች",
+    "signInFailed": "መግባት አልተሳካም"
   },
   "brand": {
     "fleetOps": "ፍሊትኦፕስ"

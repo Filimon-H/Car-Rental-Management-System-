@@ -575,6 +575,7 @@
     }
   },
   "ledger": {
+    "auditTrail": "Append-only audit trail — every charge, payment, and adjustment",
     "addAdjustment": "Add Adjustment",
     "adjustmentHint": "Negative = discount, positive = extra charge.",
     "advancePayment": "Advance Payment",
@@ -990,7 +991,10 @@
     "newWeddingSupply": "New Vendor Wedding Supply"
   },
   "authErrors": {
-    "incorrectCredentials": "Incorrect username or password"
+    "incorrectCredentials": "Incorrect username or password",
+    "serverUnreachable": "Can't reach the server",
+    "tooManyAttempts": "Too many sign-in attempts",
+    "signInFailed": "Sign-in failed"
   },
   "brand": {
     "fleetOps": "FleetOps"
