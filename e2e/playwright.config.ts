@@ -50,7 +50,7 @@ export default defineConfig({
     {
       command: './scripts/start-backend.sh',
       url: `${api}/health`,
-      env: { E2E_API_PORT: String(PORTS.api), E2E_ADMIN_PASSWORD: ADMIN.password },
+      env: { E2E_API_PORT: String(PORTS.api), E2E_LANDING_PORT: String(PORTS.landing), E2E_ADMIN_PASSWORD: ADMIN.password },
       reuseExistingServer: false,
       timeout: 120_000,
     },

@@ -12,6 +12,9 @@ export DATABASE_URL="sqlite:///$DB"
 export TELEGRAM_BOT_ENABLED=false
 export SCHEDULER_ENABLED=false
 export SEED_PASSWORD_ADMIN="${E2E_ADMIN_PASSWORD:-e2e-admin-pass}"
+# The bot stays off; its name is only used to build the "Confirm on Telegram" link.
+export TELEGRAM_BOT_USERNAME=NodE2EBot
+export PUBLIC_SITE_URL="http://localhost:${E2E_LANDING_PORT:-5274}"
 
 cd "$BACKEND"
 .venv/bin/alembic upgrade head >/dev/null

@@ -105,6 +105,22 @@ ledger_service.post_charge(db, out.id, Decimal("6000.00"), "Rental: 4 days x ETB
                            entry_type=LedgerEntryType.CHARGE)
 ledger_service.post_payment(db, out.id, Decimal("1000.00"), PaymentMethod.CASH)
 
+# Two customers entered at the counter, each with a past rental and no
+# website login: one links through Telegram, one through a staff invite.
+for first, phone, number in (("Tsion", "+251911000003", "E2E-PAST-TG"),
+                             ("Dawit", "+251911000004", "E2E-PAST-INV")):
+    walk_in = Customer(first_name=first, last_name="Counter", phone_primary=phone,
+                       id_type="national_id", id_number=f"E2E-{first}", is_active=True)
+    db.add(walk_in)
+    db.commit()
+    past = Agreement(agreement_number=number, agreement_type=AgreementType.CUSTOMER_VEHICLE,
+                     status=AgreementStatus.CLOSED, customer_id=walk_in.id,
+                     pickup_datetime=noon - timedelta(days=40), expected_return_datetime=noon - timedelta(days=37),
+                     actual_return_datetime=noon - timedelta(days=37),
+                     agreed_daily_rate=free.daily_rate, deposit_amount=Decimal("0"))
+    db.add(past)
+    db.commit()
+
 free_id, busy_id = free.id, busy.id
 db.close()
 print(f"seeded: vehicles {free_id} (free) and {busy_id} (busy days 30-37); both busy days 60-65; E2E-OUT-1 rented out")
