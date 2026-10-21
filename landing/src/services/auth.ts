@@ -25,12 +25,27 @@ interface SignupData {
   phone: string
 }
 
+/**
+ * A signup either signs in, or — when the phone belongs to a customer we
+ * already have from the counter — has to be confirmed on Telegram first.
+ */
+export interface AccountClaim {
+  status: 'confirm_identity'
+  claim_token: string
+  telegram_url: string | null
+  expires_at: string
+}
+
+export type SignupResult = { kind: 'signed_in' } | { kind: 'confirm_identity'; claim: AccountClaim }
+
 interface AuthState {
   token: string | null
   profile: CustomerProfile | null
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
-  signup: (data: SignupData) => Promise<void>
+  signup: (data: SignupData) => Promise<SignupResult>
+  /** Sign in with a token the server issued another way (claim, invite). */
+  signInWithToken: (token: string) => Promise<void>
   logout: () => void
   clearAuth: () => void
   fetchProfile: () => Promise<void>
@@ -56,9 +71,15 @@ export const useAuthStore = create<AuthState>((set, get) => {
     },
 
     signup: async (signupData) => {
-      const data = await apiClient.post<{ access_token: string }>('/auth/signup', signupData)
-      localStorage.setItem('customer_token', data.access_token)
-      set({ token: data.access_token })
+      const data = await apiClient.post<{ access_token: string } | AccountClaim>('/auth/signup', signupData)
+      if ('claim_token' in data) return { kind: 'confirm_identity', claim: data }
+      await get().signInWithToken(data.access_token)
+      return { kind: 'signed_in' }
+    },
+
+    signInWithToken: async (token) => {
+      localStorage.setItem('customer_token', token)
+      set({ token })
       await get().fetchProfile()
     },
 

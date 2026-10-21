@@ -739,7 +739,8 @@
     "generateBotCode": "የቦት ማገናኛ ኮድ አመንጭ",
     "expiresSingleUse": "የሚያበቃው {{time}} · አንድ ጊዜ ብቻ",
     "openOnTelegram": "{{username}}ን በቴሌግራም ክፈት",
-    "defaultCity": "አዲስ አበባ"
+    "defaultCity": "አዲስ አበባ",
+    "botCodeIntro": "ይህ ደንበኛ ከቴሌግራም ቦታችን ጋር ተገናኝቶ ቦታ ማስያዣዎቹን እንዲያስተዳድር የአንድ ጊዜ ኮድ ይፍጠሩ።"
   },
   "vehicleDetail": {
     "conditionTransmission": "ሁኔታ / ማስተላለፊያ",
@@ -1308,5 +1309,20 @@
     "lightMode": "ወደ ብርሃን ገጽታ ቀይር",
     "darkMode": "ወደ ጨለማ ገጽታ ቀይር",
     "closeLanguageMenu": "የቋንቋ ምናሌን ዝጋ"
+  },
+  "onlineAccount": {
+    "title": "የመስመር ላይ መለያ",
+    "signsInAs": "በድረ-ገጹ የሚገባው በ",
+    "telegramLinked": "የቴሌግራም ቦት ተገናኝቷል",
+    "telegramNotLinked": "የቴሌግራም ቦት አልተገናኘም",
+    "none": "ይህ ደንበኛ እስካሁን በድረ-ገጹ መግባት አይችልም። መለያውን እንዲያዘጋጅ የግብዣ ሊንክ ይላኩለት፤ እዚህ ያሉት ኪራዮቹ በመለያው ይታያሉ።",
+    "openInvite": "ግብዣ ተልኳል፤ እስከ {{time}} ድረስ ይሰራል።",
+    "link": "የግብዣ ሊንክ",
+    "expires": "አንድ ጊዜ ብቻ፣ እስከ {{time}} ድረስ ይሰራል።",
+    "createInvite": "የግብዣ ሊንክ ፍጠር",
+    "newInvite": "አዲስ የግብዣ ሊንክ ፍጠር",
+    "creating": "በመፍጠር ላይ…",
+    "inviteFailed": "ግብዣውን መፍጠር አልተቻለም",
+    "hint": "በቴሌግራም፣ በዋትስአፕ ወይም በኤስኤምኤስ ይላኩት። አዲስ ሊንክ የቀድሞውን ይተካል። ቴሌግራም ያላቸው ደንበኞች በድረ-ገጹ ተመዝግበው በቦቱ ማረጋገጥም ይችላሉ።"
   }
 }

@@ -10,6 +10,7 @@ from typing import Annotated
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session, joinedload
@@ -31,6 +32,10 @@ from src.models.customer_user import CustomerUser
 from src.models.telegram import TelegramCustomerLink, TelegramCustomerLinkCode
 from src.models.vehicle import Vehicle, VehicleStatus
 from src.schemas.public import (
+    AccountClaimStarted,
+    AccountClaimStatus,
+    InviteAccept,
+    InviteDetails,
     BookingCreateRequest,
     BookingQuoteRequest,
     BookingQuoteResponse,
@@ -49,7 +54,7 @@ from src.schemas.public import (
     TokenResponse,
 )
 from src.schemas.fields import normalize_ethiopian_phone
-from src.services import agreement_service, billing_service, ledger_service
+from src.services import account_claim_service, agreement_service, billing_service, ledger_service
 from src.services.customer_validation_service import find_customer_by_phone, normalize_phone
 from src.models.ledger_entry import LedgerEntryType
 
@@ -99,13 +104,31 @@ def _issue_customer_token(user: CustomerUser) -> str:
 # ---------------------------------------------------------------------------
 
 
-@router.post("/auth/signup", response_model=TokenResponse)
+@router.post(
+    "/auth/signup",
+    response_model=TokenResponse,
+    responses={202: {"model": AccountClaimStarted}},
+)
 @limiter.limit("3/minute")
 def signup(request: Request, body: SignupRequest, db: Annotated[Session, Depends(get_db)]):
     if db.query(CustomerUser).filter(CustomerUser.email == body.email).first():
         raise ConflictError("Email already registered")
     if find_customer_by_phone(db, body.phone):
-        raise ConflictError("Phone number already registered")
+        # A customer entered at the counter has no website login yet. That
+        # used to be a dead end; now they confirm on Telegram that the phone
+        # is theirs, and the login is attached to their existing record.
+        existing = account_claim_service.claimable_customer(db, body.phone)
+        if existing is None:
+            raise ConflictError("Phone number already registered. Sign in instead.")
+        token = account_claim_service.start_telegram_claim(db, existing, body.email, body.password)
+        return JSONResponse(
+            status_code=202,
+            content=AccountClaimStarted(
+                claim_token=token,
+                telegram_url=account_claim_service.telegram_start_url(token),
+                expires_at=datetime.now(timezone.utc) + account_claim_service.TELEGRAM_CLAIM_TTL,
+            ).model_dump(mode="json"),
+        )
 
     customer = Customer(
         first_name=body.first_name,
@@ -130,6 +153,30 @@ def signup(request: Request, body: SignupRequest, db: Annotated[Session, Depends
     db.refresh(user)
 
     return TokenResponse(access_token=_issue_customer_token(user))
+
+
+@router.get("/auth/claims/{token}", response_model=AccountClaimStatus)
+@limiter.limit("40/minute")
+def account_claim_status(request: Request, token: str, db: Annotated[Session, Depends(get_db)]):
+    """Polled by the signup page while the customer confirms on Telegram."""
+    state, login = account_claim_service.telegram_claim_status(db, token)
+    return AccountClaimStatus(status=state, access_token=_issue_customer_token(login) if login else None)
+
+
+@router.get("/auth/invites/{token}", response_model=InviteDetails)
+@limiter.limit("20/minute")
+def invite_details(request: Request, token: str, db: Annotated[Session, Depends(get_db)]):
+    """What the invite page shows: whose account it sets up."""
+    claim, customer = account_claim_service.open_invite(db, token)
+    return InviteDetails(first_name=customer.first_name, email=customer.email, expires_at=claim.expires_at)
+
+
+@router.post("/auth/invites/{token}", response_model=TokenResponse)
+@limiter.limit("5/minute")
+def accept_invite(request: Request, token: str, body: InviteAccept, db: Annotated[Session, Depends(get_db)]):
+    """Set up the online account a member of staff invited this customer to."""
+    login = account_claim_service.accept_invite(db, token, body.email, body.password)
+    return TokenResponse(access_token=_issue_customer_token(login))
 
 
 @router.post("/auth/login", response_model=TokenResponse)

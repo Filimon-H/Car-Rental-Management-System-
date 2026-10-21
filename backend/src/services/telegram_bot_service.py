@@ -27,7 +27,8 @@ from src.models.staff_user import StaffUser
 from src.models.telegram import TelegramCustomerLink, TelegramCustomerLinkCode, TelegramStaffLink
 from src.models.vehicle import Vehicle, VehicleStatus
 from src.schemas.fields import normalize_ethiopian_phone
-from src.services import agreement_service, billing_service, telegram_link_service
+from src.core.errors import AppException
+from src.services import account_claim_service, agreement_service, billing_service, telegram_link_service
 
 logger = get_logger(__name__)
 
@@ -500,7 +501,7 @@ class TelegramBotService:
         # no reply of any kind.
         contact = message.get("contact")
         if contact:
-            await self._handle_contact(chat_id, telegram_user_id, contact)
+            await self._handle_contact(chat_id, telegram_user_id, contact, telegram_username)
             return
 
         if not text:
@@ -617,7 +618,11 @@ class TelegramBotService:
         )
 
     async def _handle_contact(
-        self, chat_id: int, telegram_user_id: int, contact: dict[str, Any]
+        self,
+        chat_id: int,
+        telegram_user_id: int,
+        contact: dict[str, Any],
+        telegram_username: str | None = None,
     ) -> None:
         """Use a shared contact as the answer to a pending phone prompt."""
         raw = str(contact.get("phone_number") or "")
@@ -628,6 +633,9 @@ class TelegramBotService:
         state = self._registration_states.get(chat_id)
         if state and state.step == "phone_primary":
             await self._apply_registration_phone(chat_id, raw)
+            return
+
+        if await self._confirm_account_claim(chat_id, telegram_user_id, telegram_username, contact, raw):
             return
 
         await self._send_message(
@@ -649,6 +657,10 @@ class TelegramBotService:
         arg = parts[1].strip() if len(parts) > 1 else ""
 
         if command == "/start":
+            # t.me/<bot>?start=claim_<token> arrives as "/start claim_<token>".
+            if arg.startswith("claim_"):
+                await self._open_account_claim(chat_id, telegram_user_id, arg.removeprefix("claim_"))
+                return
             await self._handle_start(chat_id)
             return
         if command == "/help":
@@ -757,6 +769,76 @@ class TelegramBotService:
                 "Staff: Generate a link code in the web app and send /link CODE\n"
                 "Customers: Go to My Bookings on the website to get a link code, then send /link CODE",
             )
+        finally:
+            db.close()
+
+    async def _open_account_claim(self, chat_id: int, telegram_user_id: int, token: str) -> None:
+        """A customer from the website's signup page, here to prove their phone."""
+        db = SessionLocal()
+        try:
+            try:
+                account_claim_service.open_telegram_claim(db, token, telegram_user_id)
+            except AppException as exc:
+                await self._send_message(chat_id, f"{escape(exc.detail)} Go back to the website and sign up again.")
+                return
+            await self._send_message(
+                chat_id,
+                "Welcome back to Nod Car Rent! To link your online account to the "
+                "rentals we already have for you, tap the button below to share "
+                "your phone number.",
+                reply_markup=contact_request_keyboard("📱 Share my phone number to confirm"),
+            )
+        finally:
+            db.close()
+
+    async def _confirm_account_claim(
+        self,
+        chat_id: int,
+        telegram_user_id: int,
+        telegram_username: str | None,
+        contact: dict[str, Any],
+        phone: str,
+    ) -> bool:
+        """Finish a website signup from a shared contact. False when none is waiting."""
+        db = SessionLocal()
+        try:
+            try:
+                login = account_claim_service.confirm_telegram_contact(
+                    db,
+                    telegram_user_id=telegram_user_id,
+                    chat_id=chat_id,
+                    telegram_username=telegram_username,
+                    contact_user_id=contact.get("user_id"),
+                    contact_phone=phone,
+                )
+            except account_claim_service.PhoneMismatch as exc:
+                await self._send_message(
+                    chat_id,
+                    "That number doesn't match the one we have for you"
+                    + (f" ({exc.attempts_left} tries left)." if exc.attempts_left else ".")
+                    + " If your number has changed, ask us for an invite link at the "
+                    "counter or by phone.",
+                    reply_markup=(
+                        contact_request_keyboard("📱 Share my phone number to confirm")
+                        if exc.attempts_left
+                        else REMOVE_KEYBOARD
+                    ),
+                )
+                return True
+            except AppException as exc:
+                await self._send_message(chat_id, escape(exc.detail))
+                return True
+            if login is None:
+                return False
+            await self.set_commands_for_chat(chat_id, "customer")
+            await self._send_message(
+                chat_id,
+                f"Confirmed, {escape(login.customer.first_name)}! Your online account is ready "
+                "and linked to this chat. Go back to the website: it signs you in by itself.\n\n"
+                "Here you can use /mybookings and /book.",
+                reply_markup=REMOVE_KEYBOARD,
+            )
+            return True
         finally:
             db.close()
 

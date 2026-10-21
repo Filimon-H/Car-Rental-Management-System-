@@ -11,6 +11,7 @@ import Contact from './components/Contact'
 import Footer from './components/Footer'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
+import ClaimInvitePage from './pages/ClaimInvitePage'
 import BookingPage from './pages/BookingPage'
 import MyBookingsPage from './pages/MyBookingsPage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -87,6 +88,7 @@ function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/claim/:token" element={<ClaimInvitePage />} />
       <Route
         path="/book/:vehicleId"
         element={

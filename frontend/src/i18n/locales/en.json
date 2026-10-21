@@ -739,7 +739,8 @@
     "generateBotCode": "Generate Bot Link Code",
     "expiresSingleUse": "Expires {{time}} · single-use",
     "openOnTelegram": "Open {{username}} on Telegram",
-    "defaultCity": "Addis Ababa"
+    "defaultCity": "Addis Ababa",
+    "botCodeIntro": "Generate a one-time link code so this customer can connect to our Telegram bot and manage their bookings."
   },
   "vehicleDetail": {
     "conditionTransmission": "Condition / Transmission",
@@ -1308,5 +1309,20 @@
     "lightMode": "Switch to light mode",
     "darkMode": "Switch to dark mode",
     "closeLanguageMenu": "Close language menu"
+  },
+  "onlineAccount": {
+    "title": "Online account",
+    "signsInAs": "Signs in on the website as",
+    "telegramLinked": "Telegram bot linked",
+    "telegramNotLinked": "Telegram bot not linked",
+    "none": "This customer cannot sign in on the website yet. Send them an invite link to set up their account; their rentals here will show in it.",
+    "openInvite": "An invite was sent and works until {{time}}.",
+    "link": "Invite link",
+    "expires": "Works once, until {{time}}.",
+    "createInvite": "Create invite link",
+    "newInvite": "Create a new invite link",
+    "creating": "Creating…",
+    "inviteFailed": "Could not create the invite",
+    "hint": "Send it by Telegram, WhatsApp or SMS. A new link replaces the old one. Customers with Telegram can also sign up on the website and confirm with the bot."
   }
 }

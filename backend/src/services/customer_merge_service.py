@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from src.core.errors import BusinessError, ErrorCode, NotFoundError
+from src.models.account_claim import CustomerAccountClaim
 from src.models.agreement import Agreement
 from src.models.audit_event import AuditAction
 from src.models.collateral_person import CollateralPerson
@@ -29,7 +30,7 @@ from src.services.audit_service import create_audit_event
 
 # Every table with a foreign key to customers.id. test_customer_merge checks
 # this against the schema, so a new one cannot be silently left behind.
-REASSIGNED = (Agreement, CollateralPerson, CustomerDocument)
+REASSIGNED = (Agreement, CollateralPerson, CustomerDocument, CustomerAccountClaim)
 
 # Filled from a duplicate only where the kept record has nothing.
 PLAIN_FIELDS = (

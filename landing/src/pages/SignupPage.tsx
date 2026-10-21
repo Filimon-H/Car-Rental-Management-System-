@@ -1,12 +1,15 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useAuthStore } from '../services/auth'
+import { useAuthStore, type AccountClaim } from '../services/auth'
 import { returnTarget, returnToFrom } from '../lib/returnTo'
+import ConfirmOnTelegram from '../components/ConfirmOnTelegram'
 
 export default function SignupPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const signup = useAuthStore((s) => s.signup)
+  const signInWithToken = useAuthStore((s) => s.signInWithToken)
+  const [claim, setClaim] = useState<AccountClaim | null>(null)
 
   const [form, setForm] = useState({
     first_name: '',
@@ -35,13 +38,17 @@ export default function SignupPage() {
     }
     setLoading(true)
     try {
-      await signup({
+      const result = await signup({
         first_name: form.first_name,
         last_name: form.last_name,
         email: form.email,
         phone: form.phone,
         password: form.password,
       })
+      if (result.kind === 'confirm_identity') {
+        setClaim(result.claim)
+        return
+      }
       navigate(...returnTarget(location))
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed')
@@ -49,6 +56,14 @@ export default function SignupPage() {
       setLoading(false)
     }
   }
+
+  const finishClaim = useCallback(
+    async (token: string) => {
+      await signInWithToken(token)
+      navigate(...returnTarget(location))
+    },
+    [signInWithToken, navigate, location]
+  )
 
   return (
     <div className="min-h-screen bg-dark flex items-center justify-center px-4 py-10">
@@ -62,6 +77,10 @@ export default function SignupPage() {
         </Link>
 
         <div className="bg-dark-200 rounded-2xl p-8">
+          {claim ? (
+            <ConfirmOnTelegram claim={claim} onSignedIn={finishClaim} onStartAgain={() => setClaim(null)} />
+          ) : (
+          <>
           <h1 className="text-2xl font-bold text-white mb-1">Create account</h1>
           <p className="text-gray-400 text-sm mb-6">Book cars, track your rentals</p>
 
@@ -163,6 +182,8 @@ export default function SignupPage() {
               Sign in
             </Link>
           </p>
+          </>
+          )}
         </div>
       </div>
     </div>

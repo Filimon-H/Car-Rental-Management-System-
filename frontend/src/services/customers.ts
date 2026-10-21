@@ -78,6 +78,20 @@ export interface BotLinkCodeResponse {
   bot_message: string
 }
 
+/** Whether a customer can sign in on the website. */
+export interface OnlineAccount {
+  has_account: boolean
+  email: string | null
+  telegram_linked: boolean
+  invite_expires_at: string | null
+}
+
+export interface OnlineAccountInvite {
+  url: string
+  expires_at: string
+  message: string
+}
+
 export interface DuplicateCheckResult {
   duplicate: boolean
   customer_id: number | null
@@ -127,6 +141,14 @@ export const customersService = {
 
   async generateBotLinkCode(id: number): Promise<BotLinkCodeResponse> {
     return apiClient.post(`/customers/${id}/bot-link-code`)
+  },
+
+  async getOnlineAccount(id: number): Promise<OnlineAccount> {
+    return apiClient.get(`/customers/${id}/online-account`)
+  },
+
+  async createOnlineAccountInvite(id: number): Promise<OnlineAccountInvite> {
+    return apiClient.post(`/customers/${id}/online-account-invite`)
   },
 
   async getLedger(id: number): Promise<CustomerLedgerEntry[]> {

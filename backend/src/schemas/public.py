@@ -25,6 +25,31 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class AccountClaimStarted(BaseModel):
+    """Signup matched a customer we already have: confirm on Telegram to link."""
+
+    status: str = "confirm_identity"
+    claim_token: str
+    telegram_url: str | None
+    expires_at: datetime
+
+
+class AccountClaimStatus(BaseModel):
+    status: str  # pending | linked | expired
+    access_token: str | None = None
+
+
+class InviteDetails(BaseModel):
+    first_name: str
+    email: str | None
+    expires_at: datetime
+
+
+class InviteAccept(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+
+
 class PublicCustomerProfile(BaseModel):
     id: int
     first_name: str

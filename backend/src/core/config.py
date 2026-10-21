@@ -67,6 +67,8 @@ class Settings(BaseSettings):
     telegram_bot_enabled: bool = False
     telegram_bot_token: str | None = None
     telegram_bot_username: str | None = None
+    # Where customers open the website: invite links point here.
+    public_site_url: str = "http://localhost:5174"
     telegram_bot_mode: Literal["polling", "disabled"] = "disabled"
     telegram_polling_timeout_seconds: int = 20
     telegram_link_code_expiry_minutes: int = 10

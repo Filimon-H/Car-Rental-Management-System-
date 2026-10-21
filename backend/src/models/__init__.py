@@ -19,8 +19,10 @@ from src.models.collateral_document import CollateralDocument
 from src.models.vendor_payment import VendorPayment
 from src.models.telegram import TelegramLinkCode, TelegramStaffLink, TelegramCustomerLink, TelegramCustomerLinkCode
 from src.models.customer_user import CustomerUser
+from src.models.account_claim import CustomerAccountClaim
 
 __all__ = [
+    "CustomerAccountClaim",
     "StaffUser",
     "AuditEvent",
     "AuditAction",

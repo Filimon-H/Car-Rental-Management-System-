@@ -6,6 +6,7 @@ import { customersService, BotLinkCodeResponse } from '@/services/customers'
 import { customerDocumentsService } from '@/services/customerDocuments'
 import { collateralsService, CollateralPerson } from '@/services/collaterals'
 import { ProtectedDocumentCard } from '@/components/documents/ProtectedDocumentCard'
+import { OnlineAccountCard } from '@/components/customers/OnlineAccountCard'
 import { useTranslation } from 'react-i18next'
 import { formatDate as sharedFormatDate, formatDateTime as sharedFormatDateTime } from '@/lib/utils'
 
@@ -246,6 +247,8 @@ export default function CustomerDetailPage() {
             )}
           </div>
 
+          <OnlineAccountCard customerId={customerIdNum} />
+
           {/* Telegram Bot Section */}
           <div className="rounded-lg border bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
@@ -261,8 +264,7 @@ export default function CustomerDetailPage() {
             {!botLinkCode ? (
               <div>
                 <p className="text-sm text-gray-500 mb-4">
-                  Generate a one-time link code so this customer can connect to{' '}
-                  <span className="font-medium text-telegram">@Novacar67_bot</span> and manage their bookings.
+                  {t('customerDetail.botCodeIntro')}
                   {customer.telegram_username && (
                     <> {t('customerDetail.sendViaTelegram')}<span className="font-medium">@{customer.telegram_username.replace('@', '')}</span>.</>
                   )}

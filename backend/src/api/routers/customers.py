@@ -12,6 +12,7 @@ from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from src.api.deps import get_current_user, get_db, require_permission
+from src.core.config import settings
 from src.core.rbac import Permission
 from src.core.security import hash_password
 from src.models.agreement import Agreement
@@ -19,7 +20,7 @@ from src.models.customer import Customer
 from src.models.customer_user import CustomerUser
 from src.models.ledger_entry import LedgerEntry, LedgerEntryType, PaymentMethod
 from src.models.staff_user import StaffUser
-from src.models.telegram import TelegramCustomerLinkCode
+from src.models.telegram import TelegramCustomerLink, TelegramCustomerLinkCode
 from src.schemas.customer import (
     CustomerCreate,
     CustomerListResponse,
@@ -27,6 +28,7 @@ from src.schemas.customer import (
     CustomerSearchResult,
     CustomerUpdate,
 )
+from src.services import account_claim_service
 from src.services.customer_validation_service import find_customer_by_phone
 
 router = APIRouter()
@@ -379,9 +381,11 @@ async def generate_bot_link_code(
     db.add(link_code)
     db.commit()
 
+    # The bot's name comes from config; it was hard-coded to one bot.
+    bot = f"@{settings.telegram_bot_username.lstrip('@')}" if settings.telegram_bot_username else "our bot"
     bot_message = (
         f"Hi {customer.first_name}! You can now manage your rentals on our Telegram bot.\n"
-        f"1. Open @Novacar67_bot on Telegram\n"
+        f"1. Open {bot} on Telegram\n"
         f"2. Send this message: /link {code}\n"
         f"Code expires in 24 hours."
     )
@@ -393,6 +397,70 @@ async def generate_bot_link_code(
         phone_primary=customer.phone_primary,
         telegram_username=customer.telegram_username,
         bot_message=bot_message,
+    )
+
+
+class OnlineAccountResponse(BaseModel):
+    has_account: bool
+    email: Optional[str]
+    telegram_linked: bool
+    invite_expires_at: Optional[datetime]
+
+
+class InviteResponse(BaseModel):
+    url: str
+    expires_at: datetime
+    message: str  # ready for staff to paste into Telegram, WhatsApp or SMS
+
+
+def _online_account(db: Session, customer_id: int) -> OnlineAccountResponse:
+    login = db.query(CustomerUser).filter(CustomerUser.customer_id == customer_id).first()
+    real = login is not None and not account_claim_service.is_bot_only(login)
+    linked = login is not None and db.query(TelegramCustomerLink).filter(
+        TelegramCustomerLink.customer_user_id == login.id, TelegramCustomerLink.is_active.is_(True)
+    ).first() is not None
+    invite = account_claim_service.open_invite_for(db, customer_id)
+    return OnlineAccountResponse(
+        has_account=real,
+        email=login.email if real else None,
+        telegram_linked=linked,
+        invite_expires_at=invite.expires_at if invite and not real else None,
+    )
+
+
+@router.get("/{customer_id}/online-account", response_model=OnlineAccountResponse)
+async def get_online_account(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(require_permission(Permission.VIEW_CUSTOMERS)),
+):
+    """Whether this customer can sign in on the website, and any open invite."""
+    if not db.query(Customer).filter(Customer.id == customer_id).first():
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return _online_account(db, customer_id)
+
+
+@router.post("/{customer_id}/online-account-invite", response_model=InviteResponse)
+async def create_online_account_invite(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    current_user: StaffUser = Depends(require_permission(Permission.MANAGE_CUSTOMERS)),
+):
+    """A one-time link for a counter customer to set up their website login.
+
+    Staff have seen the customer's ID, which is the proof; the link replaces
+    any earlier invite for them and expires after 72 hours.
+    """
+    token, claim = account_claim_service.create_invite(db, customer_id, current_user.id)
+    customer = db.query(Customer).filter(Customer.id == customer_id).first()
+    url = account_claim_service.invite_url(token)
+    return InviteResponse(
+        url=url,
+        expires_at=claim.expires_at,
+        message=(
+            f"Hi {customer.first_name}! Set up your Nod Car Rent online account to see "
+            f"and book your rentals: {url}\nThis link works once and expires in 3 days."
+        ),
     )
 
 
