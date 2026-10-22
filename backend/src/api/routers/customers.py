@@ -254,6 +254,13 @@ async def create_customer(
     return CustomerResponse.model_validate(customer)
 
 
+_COLUMN_FOR_FIELD = {
+    "id_expiry_date": "id_expiry",
+    "driver_license_number": "license_number",
+    "driver_license_expiry": "license_expiry",
+}
+
+
 @router.put("/{customer_id}", response_model=CustomerResponse)
 async def update_customer(
     customer_id: int,
@@ -288,10 +295,12 @@ async def update_customer(
             detail="Customer with this phone number already exists",
         )
     
-    # Update fields
+    # Update fields. Three API names differ from the columns; copying them
+    # across by API name set attributes that are not columns, so an edited
+    # ID expiry or driving licence was silently lost.
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
-        setattr(customer, field, value)
+        setattr(customer, _COLUMN_FOR_FIELD.get(field, field), value)
     
     db.commit()
     db.refresh(customer)
