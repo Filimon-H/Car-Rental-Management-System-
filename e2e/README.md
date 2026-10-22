@@ -31,7 +31,18 @@ The Telegram bot and the scheduler are switched off for the run.
 
 ## Seed data
 
-- Staff user `admin`, password `e2e-admin-pass` (override with `E2E_ADMIN_PASSWORD`)
+- One staff user per role, for testing permissions:
+
+  | User | Role | Password (override with) |
+  |------|------|--------------------------|
+  | `admin` | admin | `e2e-admin-pass` (`E2E_ADMIN_PASSWORD`) |
+  | `sales1` | sales | `e2e-sales-pass` (`E2E_SALES_PASSWORD`) |
+  | `fleet1` | fleet | `e2e-fleet-pass` (`E2E_FLEET_PASSWORD`) |
+  | `inspector1` | inspector | `e2e-inspector-pass` (`E2E_INSPECTOR_PASSWORD`) |
+  | `accountant1` | accountant | `e2e-accountant-pass` (`E2E_ACCOUNTANT_PASSWORD`) |
+
+  These exist only in the throwaway test database.
+- Two customers entered at the counter with a past rental and no website login (Tsion, Dawit), and one with a rental already out (Hiwot)
 - 2024 Toyota Yaris, 1,100/day, 6,500/week, always free
 - 2024 Toyota Corolla, 1,500/day, held by a pending-payment booking from day 30 to day 37
 
