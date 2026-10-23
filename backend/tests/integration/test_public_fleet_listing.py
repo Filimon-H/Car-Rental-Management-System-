@@ -115,7 +115,9 @@ class TestAvailableFromIsNeverInThePast:
         self, client, db: Session, vendor, test_customer
     ):
         vehicle = make_vehicle(db, vendor, "PUB-FUTURE")
-        pickup = datetime.now(timezone.utc) + timedelta(days=5)
+        # Starting within the next day, so the car is not free today. One
+        # booked further out shows as free today (test_public_browse_status).
+        pickup = datetime.now(timezone.utc) + timedelta(hours=6)
         agreement_service.create_standard_agreement(
             db=db,
             customer_id=vehicle.vendor_id and test_customer.id,

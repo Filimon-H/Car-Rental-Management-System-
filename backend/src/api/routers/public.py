@@ -284,9 +284,39 @@ def _vehicle_available_from(db: Session, vehicle_id: int) -> datetime | None:
     return seg.end_datetime if seg else None
 
 
+# A booking starting this soon still makes a car unavailable "today".
+_FREE_TODAY_LOOKAHEAD = timedelta(hours=24)
+
+
+def _booked_soon(db: Session, vehicle_id: int) -> bool:
+    """Whether a confirmed booking covers the next day."""
+    now = _as_business_wall_clock(datetime.now(timezone.utc))
+    return (
+        db.query(AgreementVehicleSegment.id)
+        .join(Agreement, Agreement.id == AgreementVehicleSegment.agreement_id)
+        .filter(
+            AgreementVehicleSegment.vehicle_id == vehicle_id,
+            Agreement.status.in_(
+                [AgreementStatus.ACTIVE, AgreementStatus.PENDING_PAYMENT, AgreementStatus.OVERDUE]
+            ),
+            AgreementVehicleSegment.start_datetime < now + _FREE_TODAY_LOOKAHEAD,
+            AgreementVehicleSegment.end_datetime > now,
+        )
+        .first()
+        is not None
+    )
+
+
 def _to_public_vehicle(v: Vehicle, db: Session) -> PublicVehicleResponse:
+    status = v.status.value
     available_from = None
-    if v.status != VehicleStatus.AVAILABLE:
+    # RESERVED means "has a confirmed booking", however far off. Shown as is,
+    # a car booked two months out read as Unavailable today, with the end of
+    # that booking as its "available from", and customers found nothing to
+    # book. Today it is free; a request that overlaps the booking is refused.
+    if v.status == VehicleStatus.RESERVED and not _booked_soon(db, v.id):
+        status = VehicleStatus.AVAILABLE.value
+    elif v.status != VehicleStatus.AVAILABLE:
         available_from = _vehicle_available_from(db, v.id)
     return PublicVehicleResponse(
         id=v.id,
@@ -305,7 +335,7 @@ def _to_public_vehicle(v: Vehicle, db: Session) -> PublicVehicleResponse:
         photo_left=v.photo_left,
         photo_right=v.photo_right,
         is_active=v.is_active,
-        status=v.status.value,
+        status=status,
         available_from=available_from,
     )
 
