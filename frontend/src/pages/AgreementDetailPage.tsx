@@ -236,6 +236,7 @@ export default function AgreementDetailPage() {
 
   const activateMutation = useMutation({
     mutationFn: () => agreementsService.activate(agreementId as number),
+    onMutate: () => setPageError(null),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agreement', idString] })
       // LedgerTable keys on the numeric id, so the table and its totals

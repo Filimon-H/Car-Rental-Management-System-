@@ -13,7 +13,11 @@ import { join } from 'node:path'
  * reuseExistingServer is off so a stray dev server is never mistaken for
  * the test one.
  */
-export const PORTS = { api: 8101, landing: 5274, admin: 3100 }
+export const PORTS = {
+  api: Number(process.env.E2E_API_PORT ?? 8101),
+  landing: Number(process.env.E2E_LANDING_PORT ?? 5274),
+  admin: Number(process.env.E2E_ADMIN_PORT ?? 3100),
+}
 export const ADMIN = { username: 'admin', password: process.env.E2E_ADMIN_PASSWORD ?? 'e2e-admin-pass' }
 
 const api = `http://127.0.0.1:${PORTS.api}`
@@ -36,6 +40,7 @@ export default defineConfig({
   expect: { timeout: 8_000 },
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
+    timezoneId: 'Africa/Addis_Ababa',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'off',

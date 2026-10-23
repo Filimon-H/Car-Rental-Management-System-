@@ -4,13 +4,16 @@
 set -eu
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND="$HERE/../backend"
-DB="$HERE/.tmp/e2e.db"
+DB="$HERE/.tmp/e2e-${E2E_API_PORT:-8101}.db"
 mkdir -p "$HERE/.tmp"
 rm -f "$DB" "$DB-wal" "$DB-shm"
 
 export DATABASE_URL="sqlite:///$DB"
+export DEBUG=false
 export TELEGRAM_BOT_ENABLED=false
 export SCHEDULER_ENABLED=false
+# The suite signs up more people a minute than the live limit allows.
+export RATE_LIMIT_ENABLED=false
 export SEED_PASSWORD_ADMIN="${E2E_ADMIN_PASSWORD:-e2e-admin-pass}"
 # Known passwords for the other roles, so permissions can be tested per role.
 export SEED_PASSWORD_SALES1="${E2E_SALES_PASSWORD:-e2e-sales-pass}"

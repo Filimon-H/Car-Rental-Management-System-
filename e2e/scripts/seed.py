@@ -52,6 +52,7 @@ def car(plate, model, rate, weekly=None, status=VehicleStatus.AVAILABLE):
 
 free = car("E2E-YARIS", "Yaris", "1100.00", weekly="6500.00")
 busy = car("E2E-COROLLA", "Corolla", "1500.00", status=VehicleStatus.RESERVED)
+lifecycle = car("E2E-LIFECYCLE", "Vitz", "1100.00")
 
 # A confirmed booking that makes the Corolla busy 30-37 days from now, so
 # the date search has to answer differently for different windows.
@@ -80,6 +81,7 @@ def hold(number, vehicle, first_day, last_day):
 hold("E2E-HOLD-1", busy, 30, 37)
 hold("E2E-FULL-1", free, 60, 65)
 hold("E2E-FULL-2", busy, 60, 65)
+hold("E2E-FULL-3", lifecycle, 60, 65)
 
 # A rental already out: picked up 3 days ago, due back tomorrow, 6,000
 # charged and 1,000 paid, for a customer who can sign in. The return tests

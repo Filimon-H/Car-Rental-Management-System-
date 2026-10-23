@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { ADMIN } from '../playwright.config'
+import { ADMIN, PORTS } from '../playwright.config'
 import { ADMIN_APP, API, LANDING } from './helpers'
 
 /*
@@ -19,7 +19,7 @@ import { ADMIN_APP, API, LANDING } from './helpers'
 test.describe.configure({ mode: 'serial' })
 
 const BACKEND = resolve(__dirname, '../../backend')
-const E2E_DB = resolve(__dirname, '../.tmp/e2e.db')
+const E2E_DB = resolve(__dirname, `../.tmp/e2e-${PORTS.api}.db`)
 
 function telegram(token: string, phone: string, ...flags: string[]): string {
   return execFileSync(
@@ -27,7 +27,7 @@ function telegram(token: string, phone: string, ...flags: string[]): string {
     [resolve(__dirname, '../scripts/fake-telegram.py'), token, phone, ...flags],
     {
       cwd: BACKEND,
-      env: { ...process.env, DATABASE_URL: `sqlite:///${E2E_DB}`, TELEGRAM_BOT_ENABLED: 'false' },
+      env: { ...process.env, DEBUG: 'false', DATABASE_URL: `sqlite:///${E2E_DB}`, TELEGRAM_BOT_ENABLED: 'false' },
       encoding: 'utf8',
     }
   )

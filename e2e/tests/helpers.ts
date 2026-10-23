@@ -14,6 +14,7 @@ export function dayFromToday(days: number): string {
 
 /** The cars scripts/seed.py creates. */
 export const SEEDED = {
+  lifecycle: '2024 Toyota Vitz',
   // Free all the time; 1,100/day, 6,500 for a week.
   free: '2024 Toyota Yaris',
   // Held by a pending-payment booking from day 30 to day 37.
