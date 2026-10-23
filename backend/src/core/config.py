@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     # App
     app_env: Literal["development", "staging", "production"] = "development"
     debug: bool = False
+    # Per-IP limits on sign-in and signup. Only a throwaway test copy, which
+    # signs up many people a minute from one address, should turn this off.
+    rate_limit_enabled: bool = True
     sql_echo: bool = False  # Separate flag — never enable in production; use DEBUG=true only locally
     app_name: str = "Car Rental Management System"
     api_prefix: str = "/api"

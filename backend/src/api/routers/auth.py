@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
+from src.core.config import settings
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
@@ -24,7 +25,7 @@ from src.models.staff_user import StaffUser
 from src.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
 from src.services import audit_service
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=get_remote_address, enabled=settings.rate_limit_enabled)
 router = APIRouter()
 
 

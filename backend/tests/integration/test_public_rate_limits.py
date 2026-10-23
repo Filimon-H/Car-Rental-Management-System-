@@ -42,3 +42,12 @@ class TestSignupIsRateLimited:
 
         assert 429 in statuses, f"signup spam was never throttled: {statuses}"
         assert statuses[0] == 200
+
+
+def test_rate_limiting_is_on_unless_switched_off():
+    """Only a throwaway test copy may turn it off (RATE_LIMIT_ENABLED=false)."""
+    from src.api.routers import auth, public
+    from src.core.config import Settings
+
+    assert Settings.model_fields["rate_limit_enabled"].default is True
+    assert public.limiter.enabled and auth.limiter.enabled

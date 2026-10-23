@@ -64,6 +64,12 @@ export function getErrorMessage(error: unknown, fallback = 'Something went wrong
     if (messages.length) return messages.join('; ')
   }
 
+  // The rate limiter answers in its own shape, so this showed axios's
+  // "Request failed with status code 429".
+  if ((response as { status?: number } | undefined)?.status === 429) {
+    return 'Too many attempts. Please wait a minute and try again.'
+  }
+
   const message = (error as { message?: string })?.message
   return message || fallback
 }

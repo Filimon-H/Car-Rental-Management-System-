@@ -89,6 +89,9 @@ export function describeApiError(body: unknown, status: number): string {
     if (messages.length) return messages.join('; ')
   }
 
+  // These used to reach the customer as a bare "HTTP 429".
+  if (status === 429) return 'Too many attempts. Please wait a minute and try again.'
+  if (status >= 500) return 'Something went wrong on our side. Please try again in a moment.'
   return `HTTP ${status}`
 }
 

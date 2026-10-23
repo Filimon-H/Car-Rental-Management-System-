@@ -60,7 +60,7 @@ from src.models.ledger_entry import LedgerEntryType
 
 # Credential endpoints are unauthenticated and internet-facing, so they are
 # rate limited the same way staff login is. Keyed on client IP.
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=get_remote_address, enabled=settings.rate_limit_enabled)
 router = APIRouter()
 
 
