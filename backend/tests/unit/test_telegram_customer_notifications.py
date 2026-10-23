@@ -246,7 +246,11 @@ class TestReturnRemindersUseBusinessTime:
         from src.models.agreement import AgreementType
         from src.models.agreement_vehicle_segment import AgreementVehicleSegment
 
-        now = datetime.now().replace(microsecond=0)
+        # Business wall-clock, as the reminder uses. The machine clock made
+        # this pass in Addis Ababa and fail on a UTC machine such as CI.
+        from src.services.telegram_bot_service import business_now
+
+        now = business_now().replace(microsecond=0)
         a = Agreement(
             agreement_number=agreement_service.generate_agreement_number(db),
             agreement_type=AgreementType.CUSTOMER_VEHICLE,
