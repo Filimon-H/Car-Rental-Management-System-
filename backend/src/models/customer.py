@@ -6,11 +6,12 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Boolean, DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.db import Base
+from src.core.db import Base, UtcDateTime
 
 if TYPE_CHECKING:
     from src.models.agreement import Agreement
     from src.models.customer_document import CustomerDocument
+    from src.models.customer_user import CustomerUser
 
 
 class Customer(Base):
@@ -49,15 +50,17 @@ class Customer(Base):
     # Emergency contact
     emergency_contact_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
     emergency_contact_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    
+
+    telegram_username: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
     # Relationships
@@ -69,6 +72,9 @@ class Customer(Base):
     )
     documents: Mapped[list["CustomerDocument"]] = relationship(
         "CustomerDocument", back_populates="customer", lazy="dynamic", cascade="all, delete-orphan"
+    )
+    customer_user: Mapped["CustomerUser | None"] = relationship(
+        "CustomerUser", back_populates="customer", uselist=False
     )
 
     @property

@@ -1,6 +1,7 @@
 """Customer documents API router for file uploads."""
 
 import os
+import re
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -23,6 +24,8 @@ router = APIRouter()
 
 # Upload directory - in production, use cloud storage like S3
 UPLOAD_DIR = Path("uploads/customer_documents")
+from src.core.upload_validation import describe_content, is_real_document
+
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf", ".webp"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
@@ -38,6 +41,19 @@ def ensure_upload_subdir(doc_type: DocumentType) -> Path:
     subdir = UPLOAD_DIR / doc_type.value
     subdir.mkdir(parents=True, exist_ok=True)
     return subdir
+
+
+def sanitize_display_name(filename: str) -> str:
+    """Reduce an uploaded filename to something safe to store and echo back.
+
+    Only the basename is kept (so a path never survives), and characters that
+    carry meaning in an HTTP header or a shell are dropped. FileResponse already
+    escapes the name on the way out; this keeps the stored value clean too, so
+    anything else that renders it inherits the same guarantee.
+    """
+    base = Path(filename).name
+    cleaned = re.sub(r'[\r\n"\\;]', "", base).strip()
+    return cleaned[:255] or "upload"
 
 
 def validate_file(file: UploadFile) -> tuple[str, str]:
@@ -123,6 +139,17 @@ async def upload_customer_document(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"File too large. Maximum size: {MAX_FILE_SIZE // (1024*1024)}MB"
         )
+
+    # The extension and Content-Type are caller-supplied, so confirm the bytes
+    # really are an image or PDF before storing the file.
+    if not is_real_document(content):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"File is not a valid image or PDF (detected: {describe_content(content)}). "
+                "Allowed: JPEG, PNG, WebP, PDF."
+            ),
+        )
     
     # Generate unique filename
     unique_id = uuid.uuid4().hex[:12]
@@ -140,7 +167,7 @@ async def upload_customer_document(
     document = CustomerDocument(
         customer_id=customer_id,
         doc_type=doc_type,
-        file_name=file.filename,
+        file_name=sanitize_display_name(file.filename),
         file_path=str(file_path),
         file_size=file_size,
         mime_type=mime_type,
@@ -188,12 +215,13 @@ async def get_document_file(
             detail="File not found"
         )
 
-    # Force download — prevent browser from rendering uploaded files inline (XSS risk)
+    # Upload validation only permits JPEG, PNG, WebP, and PDF files. Preserve the
+    # validated type so authenticated browser clients can preview them.
     return FileResponse(
         path=document.file_path,
         filename=document.file_name,
-        media_type="application/octet-stream",
-        headers={"Content-Disposition": f'attachment; filename="{document.file_name}"'},
+        media_type=document.mime_type,
+        content_disposition_type="inline",
     )
 
 

@@ -1,4 +1,5 @@
 import apiClient from './apiClient'
+import { stripBlanks } from '@/lib/utils'
 
 export interface Vendor {
   id: number
@@ -84,9 +85,10 @@ export interface CreateVendorData {
   bank_name?: string
   bank_account_number?: string
   bank_account_holder?: string
-  commission_rate?: number
+  commission_rate?: number | string
   notes?: string
 }
+
 
 export const vendorsService = {
   async list(params?: {
@@ -107,11 +109,11 @@ export const vendorsService = {
   },
 
   async create(data: CreateVendorData): Promise<Vendor> {
-    return apiClient.post('/vendors', data)
+    return apiClient.post('/vendors', stripBlanks(data))
   },
 
   async update(id: number, data: Partial<CreateVendorData>): Promise<Vendor> {
-    return apiClient.put(`/vendors/${id}`, data)
+    return apiClient.put(`/vendors/${id}`, stripBlanks(data))
   },
 
   async delete(id: number): Promise<void> {

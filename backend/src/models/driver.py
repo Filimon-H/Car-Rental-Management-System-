@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.db import Base
+from src.core.db import Base, UtcDateTime
 
 
 class Driver(Base):
@@ -47,12 +47,12 @@ class Driver(Base):
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UtcDateTime(),
         default=datetime.utcnow,
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UtcDateTime(),
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
         nullable=False,

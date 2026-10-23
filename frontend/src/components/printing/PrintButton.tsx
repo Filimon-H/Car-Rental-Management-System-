@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Printer, FileText, Download, Receipt, ClipboardList, Loader2 } from 'lucide-react'
-import apiClient from '@/services/apiClient'
+import apiClient, { getErrorMessage } from '@/services/apiClient'
 
 type DocumentType = 'agreement' | 'receipt' | 'inspection'
 
@@ -31,54 +31,90 @@ export default function PrintButton({
   variant = 'button',
   className = '',
 }: PrintButtonProps) {
+  /*
+    Failures used to go to console.error only, so when generation 500'd —
+    which every agreement did, on a missing field — staff clicked Print and
+    nothing happened, with no message to report.
+  */
+  const [error, setError] = useState('')
+
+  const fail = (err: unknown, win: Window | null) => {
+    win?.close()
+    setError(getErrorMessage(err, 'Could not prepare the document'))
+  }
+
   const generateAgreementMutation = useMutation({
-    mutationFn: () => apiClient.post<GeneratedDocument>(`/documents/agreements/${agreementId}/generate`),
-    onSuccess: (data) => handleDownload(data.filename),
+    mutationFn: (_win: Window | null) =>
+      apiClient.post<GeneratedDocument>(`/documents/agreements/${agreementId}/generate`),
+    onSuccess: (data, win) => openDocument(data.filename, win),
+    onError: (err, win) => fail(err, win),
   })
 
   const generateReceiptMutation = useMutation({
-    mutationFn: () => apiClient.post<GeneratedDocument>(`/documents/agreements/${agreementId}/receipt`, { payment_id: paymentId }),
-    onSuccess: (data) => handleDownload(data.filename),
+    mutationFn: (_win: Window | null) =>
+      apiClient.post<GeneratedDocument>(`/documents/agreements/${agreementId}/receipt`, { payment_id: paymentId }),
+    onSuccess: (data, win) => openDocument(data.filename, win),
+    onError: (err, win) => fail(err, win),
   })
 
   const generateInspectionMutation = useMutation({
-    mutationFn: () => apiClient.post<GeneratedDocument>(`/documents/inspections/${inspectionId}/report`),
-    onSuccess: (data) => handleDownload(data.filename),
+    mutationFn: (_win: Window | null) =>
+      apiClient.post<GeneratedDocument>(`/documents/inspections/${inspectionId}/report`),
+    onSuccess: (data, win) => openDocument(data.filename, win),
+    onError: (err, win) => fail(err, win),
   })
 
-  const handleDownload = async (filename: string) => {
+  /**
+   * Show the printable document in the tab opened at click time.
+   *
+   * Documents are HTML now, meant to be printed or saved as PDF, so they
+   * open rather than download. The tab has to be opened synchronously in
+   * the click handler: one opened after the network round-trip is no
+   * longer tied to a user gesture and popup blockers stop it. If the tab
+   * was blocked anyway, fall back to a download so nothing is lost.
+   */
+  const openDocument = async (filename: string, win: Window | null) => {
     try {
-      const response = await fetch(`/api/documents/download/${filename}`, {
+      const response = await fetch(`/api/documents/download/${encodeURIComponent(filename)}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('access_token')}`,
         },
       })
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
+      if (!response.ok) {
+        fail(new Error(`Download failed (${response.status})`), win)
+        return
+      }
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      if (win && !win.closed) {
+        win.location.href = url
+      } else {
         const a = document.createElement('a')
         a.href = url
         a.download = filename
         document.body.appendChild(a)
         a.click()
-        window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
       }
-    } catch (error) {
-      console.error('Download failed:', error)
+      // Give the tab time to load the blob before it is released.
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000)
+    } catch (err) {
+      fail(err, win)
     }
   }
 
   const handleGenerate = () => {
+    setError('')
+    const win = window.open('', '_blank')
     switch (documentType) {
       case 'agreement':
-        generateAgreementMutation.mutate()
+        generateAgreementMutation.mutate(win)
         break
       case 'receipt':
-        generateReceiptMutation.mutate()
+        generateReceiptMutation.mutate(win)
         break
       case 'inspection':
-        generateInspectionMutation.mutate()
+        generateInspectionMutation.mutate(win)
         break
     }
   }
@@ -120,7 +156,8 @@ export default function PrintButton({
         onClick={handleGenerate}
         disabled={isLoading}
         className={`rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50 ${className}`}
-        title={getLabel()}
+        title={error || getLabel()}
+        aria-label={error ? `${getLabel()}: ${error}` : getLabel()}
       >
         {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5" />}
       </button>
@@ -135,7 +172,10 @@ export default function PrintButton({
         className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm hover:bg-gray-100 disabled:opacity-50 ${className}`}
       >
         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : getIcon()}
-        {getLabel()}
+        <span>
+          {getLabel()}
+          {error && <span role="alert" className="block text-xs text-red-600">{error}</span>}
+        </span>
       </button>
     )
   }
@@ -148,6 +188,7 @@ export default function PrintButton({
     >
       {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : getIcon()}
       {getLabel()}
+      {error && <span role="alert" className="text-xs text-red-600">{error}</span>}
     </button>
   )
 }

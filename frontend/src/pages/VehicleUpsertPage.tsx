@@ -6,6 +6,38 @@ import { ArrowLeft, Building2, Search } from 'lucide-react'
 import { vehiclesService, CreateVehicleData, LookupValue } from '@/services/vehicles'
 import { vendorsService, Vendor } from '@/services/vendors'
 import { lookupsService } from '@/services/lookups'
+import { getErrorMessage } from '@/services/apiClient'
+import { parseOptionalNumber } from '@/lib/utils'
+import { toast } from '@/hooks/use-toast'
+
+
+
+/**
+ * Translate a built-in option label, leaving unknown ones untouched.
+ *
+ * Option lists are module-level constants that cannot call t(), and some
+ * values come from the lookups API at runtime. Passing the label through a
+ * key map translates the fixed set and leaves DB-driven values alone.
+ */
+const OPTION_KEYS: Record<string, string> = {
+  Daily: 'options.daily',
+  Temporary: 'options.temporary',
+  Other: 'options.other',
+  Business: 'options.business',
+  Field: 'options.field',
+  WEDDING: 'options.wedding',
+  LUXURY: 'options.luxuryCaps',
+  OTHER: 'options.otherCaps',
+  Benzin: 'options.benzin',
+  Diesel: 'options.diesel',
+  Electric: 'options.electric',
+  Hybrid: 'options.hybrid',
+  'Natural Gas': 'options.naturalGas',
+  Convertible: 'options.convertible',
+  Van: 'options.van',
+  SUV: 'options.suv',
+}
+
 
 const PLATE_CODE_OPTIONS: LookupValue[] = [
   { value: '01', label: '01' },
@@ -29,12 +61,17 @@ const SERVICE_TYPE_OPTIONS: LookupValue[] = [
 
 const FUEL_TYPE_OPTIONS: LookupValue[] = [
   { value: 'petrol', label: 'Benzin' },
-  { value: 'diesel', label: 'Disel' },
+  { value: 'diesel', label: 'Diesel' },
   { value: 'electric', label: 'Electric' },
   { value: 'hybrid', label: 'Hybrid' },
   { value: 'gas', label: 'Gas' },
   { value: 'natural_gas', label: 'Natural Gas' },
 ]
+
+// Mirrors the backend's photo limits so a bad file is caught before Save
+// rather than failing the whole multi-photo request.
+const PHOTO_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const PHOTO_MAX_BYTES = 10 * 1024 * 1024
 
 const COLOR_OPTIONS = [
   'Black',
@@ -58,7 +95,7 @@ const VEHICLE_TYPE_OPTIONS: LookupValue[] = [
   { value: 'compact', label: 'Compact' },
   { value: 'sport_car', label: 'Sport Car' },
   { value: 'luxury', label: 'Luxury' },
-  { value: 'convertible', label: 'convertable' },
+  { value: 'convertible', label: 'Convertible' },
   { value: 'pickup_truck', label: 'Pickup Truck' },
   { value: 'van', label: 'Van' },
   { value: 'truck', label: 'Truck' },
@@ -106,6 +143,7 @@ const MAKE_OPTIONS = [
 export default function VehicleUpsertPage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const optLabel = (label: string) => (OPTION_KEYS[label] ? t(OPTION_KEYS[label]) : label)
   const queryClient = useQueryClient()
   const { vehicleId } = useParams<{ vehicleId: string }>()
   const vehicleIdNum = vehicleId ? parseInt(vehicleId, 10) : null
@@ -157,11 +195,19 @@ export default function VehicleUpsertPage() {
     transmission: 'automatic',
     fuel_type: 'petrol',
     daily_rate: 0,
+    weekly_rate: null,
+    monthly_rate: null,
     current_mileage: undefined,
     insurance_policy_number: '',
     insurance_expiry: undefined,
     notes: '',
   })
+  // The daily rate keeps its own text state so an in-progress value such as
+  // "-" or "-1" is preserved and can be reported, instead of being discarded
+  // by the controlled round trip.
+  const [dailyRateText, setDailyRateText] = useState('0')
+  const [photoError, setPhotoError] = useState<string | null>(null)
+  const dailyRateInvalid = dailyRateText.trim() !== '' && Number.parseFloat(dailyRateText) < 0
 
   const mapVendorSummaryToVendor = (v: { id: number; vendor_type: string; company_name?: string | null; contact_person?: string | null; phone_primary: string; email?: string | null }): Vendor => {
     return {
@@ -207,23 +253,27 @@ export default function VehicleUpsertPage() {
       transmission: vehicle.transmission || 'automatic',
       fuel_type: vehicle.fuel_type || 'petrol',
       daily_rate: vehicle.daily_rate || 0,
+      weekly_rate: vehicle.weekly_rate ?? null,
+      monthly_rate: vehicle.monthly_rate ?? null,
       current_mileage: vehicle.current_mileage ?? undefined,
       insurance_policy_number: vehicle.insurance_policy_number || '',
       insurance_expiry: vehicle.insurance_expiry || undefined,
       notes: vehicle.notes || '',
     })
+    setDailyRateText(String(vehicle.daily_rate ?? 0))
   }, [vehicle])
 
   const createMutation = useMutation({
     mutationFn: vehiclesService.create,
     onSuccess: (created) => {
+      // Navigation happens in handleSubmit, after any photo upload has
+      // succeeded — leaving here meant a rejected photo showed no error
+      // because the page had already moved on.
       queryClient.invalidateQueries({ queryKey: ['vehicles'] })
-      navigate('/vehicles')
       return created
     },
     onError: (error: unknown) => {
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || t('vehicleUpsert.errorCreating'))
+      toast({ description: getErrorMessage(error, t('vehicleUpsert.errorCreating')), variant: 'destructive' })
     },
   })
 
@@ -232,11 +282,9 @@ export default function VehicleUpsertPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] })
       queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleIdNum] })
-      navigate('/vehicles')
     },
     onError: (error: unknown) => {
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || t('vehicleUpsert.errorUpdating'))
+      toast({ description: getErrorMessage(error, t('vehicleUpsert.errorUpdating')), variant: 'destructive' })
     },
   })
 
@@ -285,8 +333,15 @@ export default function VehicleUpsertPage() {
   }, [defaultsToLookupOptions, ensureLookupValue, formData.model])
 
   const colorOptions = useMemo(() => {
+    // Merge rather than replace. A lookup table holding a single junk row
+    // (a stray "10") otherwise hid all fourteen built-in colours and left
+    // Color — a required field — with one nonsense choice.
     const fromDefaults = defaultsToStringOptions('color')
-    return ensureStringValue(fromDefaults.length ? fromDefaults : COLOR_OPTIONS, formData.color)
+    const merged = [...COLOR_OPTIONS]
+    for (const option of fromDefaults) {
+      if (!merged.some((c) => c.toLowerCase() === option.toLowerCase())) merged.push(option)
+    }
+    return ensureStringValue(merged, formData.color)
   }, [defaultsToStringOptions, ensureStringValue, formData.color])
 
   const vehicleTypeOptions = useMemo(() => {
@@ -310,9 +365,10 @@ export default function VehicleUpsertPage() {
   }, [defaultsToLookupOptions, ensureLookupValue, formData.car_condition])
 
   const canSave = useMemo(() => {
-    const hasErrors = Boolean(false)
+    // A negative rate must block the save rather than be silently coerced.
+    const hasErrors = dailyRateInvalid
     return !isLoading && !hasErrors && !!formData.vendor_id
-  }, [formData.vendor_id, isLoading])
+  }, [dailyRateInvalid, formData.vendor_id, isLoading])
 
   const handleVendorSelect = (vendor: Vendor) => {
     setSelectedVendor(vendor)
@@ -325,21 +381,32 @@ export default function VehicleUpsertPage() {
     if (!canSave) return
 
     const hasPhotos = Boolean(photoFiles.front || photoFiles.back || photoFiles.left || photoFiles.right)
+    setPhotoError(null)
+
+    // The vehicle is saved first, then its photos. A rejected upload must
+    // report itself and keep the user on the form rather than navigating away
+    // as if everything had worked.
+    const uploadPhotos = async (id: number) => {
+      try {
+        await vehiclesService.uploadPhotos(id, photoFiles)
+        queryClient.invalidateQueries({ queryKey: ['vehicle', id] })
+        return true
+      } catch (error) {
+        setPhotoError(getErrorMessage(error, t('vehicleUpsert.errorUploadingPhotos')))
+        return false
+      }
+    }
 
     if (isEdit) {
       await updateMutation.mutateAsync(formData)
-
-      if (hasPhotos && vehicleIdNum) {
-        await vehiclesService.uploadPhotos(vehicleIdNum, photoFiles)
-        queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleIdNum] })
-      }
+      if (hasPhotos && vehicleIdNum && !(await uploadPhotos(vehicleIdNum))) return
+      navigate('/vehicles')
       return
     }
 
     const created = await createMutation.mutateAsync(formData)
-    if (hasPhotos && created?.id) {
-      await vehiclesService.uploadPhotos(created.id, photoFiles)
-    }
+    if (hasPhotos && created?.id && !(await uploadPhotos(created.id))) return
+    navigate('/vehicles')
   }
 
   const insuranceExpiryDateValue = useMemo(() => {
@@ -382,7 +449,7 @@ export default function VehicleUpsertPage() {
                   placeholder={t('vehicleUpsert.searchVendors')}
                   value={vendorSearch}
                   onChange={(e) => setVendorSearch(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
               <div className="mt-4 max-h-80 overflow-y-auto rounded-lg border">
@@ -446,7 +513,7 @@ export default function VehicleUpsertPage() {
                     className="w-full rounded-lg border px-3 py-2"
                   >
                     {plateCodeOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>{optLabel(o.label)}</option>
                     ))}
                   </select>
                 </div>
@@ -489,7 +556,7 @@ export default function VehicleUpsertPage() {
                   >
                     <option value="">{t('vehicleUpsert.selectModel')}</option>
                     {modelOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>{optLabel(o.label)}</option>
                     ))}
                   </select>
                 </div>
@@ -544,7 +611,7 @@ export default function VehicleUpsertPage() {
                     className="w-full rounded-lg border px-3 py-2"
                   >
                     {vehicleTypeOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>{optLabel(o.label)}</option>
                     ))}
                   </select>
                 </div>
@@ -556,7 +623,7 @@ export default function VehicleUpsertPage() {
                     className="w-full rounded-lg border px-3 py-2"
                   >
                     {serviceTypeOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>{optLabel(o.label)}</option>
                     ))}
                   </select>
                 </div>
@@ -571,7 +638,7 @@ export default function VehicleUpsertPage() {
                     className="w-full rounded-lg border px-3 py-2"
                   >
                     {conditionOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>{optLabel(o.label)}</option>
                     ))}
                   </select>
                 </div>
@@ -583,7 +650,7 @@ export default function VehicleUpsertPage() {
                     className="w-full rounded-lg border px-3 py-2"
                   >
                     {fuelTypeOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <option key={o.value} value={o.value}>{optLabel(o.label)}</option>
                     ))}
                   </select>
                 </div>
@@ -684,12 +751,59 @@ export default function VehicleUpsertPage() {
                   <input
                     type="number"
                     step="0.01"
-                    value={formData.daily_rate}
-                    onChange={(e) => setFormData((p) => ({ ...p, daily_rate: parseFloat(e.target.value) }))}
+                    value={dailyRateText}
+                    onChange={(e) => {
+                      // Keep the raw text in state. Parsing on every keystroke
+                      // meant typing "-" produced NaN, React re-rendered from
+                      // the last good value, and the minus sign vanished — so
+                      // -100 silently became 100 and saved without warning.
+                      setDailyRateText(e.target.value)
+                      const parsed = Number.parseFloat(e.target.value)
+                      setFormData((p) => ({
+                        ...p,
+                        daily_rate: Number.isFinite(parsed) ? parsed : 0,
+                      }))
+                    }}
                     required
                     min={0}
+                    aria-invalid={dailyRateInvalid || undefined}
+                    className={`w-full rounded-lg border px-3 py-2 ${
+                      dailyRateInvalid ? 'border-red-500' : ''
+                    }`}
+                  />
+                  {dailyRateInvalid && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {t('vehicleUpsert.rateMustBeNonNegative')}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">{t('vehicleUpsert.weeklyRate')}</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={formData.weekly_rate ?? ''}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, weekly_rate: parseOptionalNumber(e.target.value) }))
+                    }
                     className="w-full rounded-lg border px-3 py-2"
                   />
+                  <p className="mt-1 text-sm text-gray-500">{t('vehicleUpsert.tierHint')}</p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">{t('vehicleUpsert.monthlyRate')}</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={formData.monthly_rate ?? ''}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, monthly_rate: parseOptionalNumber(e.target.value) }))
+                    }
+                    className="w-full rounded-lg border px-3 py-2"
+                  />
+                  <p className="mt-1 text-sm text-gray-500">{t('vehicleUpsert.tierHint')}</p>
                 </div>
               </div>
 
@@ -702,6 +816,15 @@ export default function VehicleUpsertPage() {
                   className="w-full rounded-lg border px-3 py-2"
                 />
               </div>
+
+              {photoError && (
+                <div
+                  role="alert"
+                  className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                >
+                  {photoError}
+                </div>
+              )}
 
               <div className="mt-6 flex justify-end gap-3">
                 <button type="button" onClick={() => navigate('/vehicles')} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
@@ -735,6 +858,7 @@ function PhotoDropzone({
   t: (key: string) => string
 }) {
   const [isDragging, setIsDragging] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -752,14 +876,27 @@ function PhotoDropzone({
 
   const handleFile = useCallback(
     (file: File) => {
-      if (!file.type.startsWith('image/')) return
+      // Report a rejected file instead of dropping it. Returning silently
+      // left the user with no feedback and, worse, let a bad file reach Save
+      // and fail the whole multi-photo request server-side.
+      if (!PHOTO_MIME_TYPES.includes(file.type)) {
+        setError(t('vehicleUpsert.photoTypeInvalid'))
+        onFileSelected(null)
+        return
+      }
+      if (file.size > PHOTO_MAX_BYTES) {
+        setError(t('vehicleUpsert.photoTooLarge'))
+        onFileSelected(null)
+        return
+      }
 
+      setError(null)
       if (previewUrl) URL.revokeObjectURL(previewUrl)
       const url = URL.createObjectURL(file)
       setPreviewUrl(url)
       onFileSelected(file)
     },
-    [onFileSelected, previewUrl]
+    [onFileSelected, previewUrl, t]
   )
 
   const handleDrop = useCallback(
@@ -797,7 +934,7 @@ function PhotoDropzone({
           isDragging ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-gray-400'
         }`}
       >
-        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleChange} />
+        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleChange} />
         <div className="flex h-56 items-center justify-center">
           {shown ? (
             <img src={shown} alt={label} className="h-full w-full object-cover" />
@@ -806,6 +943,11 @@ function PhotoDropzone({
           )}
         </div>
       </div>
+      {error && (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      )}
       {(previewUrl || existingUrl) && (
         <button
           type="button"
@@ -815,6 +957,7 @@ function PhotoDropzone({
               URL.revokeObjectURL(previewUrl)
               setPreviewUrl(null)
             }
+            setError(null)
             onFileSelected(null)
           }}
           className="text-xs text-red-600 hover:underline"

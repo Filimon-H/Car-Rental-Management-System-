@@ -4,10 +4,10 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, Numeric, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.db import Base
+from src.core.db import Base, UtcDateTime
 
 if TYPE_CHECKING:
     from src.models.agreement import Agreement
@@ -24,6 +24,13 @@ class AgreementVehicleSegment(Base):
     """
 
     __tablename__ = "agreement_vehicle_segments"
+
+    __table_args__ = (
+        CheckConstraint("daily_rate >= 0", name="ck_segments_rate_non_negative"),
+        CheckConstraint(
+            "end_datetime > start_datetime", name="ck_segments_end_after_start"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     
@@ -46,7 +53,7 @@ class AgreementVehicleSegment(Base):
     end_mileage: Mapped[int | None] = mapped_column(Integer, nullable=True)
     
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), nullable=False
     )
 
     # Relationships

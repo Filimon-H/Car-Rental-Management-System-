@@ -46,7 +46,7 @@ def upgrade() -> None:
         sa.Column('payment_reference', sa.String(length=100), nullable=True),
         sa.Column('notes', sa.Text(), nullable=True),
         sa.Column('created_by_id', sa.Integer(), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(['agreement_id'], ['agreements.id']),
         sa.ForeignKeyConstraint(['created_by_id'], ['staff_users.id']),
         sa.ForeignKeyConstraint(['vendor_id'], ['vendors.id']),

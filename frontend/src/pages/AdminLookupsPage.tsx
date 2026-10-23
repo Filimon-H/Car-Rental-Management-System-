@@ -2,10 +2,16 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, Power } from 'lucide-react'
 import { lookupsService, LookupValue } from '@/services/lookups'
+import { getErrorMessage } from '@/services/apiClient'
+import { useTranslation } from 'react-i18next'
+import { toast } from '@/hooks/use-toast'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
 type FormMode = 'create' | 'edit'
 
 export default function AdminLookupsPage() {
+  const [pendingDelete, setPendingDelete] = useState<LookupValue | null>(null)
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
 
   const [selectedCategory, setSelectedCategory] = useState<string>('')
@@ -72,8 +78,7 @@ export default function AdminLookupsPage() {
       setFormOpen(false)
     },
     onError: (error: unknown) => {
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || 'Failed to create lookup value')
+      toast({ description: getErrorMessage(error, 'Failed to create lookup value'), variant: 'destructive' })
     },
   })
 
@@ -84,8 +89,7 @@ export default function AdminLookupsPage() {
       setFormOpen(false)
     },
     onError: (error: unknown) => {
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || 'Failed to update lookup value')
+      toast({ description: getErrorMessage(error, 'Failed to update lookup value'), variant: 'destructive' })
     },
   })
 
@@ -95,8 +99,7 @@ export default function AdminLookupsPage() {
       queryClient.invalidateQueries({ queryKey: ['lookups-category', effectiveCategory] })
     },
     onError: (error: unknown) => {
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || 'Failed to delete lookup value')
+      toast({ description: getErrorMessage(error, 'Failed to delete lookup value'), variant: 'destructive' })
     },
   })
 
@@ -123,7 +126,7 @@ export default function AdminLookupsPage() {
     e.preventDefault()
 
     if (!form.category.trim() || !form.value.trim()) {
-      alert('Category and Value are required')
+      toast({ description: t('validation.categoryValueRequired'), variant: 'destructive' })
       return
     }
 
@@ -150,35 +153,32 @@ export default function AdminLookupsPage() {
     await updateMutation.mutateAsync({ id: row.id, data: { is_active: !row.is_active } })
   }
 
-  const handleDelete = async (row: LookupValue) => {
-    if (!confirm(`Delete '${row.label || row.value}' from '${row.category}'?`)) return
-    await deleteMutation.mutateAsync(row.id)
-  }
+  const handleDelete = (row: LookupValue) => setPendingDelete(row)
 
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Admin Setting</h1>
-          <p className="text-sm text-gray-500">Manage dropdown values used throughout the system</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('adminLookups.adminSetting')}</h1>
+          <p className="text-sm text-gray-500">{t('lookups.subtitle')}</p>
         </div>
         <button
           onClick={openCreate}
           disabled={false}
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-50"
         >
-          <Plus className="h-5 w-5" /> Add Value
+          <Plus className="h-5 w-5" /> {t('adminLookups.addValue')}
         </button>
       </div>
 
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 md:col-span-3">
           <div className="rounded-lg border bg-white p-4">
-            <div className="mb-2 text-sm font-medium text-gray-700">Category</div>
+            <div className="mb-2 text-sm font-medium text-gray-700">{t('common.category')}</div>
             {loadingCategories || loadingDefaults ? (
-              <div className="text-sm text-gray-500">Loading...</div>
+              <div className="text-sm text-gray-500">{t('common.loading')}</div>
             ) : defaultsError ? (
-              <div className="text-sm text-red-600">Failed to load lookup defaults.</div>
+              <div className="text-sm text-red-600">{t('lookups.loadFailed')}</div>
             ) : (
               mergedCategories.length > 0 ? (
                 <select
@@ -207,18 +207,18 @@ export default function AdminLookupsPage() {
         <div className="col-span-12 md:col-span-9">
           <div className="overflow-hidden rounded-lg border bg-white">
             {!effectiveCategory ? (
-              <div className="p-6 text-center text-gray-500">Select a category or add your first value.</div>
+              <div className="p-6 text-center text-gray-500">{t('lookups.selectOrAdd')}</div>
             ) : loadingValues ? (
-              <div className="p-6 text-center text-gray-500">Loading...</div>
+              <div className="p-6 text-center text-gray-500">{t('common.loading')}</div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Value</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Label</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Sort</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">{t('common.value')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">{t('common.label')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">{t('common.sort')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">{t('dashboard.status')}</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -229,7 +229,7 @@ export default function AdminLookupsPage() {
                       <td className="px-6 py-4 text-sm text-gray-700">{row.sort_order}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${row.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>
-                          {row.is_active ? 'Active' : 'Inactive'}
+                          {row.is_active ? t('common.active') : t('common.inactive')}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -237,21 +237,21 @@ export default function AdminLookupsPage() {
                           <button
                             onClick={() => toggleActive(row)}
                             className="p-1 text-gray-500 hover:text-gray-800"
-                            title={row.is_active ? 'Deactivate' : 'Activate'}
+                            title={row.is_active ? t('lookups.deactivate') : t('lookups.activate')}
                           >
                             <Power className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => openEdit(row)}
                             className="p-1 text-gray-500 hover:text-primary"
-                            title="Edit"
+                            title={t('common.edit')}
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(row)}
                             className="p-1 text-gray-500 hover:text-red-600"
-                            title="Delete"
+                            title={t('common.delete')}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -261,7 +261,7 @@ export default function AdminLookupsPage() {
                   ))}
                   {sortedValues.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-gray-500">No values in this category.</td>
+                      <td colSpan={5} className="px-6 py-12 text-center text-gray-500">{t('lookups.noValues')}</td>
                     </tr>
                   )}
                 </tbody>
@@ -275,7 +275,7 @@ export default function AdminLookupsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">{formMode === 'create' ? 'Add Value' : 'Edit Value'}</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{formMode === 'create' ? t('lookups.addValue') : t('lookups.editValue')}</h2>
               <button onClick={() => setFormOpen(false)} className="text-gray-500 hover:text-gray-700">✕</button>
             </div>
 
@@ -298,7 +298,7 @@ export default function AdminLookupsPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Label</label>
+                <label className="mb-1 block text-sm font-medium">{t('common.label')}</label>
                 <input
                   value={form.label}
                   onChange={(e) => setForm((p) => ({ ...p, label: e.target.value }))}
@@ -306,7 +306,7 @@ export default function AdminLookupsPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium">Sort Order</label>
+                <label className="mb-1 block text-sm font-medium">{t('adminLookups.sortOrder')}</label>
                 <input
                   type="number"
                   value={form.sort_order}
@@ -317,20 +317,37 @@ export default function AdminLookupsPage() {
 
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setFormOpen(false)} className="rounded-lg border px-4 py-2 hover:bg-gray-50">
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={createMutation.isPending || updateMutation.isPending}
                   className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary-700 disabled:opacity-50"
                 >
-                  {createMutation.isPending || updateMutation.isPending ? 'Saving...' : 'Save'}
+                  {createMutation.isPending || updateMutation.isPending ? t('forms.saving') : t('common.save')}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+    {pendingDelete && (
+      <ConfirmModal
+        title={t('adminLookups.confirmDeleteTitle')}
+        message={t('adminLookups.confirmDeleteBody', {
+          label: pendingDelete.label || pendingDelete.value,
+          category: pendingDelete.category,
+        })}
+        confirmLabel={t('common.delete')}
+        destructive
+        isLoading={deleteMutation.isPending}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={() => {
+          deleteMutation.mutate(pendingDelete.id)
+          setPendingDelete(null)
+        }}
+      />
+    )}
     </div>
   )
 }

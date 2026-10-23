@@ -3,18 +3,21 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
 from src.core.errors import BusinessError, ErrorCode, NotFoundError
 from src.core.logging import get_logger
+from src.core.config import settings
 from src.models.agreement import Agreement, AgreementStatus, AgreementType
 from src.models.agreement_vehicle_segment import AgreementVehicleSegment
 from src.models.customer import Customer
 from src.models.vehicle import Vehicle, VehicleStatus
-from src.models.ledger_entry import LedgerEntryType
+from src.models.ledger_entry import LedgerEntry, LedgerEntryType
 from src.repositories import availability_repository
 from src.services import billing_service, ledger_service
+from src.services.vehicle_status_service import release_vehicle
 
 logger = get_logger(__name__)
 
@@ -23,6 +26,17 @@ def _ensure_utc(dt: datetime) -> datetime:
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
+
+
+def _business_now_as_stored() -> datetime:
+    """Current Addis wall time tagged like the app's stored business datetimes."""
+    local_now = datetime.now(ZoneInfo(settings.scheduler_timezone)).replace(tzinfo=None)
+    return local_now.replace(tzinfo=timezone.utc)
+
+
+def _now_matching_input(value: datetime) -> datetime:
+    """Return a comparable now for either UTC-aware or stored wall-clock input."""
+    return datetime.now(timezone.utc) if value.tzinfo is not None else _business_now_as_stored()
 
 
 def _calculate_balance_breakdown(db: Session, agreement_id: int) -> dict:
@@ -39,10 +53,9 @@ def _calculate_balance_breakdown(db: Session, agreement_id: int) -> dict:
     deposit_applied = ledger_service.get_deposit_applied(db, agreement_id)
     deposit_returned = ledger_service.get_deposit_returned(db, agreement_id)
     deposit_held = max(Decimal("0"), deposit_received - deposit_applied - deposit_returned)
-    balance_due = max(
-        Decimal("0"),
-        total_charges + net_adjustments - total_payments - deposit_applied,
-    )
+    # total_charges is already net of adjustments. Keeping the invariant here
+    # prevents API consumers from having to know which ledger rows to add back.
+    balance_due = max(Decimal("0"), total_charges - total_payments - deposit_applied)
     return {
         "total_charges": total_charges,
         "total_payments": total_payments,
@@ -55,11 +68,13 @@ def _calculate_balance_breakdown(db: Session, agreement_id: int) -> dict:
     }
 
 
-def _get_balance_due_before_deposit(db: Session, agreement_id: int) -> Decimal:
-    """Outstanding balance before applying held deposit."""
-    breakdown = _calculate_balance_breakdown(db, agreement_id)
-    # Balance owed excluding any held deposit offset
-    return max(Decimal("0"), breakdown["total_charges"] - breakdown["total_payments"])
+def get_balance_breakdown(db: Session, agreement_id: int) -> dict:
+    """Public accessor for the shared balance breakdown.
+
+    Exposed so routers compute these figures one way. The ledger balance
+    endpoint previously had its own copy that omitted adjustments.
+    """
+    return _calculate_balance_breakdown(db, agreement_id)
 
 
 def _validate_activation_requirements(db: Session, agreement: Agreement) -> None:
@@ -122,6 +137,11 @@ def create_standard_agreement(
     agreement_type: AgreementType = AgreementType.CUSTOMER_VEHICLE,
     driver_id: int | None = None,
     collateral_person_id: int | None = None,
+    pickup_mileage: int | None = None,
+    mileage_limit_per_day: int | None = None,
+    excess_mileage_rate: Decimal | None = None,
+    fuel_level_out: int | None = None,
+    fuel_charge_rate: Decimal | None = None,
 ) -> Agreement:
     """Create a new standard rental agreement.
     
@@ -146,6 +166,15 @@ def create_standard_agreement(
     if not vehicle or not vehicle.is_active:
         raise NotFoundError("Vehicle", vehicle_id)
     
+    # A "with driver" agreement without a driver is not a valid record. The
+    # UI can silently omit the field, so refuse it here rather than storing an
+    # agreement whose type and contents disagree.
+    if agreement_type == AgreementType.CUSTOMER_VEHICLE_DRIVER and not driver_id:
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT,
+            "A driver is required for a with-driver agreement",
+        )
+
     # Validate driver if provided
     if driver_id:
         driver = db.query(Driver).filter(Driver.id == driver_id).first()
@@ -165,6 +194,14 @@ def create_standard_agreement(
             )
     
     # Validate dates
+    now = _now_matching_input(pickup_datetime)
+    pickup_datetime = _ensure_utc(pickup_datetime)
+    expected_return_datetime = _ensure_utc(expected_return_datetime)
+    if pickup_datetime <= now:
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT,
+            "Pickup date must be in the future",
+        )
     if expected_return_datetime <= pickup_datetime:
         raise BusinessError(
             ErrorCode.INVALID_INPUT,
@@ -196,6 +233,11 @@ def create_standard_agreement(
         agreed_daily_rate=daily_rate,
         deposit_amount=deposit_amount,
         advance_payment=advance_payment,
+        pickup_mileage=pickup_mileage,
+        mileage_limit_per_day=mileage_limit_per_day,
+        excess_mileage_rate=excess_mileage_rate,
+        fuel_level_out=fuel_level_out,
+        fuel_charge_rate=fuel_charge_rate,
         pickup_location=pickup_location,
         return_location=return_location,
         notes=notes,
@@ -214,18 +256,29 @@ def create_standard_agreement(
     )
     db.add(segment)
 
-    # Reserve the vehicle — only move to RENTED when the agreement is activated (handover done)
-    vehicle.status = VehicleStatus.RESERVED
+    # Reserve the vehicle — only move to RENTED when the agreement is activated
+    # (handover done). A car already out on another rental stays RENTED: this
+    # booking starts after it comes back, and marking it RESERVED would show a
+    # car on the road as parked. Its return derives RESERVED from this hold.
+    if vehicle.status != VehicleStatus.RENTED:
+        vehicle.status = VehicleStatus.RESERVED
 
-    # Calculate and post initial rental charge
+    # Calculate and post initial rental charge. The vehicle's weekly/monthly rates
+    # are applied when they beat the daily price for this duration; when unset this
+    # is exactly days x daily_rate.
     days, charge = billing_service.calculate_rental_charge(
-        pickup_datetime, expected_return_datetime, daily_rate
+        pickup_datetime,
+        expected_return_datetime,
+        daily_rate,
+        weekly_rate=vehicle.weekly_rate,
+        monthly_rate=vehicle.monthly_rate,
     )
+    description = _rental_charge_description(days, daily_rate, charge)
     ledger_service.post_charge(
         db=db,
         agreement_id=agreement.id,
         amount=charge,
-        description=f"Rental charge: {days} days @ {daily_rate}/day",
+        description=description,
         entry_type=LedgerEntryType.CHARGE,
         created_by_id=created_by_id,
     )
@@ -237,42 +290,41 @@ def create_standard_agreement(
     return agreement
 
 
-def close_agreement(
-    db: Session,
-    agreement_id: int,
-    actual_return_datetime: datetime,
-    return_mileage: int | None = None,
-    closed_by_id: int | None = None,
-    notes: str | None = None,
-) -> Agreement:
-    """Close an agreement (vehicle returned).
-    
-    Calculates and posts:
-    - Late fees (if applicable)
-    - Final balance
-    """
-    from sqlalchemy.orm import joinedload
-    
-    agreement = (
-        db.query(Agreement)
-        .options(joinedload(Agreement.vehicle_segments).joinedload(AgreementVehicleSegment.vehicle))
-        .filter(Agreement.id == agreement_id)
-        .first()
-    )
-    if not agreement:
-        raise NotFoundError("Agreement", agreement_id)
-    
-    if agreement.status not in (AgreementStatus.ACTIVE, AgreementStatus.OVERDUE, AgreementStatus.RETURNED):
-        raise BusinessError(
-            ErrorCode.AGREEMENT_ALREADY_CLOSED,
-            f"Agreement is already {agreement.status.value}"
-        )
-
+def _validate_return_time(agreement: Agreement, actual_return_datetime: datetime) -> datetime:
+    now = _now_matching_input(actual_return_datetime)
     actual_return_datetime = _ensure_utc(actual_return_datetime)
+    if actual_return_datetime < _ensure_utc(agreement.pickup_datetime):
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT,
+            "Actual return date cannot be before pickup date",
+        )
+    if actual_return_datetime > now:
+        raise BusinessError(ErrorCode.INVALID_INPUT, "Actual return date cannot be in the future")
+    return actual_return_datetime
+
+
+def _post_return_charges(
+    db: Session,
+    agreement: Agreement,
+    actual_return_datetime: datetime,
+    return_mileage: int | None,
+    posted_by_id: int | None,
+) -> None:
+    """Post the late fee, excess mileage and fuel shortfall for a return.
+
+    Runs once per agreement: return_charges_posted guards against a second
+    run when a RETURNED agreement is later closed.
+    """
+    if agreement.return_charges_posted:
+        return
+    agreement_id = agreement.id
     expected_return_datetime = _ensure_utc(agreement.expected_return_datetime)
-    
-    # Calculate late fee if applicable
+
     if actual_return_datetime > expected_return_datetime:
+        late_days = billing_service.calculate_rental_days(
+            expected_return_datetime, actual_return_datetime
+        )
+        late_daily_rate = agreement.agreed_daily_rate * Decimal("1.5")
         late_fee = billing_service.calculate_late_fee(
             expected_return_datetime,
             actual_return_datetime,
@@ -283,26 +335,198 @@ def close_agreement(
                 db=db,
                 agreement_id=agreement_id,
                 amount=late_fee,
-                description="Late return fee",
+                description=(
+                    f"Late return fee: {late_days} days × ETB "
+                    f"{late_daily_rate:,.2f} (1.5× daily rate)"
+                ),
                 entry_type=LedgerEntryType.LATE_FEE,
-                created_by_id=closed_by_id,
-                auto_commit=False,  # Let close_agreement handle the commit
+                created_by_id=posted_by_id,
+                auto_commit=False,  # the caller commits
             )
 
-    balance_due_before_deposit = _get_balance_due_before_deposit(db, agreement_id)
-    held_deposit = ledger_service.get_deposit_held(db, agreement_id)
-    deposit_to_apply = min(balance_due_before_deposit, held_deposit)
+    # Excess mileage. Only charged when a policy was agreed and both odometer
+    # readings exist; otherwise mileage is unlimited and nothing is posted.
+    if (
+        agreement.mileage_limit_per_day
+        and agreement.excess_mileage_rate
+        and return_mileage is not None
+        and agreement.pickup_mileage is not None
+    ):
+        # The allowance follows the period the customer was billed for. An early
+        # return must not shrink a two-day contracted allowance to one day; a late
+        # return still expands it through the actual return time.
+        allowance_end = max(expected_return_datetime, actual_return_datetime)
+        rental_days = billing_service.calculate_rental_days(
+            _ensure_utc(agreement.pickup_datetime), allowance_end
+        )
+        excess_km, mileage_charge = billing_service.calculate_mileage_charge(
+            start_mileage=agreement.pickup_mileage,
+            end_mileage=return_mileage,
+            free_km_per_day=agreement.mileage_limit_per_day,
+            rental_days=rental_days,
+            excess_km_rate=agreement.excess_mileage_rate,
+        )
+        if mileage_charge > 0:
+            ledger_service.post_charge(
+                db=db,
+                agreement_id=agreement_id,
+                amount=mileage_charge,
+                description=(
+                    f"Excess mileage: {excess_km} km over "
+                    f"{agreement.mileage_limit_per_day * rental_days} km allowance "
+                    f"({rental_days} days × {agreement.mileage_limit_per_day} km/day)"
+                ),
+                entry_type=LedgerEntryType.CHARGE,
+                created_by_id=posted_by_id,
+                auto_commit=False,
+            )
+
+    # Fuel shortfall, charged per whole percent below the level at handover.
+    if (
+        agreement.fuel_charge_rate
+        and agreement.fuel_level_out is not None
+        and agreement.fuel_level_in is not None
+    ):
+        shortfall = agreement.fuel_level_out - agreement.fuel_level_in
+        if shortfall > 0:
+            fuel_charge = agreement.fuel_charge_rate * shortfall
+            ledger_service.post_charge(
+                db=db,
+                agreement_id=agreement_id,
+                amount=fuel_charge,
+                description=(
+                    f"Fuel shortfall: {shortfall}% "
+                    f"(out {agreement.fuel_level_out}%, in {agreement.fuel_level_in}%)"
+                ),
+                entry_type=LedgerEntryType.CHARGE,
+                created_by_id=posted_by_id,
+                auto_commit=False,
+            )
+
+    agreement.return_charges_posted = True
+    db.flush()
+
+
+def _apply_held_deposit(db: Session, agreement_id: int, applied_by_id: int | None) -> None:
+    """Put any held deposit towards what is still owed."""
+    breakdown = _calculate_balance_breakdown(db, agreement_id)
+    deposit_to_apply = min(breakdown["balance_due"], breakdown["deposit_held"])
     if deposit_to_apply > 0:
         ledger_service.apply_deposit(
             db=db,
             agreement_id=agreement_id,
             amount=deposit_to_apply,
-            created_by_id=closed_by_id,
-            notes="Automatically applied during agreement close",
+            created_by_id=applied_by_id,
+            notes="Automatically applied when the vehicle was returned",
             auto_commit=False,
         )
+        db.flush()
 
-    # Auto-return any remaining deposit that wasn't needed to cover charges
+
+def _take_vehicle_back(
+    db: Session,
+    agreement: Agreement,
+    actual_return_datetime: datetime,
+    return_mileage: int | None,
+    fuel_level_in: int | None,
+    returned_by_id: int | None,
+) -> None:
+    """Record the return, post its charges, and free the vehicle."""
+    agreement.actual_return_datetime = actual_return_datetime
+    agreement.return_mileage = return_mileage
+    # Recorded before the fuel shortfall is computed.
+    if fuel_level_in is not None:
+        agreement.fuel_level_in = fuel_level_in
+    _post_return_charges(db, agreement, actual_return_datetime, return_mileage, returned_by_id)
+    _apply_held_deposit(db, agreement.id, returned_by_id)
+
+    for segment in agreement.vehicle_segments:
+        vehicle = segment.vehicle
+        if return_mileage:
+            segment.end_mileage = segment.end_mileage or return_mileage
+            vehicle.current_mileage = return_mileage
+        release_vehicle(db, vehicle, agreement.id)
+
+
+def _load_with_vehicles(db: Session, agreement_id: int) -> Agreement:
+    from sqlalchemy.orm import joinedload
+
+    agreement = (
+        db.query(Agreement)
+        .options(joinedload(Agreement.vehicle_segments).joinedload(AgreementVehicleSegment.vehicle))
+        .filter(Agreement.id == agreement_id)
+        .first()
+    )
+    if not agreement:
+        raise NotFoundError("Agreement", agreement_id)
+    return agreement
+
+
+def close_agreement(
+    db: Session,
+    agreement_id: int,
+    actual_return_datetime: datetime,
+    return_mileage: int | None = None,
+    closed_by_id: int | None = None,
+    notes: str | None = None,
+    fuel_level_in: int | None = None,
+) -> Agreement:
+    """Take the vehicle back and close the agreement once nothing is owed.
+
+    On a rented agreement this records the return, posts the late fee,
+    excess mileage and fuel charges, and puts the held deposit towards them.
+    If that settles the account, any unused deposit is returned and the
+    agreement is CLOSED. If money is still owed it becomes RETURNED instead:
+    the car is free, and the agreement stays open until the balance is paid.
+
+    This used to close regardless, so every rental returned with money
+    owing was marked closed and dropped off the open-agreement lists. A
+    RETURNED agreement can only be closed with its balance at zero.
+    """
+    agreement = _load_with_vehicles(db, agreement_id)
+
+    if agreement.status not in (AgreementStatus.ACTIVE, AgreementStatus.OVERDUE, AgreementStatus.RETURNED):
+        raise BusinessError(
+            ErrorCode.AGREEMENT_ALREADY_CLOSED,
+            f"Agreement is already {agreement.status.value}"
+        )
+
+    try:
+        if agreement.status == AgreementStatus.RETURNED:
+            # The car is already back; the return as recorded stands.
+            returned_at = _ensure_utc(agreement.actual_return_datetime or actual_return_datetime)
+            # Returned before charges were posted at return time.
+            _post_return_charges(db, agreement, returned_at, agreement.return_mileage, closed_by_id)
+            _apply_held_deposit(db, agreement_id, closed_by_id)
+            owed = _calculate_balance_breakdown(db, agreement_id)["balance_due"]
+            if owed > 0:
+                raise BusinessError(
+                    ErrorCode.INVALID_INPUT,
+                    f"ETB {owed:,.2f} is still owed. Record the payment before closing.",
+                )
+            # The car may have gone out again since; settle its status anew.
+            for segment in agreement.vehicle_segments:
+                release_vehicle(db, segment.vehicle, agreement_id)
+        else:
+            returned_at = _validate_return_time(agreement, actual_return_datetime)
+            _take_vehicle_back(db, agreement, returned_at, return_mileage, fuel_level_in, closed_by_id)
+            owed = _calculate_balance_breakdown(db, agreement_id)["balance_due"]
+            if owed > 0:
+                agreement.status = AgreementStatus.RETURNED
+                agreement.closed_by_id = closed_by_id
+                agreement.notes = (agreement.notes or "") + (
+                    f"\n[Returned] Vehicle back; ETB {owed:,.2f} still owed."
+                    + (f" {notes}" if notes else "")
+                )
+                db.commit()
+                db.refresh(agreement)
+                logger.info(f"Agreement {agreement.agreement_number} returned with ETB {owed} owed")
+                return agreement
+    except Exception:
+        db.rollback()
+        raise
+
+    # Nothing owed: hand back whatever deposit was not needed, and close.
     remaining_held = ledger_service.get_deposit_held(db, agreement_id)
     if remaining_held > 0:
         ledger_service.return_deposit(
@@ -314,37 +538,11 @@ def close_agreement(
             auto_commit=False,
         )
 
-    # Update agreement
     agreement.status = AgreementStatus.CLOSED
-    agreement.actual_return_datetime = actual_return_datetime
-    agreement.return_mileage = return_mileage
     agreement.closed_at = datetime.now(timezone.utc)
     agreement.closed_by_id = closed_by_id
     if notes:
         agreement.notes = (agreement.notes or "") + f"\n[Close] {notes}"
-    
-    # Update vehicle segments end mileage and release vehicle
-    for segment in agreement.vehicle_segments:
-        if return_mileage and not segment.end_mileage:
-            segment.end_mileage = return_mileage
-
-        vehicle = segment.vehicle
-        if return_mileage:
-            vehicle.current_mileage = return_mileage
-
-        # Only mark AVAILABLE if no upcoming booking exists for this vehicle
-        has_upcoming = (
-            db.query(AgreementVehicleSegment)
-            .join(Agreement)
-            .filter(
-                AgreementVehicleSegment.vehicle_id == vehicle.id,
-                Agreement.id != agreement_id,
-                Agreement.status.in_([AgreementStatus.PENDING_PAYMENT, AgreementStatus.ACTIVE]),
-                AgreementVehicleSegment.start_datetime > actual_return_datetime,
-            )
-            .first()
-        )
-        vehicle.status = VehicleStatus.RESERVED if has_upcoming else VehicleStatus.AVAILABLE
 
     db.commit()
     db.refresh(agreement)
@@ -360,18 +558,10 @@ def mark_agreement_returned(
     return_mileage: int | None = None,
     returned_by_id: int | None = None,
     notes: str | None = None,
+    fuel_level_in: int | None = None,
 ) -> Agreement:
     """Mark an agreement as returned (car is back, settlement may still be pending)."""
-    from sqlalchemy.orm import joinedload
-
-    agreement = (
-        db.query(Agreement)
-        .options(joinedload(Agreement.vehicle_segments).joinedload(AgreementVehicleSegment.vehicle))
-        .filter(Agreement.id == agreement_id)
-        .first()
-    )
-    if not agreement:
-        raise NotFoundError("Agreement", agreement_id)
+    agreement = _load_with_vehicles(db, agreement_id)
 
     if agreement.status not in (AgreementStatus.ACTIVE, AgreementStatus.OVERDUE):
         raise BusinessError(
@@ -379,36 +569,33 @@ def mark_agreement_returned(
             f"Cannot mark returned from status {agreement.status.value}",
         )
 
-    actual_return_datetime = _ensure_utc(actual_return_datetime)
+    actual_return_datetime = _validate_return_time(agreement, actual_return_datetime)
+    try:
+        _take_vehicle_back(db, agreement, actual_return_datetime, return_mileage, fuel_level_in, returned_by_id)
+    except Exception:
+        db.rollback()
+        raise
     agreement.status = AgreementStatus.RETURNED
-    agreement.actual_return_datetime = actual_return_datetime
-    agreement.return_mileage = return_mileage
     if returned_by_id:
         agreement.closed_by_id = returned_by_id
     if notes:
         agreement.notes = (agreement.notes or "") + f"\n[Returned] {notes}"
 
-    for segment in agreement.vehicle_segments:
-        vehicle = segment.vehicle
-        if return_mileage:
-            segment.end_mileage = segment.end_mileage or return_mileage
-            vehicle.current_mileage = return_mileage
-        has_upcoming = (
-            db.query(AgreementVehicleSegment)
-            .join(Agreement)
-            .filter(
-                AgreementVehicleSegment.vehicle_id == vehicle.id,
-                Agreement.id != agreement_id,
-                Agreement.status.in_([AgreementStatus.PENDING_PAYMENT, AgreementStatus.ACTIVE]),
-                AgreementVehicleSegment.start_datetime > actual_return_datetime,
-            )
-            .first()
-        )
-        vehicle.status = VehicleStatus.RESERVED if has_upcoming else VehicleStatus.AVAILABLE
-
     db.commit()
     db.refresh(agreement)
     return agreement
+
+
+def record_inspection_return(
+    db: Session,
+    agreement: Agreement,
+    actual_return_datetime: datetime,
+    return_mileage: int | None,
+    fuel_level_in: int | None,
+) -> None:
+    """A signed return inspection: the car is back. The caller commits."""
+    _take_vehicle_back(db, agreement, _ensure_utc(actual_return_datetime), return_mileage, fuel_level_in, None)
+    agreement.status = AgreementStatus.RETURNED
 
 
 def activate_agreement(
@@ -466,16 +653,15 @@ def extend_agreement(
     if not agreement:
         raise NotFoundError("Agreement", agreement_id)
     
-    if agreement.status != AgreementStatus.ACTIVE:
+    if agreement.status not in (AgreementStatus.ACTIVE, AgreementStatus.OVERDUE):
         raise BusinessError(
             ErrorCode.AGREEMENT_CANNOT_EXTEND,
             f"Cannot extend agreement with status {agreement.status.value}"
         )
 
+    now = _now_matching_input(new_return_datetime)
     new_return_datetime = _ensure_utc(new_return_datetime)
     current_return_datetime = _ensure_utc(agreement.expected_return_datetime)
-    now = datetime.now(timezone.utc)
-
     if new_return_datetime <= current_return_datetime:
         raise BusinessError(
             ErrorCode.INVALID_INPUT,
@@ -520,6 +706,9 @@ def extend_agreement(
     # Update agreement
     old_return = current_return_datetime
     agreement.expected_return_datetime = new_return_datetime
+    # Once the return date is moved back into the future, the agreement is no
+    # longer overdue. The vehicle remains rented throughout the extension.
+    agreement.status = AgreementStatus.ACTIVE
     
     # Update vehicle segments
     for segment in agreement.vehicle_segments:
@@ -543,13 +732,146 @@ def extend_agreement(
     return agreement
 
 
+def _find_blocking_agreement(
+    db: Session, vehicle_id: int, agreement: Agreement
+) -> Agreement | None:
+    """The other agreement whose hold overlaps this one, if any."""
+    return (
+        db.query(Agreement)
+        .join(AgreementVehicleSegment)
+        .filter(
+            AgreementVehicleSegment.vehicle_id == vehicle_id,
+            Agreement.id != agreement.id,
+            Agreement.status.in_(
+                [
+                    AgreementStatus.PENDING_PAYMENT,
+                    AgreementStatus.ACTIVE,
+                    AgreementStatus.OVERDUE,
+                ]
+            ),
+            AgreementVehicleSegment.start_datetime < agreement.expected_return_datetime,
+            AgreementVehicleSegment.end_datetime > agreement.pickup_datetime,
+        )
+        .order_by(AgreementVehicleSegment.start_datetime)
+        .first()
+    )
+
+
+def _notify_customer_of_approval(
+    db: Session, agreement: Agreement, charge: Decimal
+) -> None:
+    """Send the approval message, never letting it break the approval."""
+    from src.services.telegram_bot_service import telegram_bot_service
+
+    deposit = ""
+    if agreement.deposit_amount and agreement.deposit_amount > 0:
+        deposit = f"\nDeposit at pickup: {agreement.deposit_amount:,.2f} ETB"
+
+    telegram_bot_service.notify_customer_soon(
+        db,
+        agreement.customer_id,
+        f"Your booking is confirmed.\n\n"
+        f"{agreement.agreement_number}\n"
+        f"Pickup: {agreement.pickup_datetime:%d %b %Y %H:%M}\n"
+        f"Return: {agreement.expected_return_datetime:%d %b %Y %H:%M}\n"
+        f"Total: {charge:,.2f} ETB{deposit}\n\n"
+        f"Use /mybookings to see the details.",
+    )
+
+
+def _rental_charge_description(
+    days: int, daily_rate: Decimal, charge: Decimal
+) -> str:
+    """Describe a rental charge in terms that match its amount.
+
+    The approval path described every charge as "N days @ rate/day" even when
+    a tier had been applied, so the ledger read "7 days @ 1100.00/day" beside
+    a debit of 6,500 — 7 x 1,100 is 7,700, and to anyone auditing the ledger
+    that looks like an arithmetic error rather than the weekly rate.
+    """
+    flat = daily_rate * days
+    if charge < flat:
+        return (
+            f"Rental charge: {days} days — tiered rate {charge} "
+            f"(saved {flat - charge} against {daily_rate}/day)"
+        )
+    return f"Rental charge: {days} days @ {daily_rate}/day"
+
+
+def _reverse_outstanding_charges_on_cancel(
+    db: Session,
+    agreement: Agreement,
+    cancelled_by_id: int | None,
+) -> None:
+    """Clear charges for a cancelled booking nobody has paid against.
+
+    An approved booking carries a posted rental charge. Cancelling it used to
+    change the status and release the vehicle while leaving that charge
+    standing, so the customer kept seeing a balance due on a rental that will
+    never happen and staff had no Reverse action on the row to clear it.
+
+    Only when nothing has been paid. Once money has changed hands the charge
+    is half of a record -- what was owed against what was received -- and
+    reversing it would turn a refund into a silent write-off. That is a
+    decision for staff, who can reverse entries individually.
+
+    A cancellation fee, if the business wants one, belongs here as its own
+    charge rather than as the untouched remains of the rental charge.
+    """
+    from src.services import ledger_service
+
+    if ledger_service.get_total_payments(db, agreement.id) > 0:
+        return
+
+    reversible = (
+        LedgerEntryType.CHARGE,
+        LedgerEntryType.LATE_FEE,
+        LedgerEntryType.DAMAGE_CHARGE,
+        LedgerEntryType.ADJUSTMENT,
+    )
+    already_reversed = {
+        row.reversed_entry_id
+        for row in db.query(LedgerEntry)
+        .filter(
+            LedgerEntry.agreement_id == agreement.id,
+            LedgerEntry.reversed_entry_id.isnot(None),
+        )
+        .all()
+    }
+
+    entries = (
+        db.query(LedgerEntry)
+        .filter(
+            LedgerEntry.agreement_id == agreement.id,
+            LedgerEntry.entry_type.in_(reversible),
+        )
+        .all()
+    )
+    for entry in entries:
+        if entry.id in already_reversed or entry.amount == 0:
+            continue
+        db.add(
+            LedgerEntry(
+                agreement_id=agreement.id,
+                entry_type=LedgerEntryType.REVERSAL,
+                amount=-entry.amount,
+                description=(
+                    f"Reversal of entry #{entry.id}: booking cancelled before payment"
+                ),
+                reversed_entry_id=entry.id,
+                created_by_id=cancelled_by_id,
+            )
+        )
+    db.flush()
+
+
 def cancel_agreement(
     db: Session,
     agreement_id: int,
     cancelled_by_id: int | None = None,
     reason: str | None = None,
 ) -> Agreement:
-    """Cancel an agreement and release the vehicle back to AVAILABLE."""
+    """Cancel an agreement and release only its own vehicle holds."""
     from sqlalchemy.orm import joinedload
 
     agreement = (
@@ -561,24 +883,148 @@ def cancel_agreement(
     if not agreement:
         raise NotFoundError("Agreement", agreement_id)
 
-    if agreement.status not in (AgreementStatus.DRAFT, AgreementStatus.PENDING_PAYMENT):
+    if agreement.status not in (
+        AgreementStatus.BOOKING_REQUESTED,
+        AgreementStatus.DRAFT,
+        AgreementStatus.PENDING_PAYMENT,
+    ):
         raise BusinessError(
             ErrorCode.INVALID_INPUT,
-            f"Cannot cancel agreement with status {agreement.status.value}. Only DRAFT or PENDING_PAYMENT agreements can be cancelled.",
+            f"Cannot cancel agreement with status {agreement.status.value}.",
         )
 
+    was_booking_request = agreement.status == AgreementStatus.BOOKING_REQUESTED
     agreement.status = AgreementStatus.CANCELLED
     if reason:
         agreement.notes = (agreement.notes or "") + f"\n[Cancelled] {reason}"
 
-    # Release vehicle back to available
-    for segment in agreement.vehicle_segments:
-        segment.vehicle.status = VehicleStatus.AVAILABLE
+    # Only release the vehicle if it was actually locked (BOOKING_REQUESTED never locks)
+    if not was_booking_request:
+        for segment in agreement.vehicle_segments:
+            release_vehicle(db, segment.vehicle, agreement_id)
+
+    _reverse_outstanding_charges_on_cancel(db, agreement, cancelled_by_id)
 
     db.commit()
     db.refresh(agreement)
 
     logger.info(f"Cancelled agreement {agreement.agreement_number}")
+    return agreement
+
+
+def approve_booking_request(
+    db: Session,
+    agreement_id: int,
+    approved_by_id: int | None = None,
+    deposit_amount: Decimal | None = None,
+    advance_payment: Decimal | None = None,
+    pickup_mileage: int | None = None,
+    mileage_limit_per_day: int | None = None,
+    excess_mileage_rate: Decimal | None = None,
+    fuel_level_out: int | None = None,
+    fuel_charge_rate: Decimal | None = None,
+) -> Agreement:
+    """Approve a customer booking request: check availability, lock vehicle, post rental charge."""
+    from sqlalchemy.orm import joinedload
+
+    agreement = (
+        db.query(Agreement)
+        .options(joinedload(Agreement.vehicle_segments).joinedload(AgreementVehicleSegment.vehicle))
+        .filter(Agreement.id == agreement_id)
+        .first()
+    )
+    if not agreement:
+        raise NotFoundError("Agreement", agreement_id)
+
+    if agreement.status != AgreementStatus.BOOKING_REQUESTED:
+        raise BusinessError(
+            ErrorCode.INVALID_INPUT,
+            f"Cannot approve an agreement with status '{agreement.status.value}'",
+        )
+
+    # Staff confirms these contract terms while reviewing a public request.
+    # Values omitted by older clients preserve the existing defaults.
+    terms = {
+        "deposit_amount": deposit_amount,
+        "advance_payment": advance_payment,
+        "pickup_mileage": pickup_mileage,
+        "mileage_limit_per_day": mileage_limit_per_day,
+        "excess_mileage_rate": excess_mileage_rate,
+        "fuel_level_out": fuel_level_out,
+        "fuel_charge_rate": fuel_charge_rate,
+    }
+    for field, value in terms.items():
+        if value is not None:
+            setattr(agreement, field, value)
+
+    for segment in agreement.vehicle_segments:
+        vehicle = db.query(Vehicle).filter(Vehicle.id == segment.vehicle_id).with_for_update().first()
+        if not vehicle or not vehicle.is_active:
+            raise NotFoundError("Vehicle", segment.vehicle_id)
+
+        # Exclude this agreement's own segments from the overlap check, but still
+        # enforce the vehicle status gate — the booking does not hold the vehicle yet.
+        if not availability_repository.check_vehicle_available(
+            db, vehicle.id, agreement.pickup_datetime, agreement.expected_return_datetime,
+            exclude_agreement_id=agreement.id,
+            # Another pending request is not a hold: counting it as one meant
+            # two overlapping requests deadlocked, neither approvable.
+            holds_only=True,
+        ):
+            # Name the blocker. Competing requests for one car is the normal
+            # case this flow exists to resolve, and staff previously hit a
+            # wall with no way to tell what was in the way.
+            blocker = _find_blocking_agreement(db, vehicle.id, agreement)
+            detail = (
+                f" Blocked by {blocker.agreement_number} "
+                f"({blocker.pickup_datetime:%d %b} to "
+                f"{blocker.expected_return_datetime:%d %b}, "
+                f"{blocker.status.value.replace('_', ' ')})."
+                if blocker
+                else ""
+            )
+            raise BusinessError(
+                ErrorCode.VEHICLE_NOT_AVAILABLE,
+                f"Vehicle {vehicle.plate_number} is no longer available for the "
+                f"requested dates.{detail}",
+            )
+
+        # Approving a booking for after a current rental must not mark the car
+        # on the road as parked; see create_standard_agreement.
+        if vehicle.status != VehicleStatus.RENTED:
+            vehicle.status = VehicleStatus.RESERVED
+
+    # Post the initial rental charge now that we're committing the booking.
+    # Tier rates come from the first booked vehicle, matching how the quote was shown.
+    first_vehicle = agreement.vehicle_segments[0].vehicle if agreement.vehicle_segments else None
+    days, charge = billing_service.calculate_rental_charge(
+        agreement.pickup_datetime,
+        agreement.expected_return_datetime,
+        agreement.agreed_daily_rate,
+        weekly_rate=first_vehicle.weekly_rate if first_vehicle else None,
+        monthly_rate=first_vehicle.monthly_rate if first_vehicle else None,
+    )
+    ledger_service.post_charge(
+        db=db,
+        agreement_id=agreement.id,
+        amount=charge,
+        description=_rental_charge_description(
+            days, agreement.agreed_daily_rate, charge
+        ),
+        entry_type=LedgerEntryType.CHARGE,
+        created_by_id=approved_by_id,
+    )
+
+    agreement.status = AgreementStatus.PENDING_PAYMENT
+    db.commit()
+    db.refresh(agreement)
+
+    # Tell the customer. Until now they had to keep opening the site or
+    # /mybookings to discover their request had been accepted -- which is
+    # exactly the kind of thing a bot exists to save them.
+    _notify_customer_of_approval(db, agreement, charge)
+
+    logger.info(f"Approved booking request {agreement.agreement_number}")
     return agreement
 
 

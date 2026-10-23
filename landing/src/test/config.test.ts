@@ -1,0 +1,516 @@
+/**
+ * Deployment-configurable URLs, and the demo-data boundary.
+ *
+ * Two bugs live here. The staff-login link was hardcoded to
+ * http://localhost:3000/login in two places, which is dead for every real
+ * visitor and publishes the admin app's location. And the fleet section fell
+ * back to a hardcoded demo array when the API failed, advertising vehicles
+ * the company does not own.
+ *
+ * Sources are read through import.meta.glob rather than node:fs so this
+ * type-checks under the app's tsconfig, which has no Node types.
+ */
+import { describe, expect, it } from 'vitest'
+
+import { ADMIN_BASE_URL, API_BASE_URL, STAFF_LOGIN_URL } from '../services/apiClient'
+import amLocale from '../i18n/locales/am.json'
+import enLocale from '../i18n/locales/en.json'
+
+const sources = import.meta.glob<string>(
+  [
+    '../components/*.tsx',
+    '../components/ui/*.tsx',
+    '../pages/*.tsx',
+    '../App.tsx',
+    '../main.tsx',
+    '../data/cars.ts',
+    '../services/adminAuth.ts',
+    '../services/booking.ts',
+    '../services/apiClient.ts',
+  ],
+  { query: '?raw', import: 'default', eager: true }
+)
+
+function source(name: string): string {
+  const key = Object.keys(sources).find((k) => k.endsWith(`/${name}`))
+  if (!key) throw new Error(`no source loaded for ${name} (have ${Object.keys(sources)})`)
+  return sources[key]
+}
+
+/**
+ * Source with comments stripped.
+ *
+ * The comments explaining these removals quote the old data by name, so an
+ * assertion against the raw text would match its own documentation.
+ */
+function code(name: string): string {
+  return source(name)
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+}
+
+describe('URLs default to same-origin paths', () => {
+  it('the admin app is not pinned to a developer machine in production', () => {
+    // Vitest runs as development, where the dev server is the right target.
+    expect(STAFF_LOGIN_URL).toBe(`${ADMIN_BASE_URL}/login`)
+    expect(source('apiClient.ts')).toMatch(/import\.meta\.env\.DEV \? 'http:\/\/localhost:3000' : '\/admin'/)
+  })
+
+  it('the API follows the same rule', () => {
+    expect(API_BASE_URL).toBe('/api')
+  })
+
+  it('no source file hardcodes the admin dev URL', () => {
+    for (const file of ['Footer.tsx', 'LoginPage.tsx']) {
+      expect(source(file)).not.toMatch(/['"`]https?:\/\/localhost:3000/)
+    }
+  })
+
+  it('the login handoff builds its target from the shared constant', () => {
+    expect(source('LoginPage.tsx')).toContain('ADMIN_BASE_URL')
+  })
+})
+
+describe('the demo car array never reaches customers as real stock', () => {
+  it('the fleet section does not import it', () => {
+    // `cars` held a Land Cruiser, a 12-seat Hiace and a Hyundai Accent, none
+    // of which are in the fleet. Importing only contactInfo keeps them out.
+    expect(source('Fleet.tsx')).not.toMatch(
+      /import \{[^}]*\bcars\b[^}]*\} from '\.\.\/data\/cars'/
+    )
+  })
+
+  it('the fleet section handles failure, loading and empty explicitly', () => {
+    const fleet = source('Fleet.tsx')
+    expect(fleet).toContain('isError')
+    expect(fleet).toContain('isLoading')
+    expect(fleet).toContain('No vehicles listed right now')
+    expect(fleet).not.toContain('StaticCarCard')
+  })
+
+  it('the hero makes no per-vehicle capacity claim', () => {
+    // It read seats/transmission off the demo entries, so the first thing a
+    // visitor saw was a 7-seater the company cannot supply.
+    const hero = source('Hero.tsx')
+    expect(hero).not.toContain('current.seats')
+    expect(hero).not.toContain('current.transmission')
+  })
+})
+
+describe('hero copy is translated', () => {
+  it('every hero key exists in both locales', () => {
+    expect(Object.keys(amLocale.hero).sort()).toEqual(Object.keys(enLocale.hero).sort())
+  })
+
+  it('the new hero strings are actually in Amharic', () => {
+    // Ethiopic block; "24/7" stays numeric in both locales.
+    expect(amLocale.hero.insured).toMatch(/[ሀ-፿]/)
+    expect(amLocale.hero.delivery).toMatch(/[ሀ-፿]/)
+  })
+})
+
+describe('no invented customer reviews are published', () => {
+  it('the fabricated testimonials are gone from the data file', () => {
+    // Three reviews nobody wrote, shown with five-star ratings as if real.
+    const data = code('cars.ts')
+    for (const name of ['Michael T.', 'Sarah K.', 'Dawit A.']) {
+      expect(data).not.toContain(name)
+    }
+    expect(data).not.toMatch(/export const testimonials/)
+  })
+
+  it('the reviews section makes no attributed claim', () => {
+    const section = code('Testimonials.tsx')
+    expect(section).not.toContain("from '../data/cars'")
+    expect(section).not.toContain('rating')
+  })
+
+  it('the fleet count it shows comes from the API, not a literal', () => {
+    const section = source('Testimonials.tsx')
+    expect(section).toContain('bookingService.getVehicles')
+    // Omitted rather than guessed when the call fails.
+    expect(section).toContain('vehicles?.length ?? null')
+  })
+})
+
+describe('keyboard and screen-reader access', () => {
+  it('every button has an accessible name', () => {
+    // 26 of 34 buttons announced as just "button": the fleet cards' photo
+    // arrows and dots had no text, no aria-label and no title.
+    const offenders: string[] = []
+    for (const [path, code] of Object.entries(sources)) {
+      if (!path.endsWith('.tsx')) continue
+      for (const m of code.matchAll(/<button\b/g)) {
+        let i = m.index! + m[0].length
+        let depth = 0
+        while (i < code.length) {
+          const c = code[i]
+          if (c === '{') depth++
+          else if (c === '}') depth--
+          else if (c === '>' && depth === 0) break
+          i++
+        }
+        const tag = code.slice(m.index!, i + 1)
+        const close = code.indexOf('</button>', i)
+        const inner = close === -1 ? '' : code.slice(i + 1, close)
+        const text = inner.replace(/<[^>]*>/g, '')
+        const named =
+          /aria-label|aria-labelledby|title=/.test(tag) || /[A-Za-z]/.test(text)
+        if (!named) offenders.push(`${path}:${code.slice(0, m.index!).split('\n').length}`)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it('the carousel controls name the vehicle they belong to', () => {
+    const fleet = source('Fleet.tsx')
+    expect(fleet).toContain('Previous photo of ${label}')
+    expect(fleet).toContain('Next photo of ${label}')
+    expect(fleet).toContain('aria-current')
+  })
+
+  it('a skip link precedes the 20+ header links', () => {
+    const app = source('App.tsx')
+    expect(app).toContain('Skip to main content')
+    expect(app).toContain('href="#main"')
+    // Header/Footer must sit outside main, or there is nothing to skip.
+    expect(app).toMatch(/<main id="main">/)
+  })
+})
+
+describe('every translation key a component uses exists', () => {
+  /*
+    A section can lose its i18n block and still build, still pass a
+    key-parity check between locales, and still render raw "proof.eyebrow"
+    strings to the visitor. This walks the other direction: from the t()
+    calls in the source to the locale files.
+  */
+  function lookup(locale: Record<string, unknown>, key: string): unknown {
+    return key.split('.').reduce<unknown>(
+      (node, part) =>
+        node && typeof node === 'object' ? (node as Record<string, unknown>)[part] : undefined,
+      locale
+    )
+  }
+
+  const used = new Set<string>()
+  for (const [path, src] of Object.entries(sources)) {
+    if (!path.endsWith('.tsx')) continue
+    for (const m of src.matchAll(/\bt\(\s*'([A-Za-z0-9_.]+)'/g)) used.add(m[1])
+  }
+
+  it('finds t() calls to check', () => {
+    expect(used.size).toBeGreaterThan(10)
+  })
+
+  it.each([
+    ['en', enLocale],
+    ['am', amLocale],
+  ])('%s defines them all', (_name, locale) => {
+    const loc = locale as Record<string, unknown>
+    // A plural key (t('booking.days', { count })) is stored as days_one /
+    // days_other; i18next picks the form from the count.
+    const defined = (key: string) =>
+      typeof lookup(loc, key) === 'string' ||
+      (typeof lookup(loc, `${key}_one`) === 'string' && typeof lookup(loc, `${key}_other`) === 'string')
+    const missing = [...used].filter((key) => !defined(key)).sort()
+    expect(missing).toEqual([])
+  })
+})
+
+describe('staff tokens never rest on the public origin', () => {
+  it('the admin auth store writes no admin_* key', () => {
+    // The public marketing origin held admin_access_token and, worse, a
+    // refresh token that outlives it. Any XSS here would hand over a staff
+    // session.
+    const store = code('adminAuth.ts')
+    expect(store).not.toMatch(/setItem\(\s*['"`]admin_/)
+  })
+
+  it('it still clears tokens an older build left behind', () => {
+    const store = source('adminAuth.ts')
+    expect(store).toContain('purgeLegacyAdminTokens')
+    expect(store).toMatch(/removeItem\(\s*['"`]admin_access_token/)
+  })
+
+  it('the purge runs on boot', () => {
+    expect(code('main.tsx')).toContain('purgeLegacyAdminTokens()')
+  })
+
+  it('the login handoff reads the tokens from the response, not storage', () => {
+    const login = code('LoginPage.tsx')
+    expect(login).not.toMatch(/getItem\(\s*['"`]admin_/)
+    expect(login).toContain('await adminLogin(')
+  })
+})
+
+describe('the booking form guards its own inputs', () => {
+  it('past pickups and backwards ranges cannot be submitted', () => {
+    const page = code('BookingPage.tsx')
+    // Neither input had a min, so a three-week-old pickup was selectable,
+    // priced, and only refused after a round-trip.
+    expect(page).toContain('min={minPickup}')
+    expect(page).toContain('min={pickup || minPickup}')
+    expect(page).toContain('blockedReason')
+  })
+
+  it('editing a date clears the previous submission error', () => {
+    const page = code('BookingPage.tsx')
+    expect(page).toContain('onClearError')
+    expect(page).toContain('changeDates')
+  })
+
+  it('an expired document is called out where it is entered', () => {
+    const page = code('BookingPage.tsx')
+    expect(page).toContain('isExpired(form.license_expiry)')
+    expect(page).toContain('isExpired(form.id_expiry)')
+  })
+})
+
+describe('cancelling a booking is deliberate', () => {
+  it('no native confirm or alert remains', () => {
+    // window.confirm blocks the main thread and froze the page under
+    // automation; it also named no booking.
+    for (const [path, src] of Object.entries(sources)) {
+      if (!path.endsWith('MyBookingsPage.tsx')) continue
+      const body = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+      expect(body).not.toMatch(/\bconfirm\(/)
+      expect(body).not.toMatch(/\balert\(/)
+    }
+  })
+
+  it('the dialog names the booking being cancelled', () => {
+    const page = code('MyBookingsPage.tsx')
+    expect(page).toContain('ConfirmModal')
+    expect(page).toContain('pendingCancel.agreement_number')
+  })
+
+  it('the extend panel no longer says Cancel too', () => {
+    const page = code('MyBookingsPage.tsx')
+    expect(page).toContain('Close')
+  })
+
+  it('the extend picker excludes the current return date', () => {
+    // min was the current return date, which the server then refused.
+    const page = code('MyBookingsPage.tsx')
+    expect(page).toContain('min={dayAfter(b.expected_return_datetime)}')
+  })
+
+  it('a pending booking shows its estimate, not a zero ledger', () => {
+    const page = code('MyBookingsPage.tsx')
+    expect(page).toContain('estimatedTotal(b)')
+  })
+})
+
+describe('the booking flow keeps what the customer entered', () => {
+  it('dates live above the step that renders them', () => {
+    // BookingDatesStep unmounts when you go back to edit details, so dates
+    // held in its own state were silently reset to the defaults.
+    const page = code('BookingPage.tsx')
+    expect(page).toContain('initialDates')
+    expect(page).toContain('onDatesChange')
+  })
+
+  it('an expired document is flagged on the confirm step too', () => {
+    const page = code('BookingPage.tsx')
+    expect(page).toContain('isExpired(profileData.license_expiry)')
+    expect(page).toContain('isExpired(profileData.id_expiry)')
+  })
+
+  it('an unavailable car explains the redirect, in either language', () => {
+    expect(code('BookingPage.tsx')).toContain("notice: t('booking.carUnavailable')")
+    expect(enLocale.booking.carUnavailable).toMatch(/no longer available/)
+    expect(amLocale.booking.carUnavailable).toMatch(/[\u1200-\u137F]/)
+    expect(code('App.tsx')).toContain('notice')
+  })
+})
+
+describe('the pending estimate comes from the server', () => {
+  it('the card does not recompute it from the daily rate', () => {
+    // days x agreed_daily_rate missed the tier: 11,000 shown for a 9,800
+    // booking.
+    const page = code('MyBookingsPage.tsx')
+    expect(page).toContain('booking.estimated_total')
+    expect(page).not.toMatch(/agreed_daily_rate\s*\?\?\s*0/)
+  })
+
+  it('the tier note is shown alongside it', () => {
+    expect(code('MyBookingsPage.tsx')).toContain('b.pricing_note')
+  })
+})
+
+describe('the fleet page filters by date like the bot does', () => {
+  it('the browse asks for dates before offering cars', () => {
+    // The page listed the whole fleet, so a customer picked a car and only
+    // learned at submit that it was not free for their dates.
+    const fleet = code('Fleet.tsx')
+    expect(fleet).toContain('Show available cars')
+    expect(fleet).toContain('applied')
+  })
+
+  it('the query refetches when the dates change', () => {
+    // A queryKey that ignores the dates would serve the unfiltered list.
+    const fleet = code('Fleet.tsx')
+    expect(fleet).toMatch(/queryKey: \['public-vehicles', applied/)
+  })
+
+  it('the service sends both dates or neither', () => {
+    const svc = code('booking.ts')
+    expect(svc).toContain('pickup_datetime=')
+    expect(svc).toContain('expected_return_datetime=')
+  })
+
+  it('a filtered card shows the whole-rental price', () => {
+    const fleet = code('Fleet.tsx')
+    expect(fleet).toContain('car.quoted_total')
+    expect(fleet).toContain('quoted_days')
+  })
+
+  it('the empty state says the dates are the problem', () => {
+    const fleet = code('Fleet.tsx')
+    expect(fleet).toContain('No cars are free for those dates')
+  })
+
+  it('the chosen dates carry into the booking page', () => {
+    // Asking for the same dates twice is the kind of thing that makes a
+    // booking flow feel broken.
+    expect(code('Fleet.tsx')).toContain('state={dates ?? undefined}')
+    expect(code('BookingPage.tsx')).toContain('carried')
+  })
+})
+
+describe('the booking page is translated', () => {
+  // It had no i18n at all: switching to Amharic left the whole booking flow,
+  // the one place a customer commits to paying, in English.
+  it('uses translations throughout', () => {
+    const page = code('BookingPage.tsx')
+    expect((page.match(/\bt\(/g) ?? []).length).toBeGreaterThan(50)
+  })
+
+  it('every booking string exists in Amharic', () => {
+    expect(Object.keys(amLocale.booking).sort()).toEqual(Object.keys(enLocale.booking).sort())
+    expect(amLocale.booking.confirmRequest).toMatch(/[\u1200-\u137F]/)
+  })
+
+  it('labels are tied to their inputs', () => {
+    // Labels had no htmlFor, so a screen reader announced an unnamed textbox.
+    const page = code('BookingPage.tsx')
+    for (const id of ['booking-id-number', 'booking-licence-number', 'booking-pickup', 'booking-return']) {
+      expect(page).toContain(`htmlFor="${id}"`)
+      expect(page).toContain(`id="${id}"`)
+    }
+  })
+
+  it('expiry dates follow the active language', () => {
+    expect(code('BookingPage.tsx')).toMatch(/startsWith\('am'\) \? 'am-ET'/)
+  })
+})
+
+describe('landing basics', () => {
+  it('an unknown path renders a 404 page, not a blank one', () => {
+    expect(code('App.tsx')).toContain('<Route path="*" element={<NotFoundPage />} />')
+  })
+
+  it('a render error shows a recovery screen, not a blank page', () => {
+    expect(code('main.tsx')).toMatch(/<ErrorBoundary>\s*<App \/>\s*<\/ErrorBoundary>/)
+  })
+
+  it('the mobile menu tells assistive tech whether it is open', () => {
+    const header = code('Header.tsx')
+    expect(header).toContain('aria-expanded={isMenuOpen}')
+    expect(header).toContain('aria-controls="mobile-menu"')
+    expect(header).toContain('id="mobile-menu"')
+  })
+
+  it('below-the-fold images load lazily', () => {
+    for (const file of ['Services.tsx', 'About.tsx', 'Footer.tsx']) {
+      expect(code(file)).toContain('loading="lazy"')
+    }
+  })
+
+  it('the error and 404 strings exist in both languages', () => {
+    expect(Object.keys(amLocale.errors).sort()).toEqual(Object.keys(enLocale.errors).sort())
+  })
+})
+
+describe('the fleet date search can actually produce a booking', () => {
+  it('a card from a date search is judged by that window, not today', () => {
+    // Five cars free for the dates came back marked "Reserved · Unavailable".
+    const fleet = code('Fleet.tsx')
+    expect(fleet).toMatch(/if \(car\.quoted_total != null\) \{\s*return \{ bookable: true/)
+    expect(fleet).toContain('Free for your dates')
+  })
+
+  it('the booking page judges the dates, not today\'s status', () => {
+    const page = code('BookingPage.tsx')
+    expect(page).not.toContain("if (v.status !== 'available') {")
+    expect(page).not.toContain("if (v.status === 'rented') {")
+    expect(page).toContain('setFreeForDates(free.some((v) => v.id === vehicle.id))')
+  })
+
+  it('same-day pickup is offered and the return must be a later day', () => {
+    const fleet = code('Fleet.tsx')
+    expect(fleet).toContain('return localDateInput(new Date())')
+    expect(fleet).toContain('min={nextDay(pickup || minPickup)}')
+  })
+
+  it('a fully booked fleet says what to do next', () => {
+    expect(code('Fleet.tsx')).toContain('All our cars are out or booked today.')
+  })
+})
+
+describe('navigation lands where it says', () => {
+  it('Home has a real target and no fake dropdowns remain', () => {
+    const header = code('Header.tsx')
+    expect(header).toContain("{ href: '#top', label: t('nav.home') }")
+    expect(header).not.toContain('ChevronDown')
+  })
+
+  it('sections clear the fixed header', () => {
+    const css = (import.meta.glob<string>('../index.css', { query: '?raw', import: 'default', eager: true }))['../index.css']
+    expect(css).toMatch(/section\[id\]\s*\{\s*scroll-margin-top:\s*7rem;/)
+  })
+
+  it('the lazy About image reserves its space', () => {
+    expect(code('About.tsx')).toContain('aspect-[4/3]')
+  })
+
+  it('Book Now starts the date search', () => {
+    const hero = code('Hero.tsx')
+    expect(hero).toContain("document.getElementById('fleet-pickup')")
+    expect(hero).toContain('onClick={startBooking}')
+  })
+})
+
+describe('forms and dialogs', () => {
+  it('the contact form refuses an address it could not reply to', () => {
+    const contact = code('Contact.tsx')
+    expect(contact).toContain('const emailInvalid =')
+    expect(contact).toContain('disabled={!canSend || emailInvalid || phoneInvalid}')
+  })
+
+  it('the car dialog takes, keeps and returns focus', () => {
+    const fleet = code('Fleet.tsx')
+    expect(fleet).toContain('closeRef.current?.focus()')
+    expect(fleet).toContain("if (e.key !== 'Tab' || !dialogRef.current) return")
+    expect(fleet).toContain('opener?.focus?.()')
+  })
+
+  it('a car can be opened from the keyboard', () => {
+    expect(code('Fleet.tsx')).toContain("onClick={(e) => { e.stopPropagation(); onInspect() }}")
+  })
+})
+
+describe('hero imagery', () => {
+  it('is served from this site, not hotlinked', () => {
+    // Unsplash is unreachable on some networks, which left a blank backdrop.
+    const hero = code('Hero.tsx')
+    expect(hero).not.toContain('images.unsplash.com')
+    expect(hero.match(/'\/images\/hero\/[a-z0-9-]+\.jpg'/g)?.length).toBe(3)
+  })
+
+  it('no longer reads the demo fleet', () => {
+    expect(code('Hero.tsx')).not.toContain("from '../data/cars'")
+    expect(code('cars.ts')).not.toMatch(/export const cars\b/)
+  })
+})

@@ -22,6 +22,8 @@ from src.schemas.vehicle import (
     VehicleUpdate,
 )
 
+from src.core.upload_validation import describe_content, is_real_image
+
 router = APIRouter()
 
 _PHOTO_ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
@@ -172,6 +174,10 @@ async def upload_vehicle_photos(
     if right is not None:
         uploads.append(("right", right))
 
+    # Validate every file before writing any of them. The photos share one
+    # request, so a partial write would leave some sides updated and others
+    # not, with no way for the caller to tell which.
+    validated: list[tuple[str, UploadFile, bytes]] = []
     for kind, file in uploads:
         _validate_photo(file)
         content = await file.read()
@@ -180,6 +186,20 @@ async def upload_vehicle_photos(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Photo too large. Maximum size: {_PHOTO_MAX_SIZE // (1024 * 1024)}MB",
             )
+        # The extension and Content-Type are both caller-supplied, so confirm
+        # the bytes really are an image before storing them.
+        if not is_real_image(content):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"{kind} photo is not a valid image "
+                    f"(detected: {describe_content(content)}). "
+                    "Allowed: JPEG, PNG, WebP."
+                ),
+            )
+        validated.append((kind, file, content))
+
+    for kind, file, content in validated:
         import io
         relative_path = storage_service.save_vehicle_photo(
             file=io.BytesIO(content),
@@ -218,30 +238,24 @@ async def create_vehicle(
             detail="Vendor not found",
         )
     
-    # Map schema fields to model fields
-    vehicle_data = {
-        "vendor_id": data.vendor_id,
-        "plate_number": data.plate_number,
-        "plate_code": data.plate_code,
-        "plate_city": data.plate_city,
-        "make": data.make,
-        "model": data.model,
-        "year": data.year,
-        "color": data.color,
-        "vehicle_type": data.vehicle_type,
-        "service_type": data.service_type,
-        "car_condition": data.car_condition,
-        "motor_number": data.motor_number,
-        "chassis_number": data.chassis_number,
-        "seats": data.seats,
-        "transmission": data.transmission,
-        "fuel_type": data.fuel_type,
-        "daily_rate": data.daily_rate,
-        "insurance_policy": data.insurance_policy_number,
-        "insurance_expiry": data.insurance_expiry,
-        "current_mileage": data.current_mileage or 0,
-        "notes": data.notes,
-    }
+    # Build the model kwargs from the schema itself rather than a hand-written
+    # list. The old dict enumerated every field, so anything added to
+    # VehicleCreate later was validated, returned 201, and then silently
+    # dropped before the insert — which is how weekly_rate and monthly_rate
+    # were lost while the update path (which iterates model_dump) saved them.
+    vehicle_data = data.model_dump(exclude_unset=True)
+
+    # insurance_policy_number is named differently on the model.
+    if "insurance_policy_number" in vehicle_data:
+        vehicle_data["insurance_policy"] = vehicle_data.pop("insurance_policy_number")
+
+    # current_mileage defaults to 0 rather than NULL.
+    if vehicle_data.get("current_mileage") is None:
+        vehicle_data["current_mileage"] = 0
+
+    # Drop only true absences. The previous comprehension filtered on
+    # `v is not None`, which is correct — but note a rate of 0 is a real value
+    # and must survive, so never widen this to a falsiness check.
     vehicle = Vehicle(**{k: v for k, v in vehicle_data.items() if v is not None})
     vehicle.status = VehicleStatus.AVAILABLE
     db.add(vehicle)

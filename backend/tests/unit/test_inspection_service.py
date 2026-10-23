@@ -4,6 +4,8 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
+
+from tests.conftest import backdate_agreement
 from sqlalchemy.orm import Session
 
 from src.core.errors import BusinessError
@@ -55,13 +57,19 @@ def vehicle(db: Session, vendor: Vendor) -> Vehicle:
 
 @pytest.fixture
 def active_agreement(db: Session, customer: Customer, vehicle: Vehicle):
+    lead = datetime.now(timezone.utc) + timedelta(days=1)
     agreement = agreement_service.create_standard_agreement(
         db=db,
         customer_id=customer.id,
         vehicle_id=vehicle.id,
-        pickup_datetime=datetime.now(timezone.utc) - timedelta(days=2),
-        expected_return_datetime=datetime.now(timezone.utc) + timedelta(hours=2),
+        pickup_datetime=lead,
+        expected_return_datetime=lead + timedelta(days=2),
         daily_rate=Decimal("1200.00"),
+    )
+    backdate_agreement(
+        db, agreement,
+        datetime.now(timezone.utc) - timedelta(days=2),
+        datetime.now(timezone.utc) + timedelta(hours=2),
     )
     agreement_service.activate_agreement(db, agreement.id)
     return agreement

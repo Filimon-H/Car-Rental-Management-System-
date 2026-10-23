@@ -12,13 +12,17 @@ from src.models.agreement_vehicle_segment import AgreementVehicleSegment
 from src.models.ledger_entry import LedgerEntry, LedgerEntryType, PaymentMethod
 from src.models.inspection_template import InspectionTemplate
 from src.models.inspection import Inspection, InspectionPhoto
+from src.models.maintenance_record import MaintenanceRecord, MaintenanceType
 from src.models.lookup import LookupValue
 from src.models.customer_document import CustomerDocument, DocumentType
 from src.models.collateral_document import CollateralDocument
 from src.models.vendor_payment import VendorPayment
-from src.models.telegram import TelegramLinkCode, TelegramStaffLink
+from src.models.telegram import TelegramLinkCode, TelegramStaffLink, TelegramCustomerLink, TelegramCustomerLinkCode
+from src.models.customer_user import CustomerUser
+from src.models.account_claim import CustomerAccountClaim
 
 __all__ = [
+    "CustomerAccountClaim",
     "StaffUser",
     "AuditEvent",
     "AuditAction",
@@ -46,4 +50,9 @@ __all__ = [
     "VendorPayment",
     "TelegramStaffLink",
     "TelegramLinkCode",
+    "TelegramCustomerLink",
+    "TelegramCustomerLinkCode",
+    "CustomerUser",
+    "MaintenanceRecord",
+    "MaintenanceType",
 ]

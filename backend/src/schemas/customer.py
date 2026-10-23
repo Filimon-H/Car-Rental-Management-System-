@@ -3,7 +3,13 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
+
+from src.schemas.fields import (
+    EthiopianPhone,
+    OptionalEmail,
+    OptionalEthiopianPhone,
+)
 
 
 class CustomerBase(BaseModel):
@@ -13,9 +19,9 @@ class CustomerBase(BaseModel):
     tin_number: Optional[str] = Field(None, max_length=50)  # Tax ID
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
-    phone_primary: str = Field(..., min_length=9, max_length=20)
-    phone_secondary: Optional[str] = Field(None, max_length=20)
-    email: Optional[EmailStr] = None
+    phone_primary: EthiopianPhone
+    phone_secondary: OptionalEthiopianPhone = None
+    email: OptionalEmail = None
     id_type: Optional[str] = Field(None, max_length=50)  # passport, national_id, kebele_id - only for individual
     id_number: Optional[str] = Field(None, max_length=50)  # Only for individual
     id_expiry_date: Optional[datetime] = None
@@ -27,12 +33,21 @@ class CustomerBase(BaseModel):
     city: Optional[str] = Field(None, max_length=100)
     emergency_contact_name: Optional[str] = Field(None, max_length=100)
     emergency_contact_phone: Optional[str] = Field(None, max_length=20)
+    telegram_username: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = None
 
 
 class CustomerCreate(CustomerBase):
     """Schema for creating a customer."""
-    pass
+
+    @model_validator(mode="after")
+    def require_individual_identity(self):
+        if self.business_type == "individual":
+            if not self.id_type:
+                raise ValueError("ID type is required for individual customers")
+            if not self.id_number or len(self.id_number.strip()) < 3:
+                raise ValueError("ID number is required for individual customers")
+        return self
 
 
 class CustomerUpdate(BaseModel):
@@ -42,9 +57,9 @@ class CustomerUpdate(BaseModel):
     tin_number: Optional[str] = Field(None, max_length=50)
     first_name: Optional[str] = Field(None, min_length=1, max_length=100)
     last_name: Optional[str] = Field(None, min_length=1, max_length=100)
-    phone_primary: Optional[str] = Field(None, min_length=9, max_length=20)
+    phone_primary: OptionalEthiopianPhone = None
     phone_secondary: Optional[str] = Field(None, max_length=20)
-    email: Optional[EmailStr] = None
+    email: OptionalEmail = None
     id_type: Optional[str] = Field(None, max_length=50)
     id_number: Optional[str] = Field(None, min_length=3, max_length=50)
     id_expiry_date: Optional[datetime] = None
@@ -56,6 +71,7 @@ class CustomerUpdate(BaseModel):
     city: Optional[str] = Field(None, max_length=100)
     emergency_contact_name: Optional[str] = Field(None, max_length=100)
     emergency_contact_phone: Optional[str] = Field(None, max_length=20)
+    telegram_username: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = None
     is_active: Optional[bool] = None
 
@@ -83,17 +99,23 @@ class CustomerResponse(BaseModel):
     city: Optional[str] = None
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
+    telegram_username: Optional[str] = None
     notes: Optional[str] = None
     is_active: bool
+    is_online_registered: bool = False
     created_at: datetime
     updated_at: datetime
 
     class Config:
         from_attributes = True
-    
+
     @classmethod
     def model_validate(cls, obj, **kwargs):
         """Custom validator to map model fields to schema fields."""
+        cu = obj.customer_user
+        is_online = bool(
+            cu and cu.email and not cu.email.endswith("@bot.nodcarrent.internal")
+        )
         return cls(
             id=obj.id,
             business_type=obj.business_type,
@@ -116,8 +138,10 @@ class CustomerResponse(BaseModel):
             city=obj.city,
             emergency_contact_name=obj.emergency_contact_name,
             emergency_contact_phone=obj.emergency_contact_phone,
+            telegram_username=obj.telegram_username,
             notes=obj.notes,
             is_active=obj.is_active,
+            is_online_registered=is_online,
             created_at=obj.created_at,
             updated_at=obj.updated_at,
         )

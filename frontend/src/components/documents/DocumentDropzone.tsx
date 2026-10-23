@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { Upload, X, FileText, Image, Loader2, CheckCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { DocumentType, CustomerDocument, customerDocumentsService } from '@/services/customerDocuments'
 import { CollateralDocument, collateralDocumentsService } from '@/services/collateralDocuments'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
@@ -30,6 +31,7 @@ export function DocumentDropzone({
   onDelete,
   disabled = false,
 }: DocumentDropzoneProps) {
+  const { t } = useTranslation()
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -107,12 +109,10 @@ export function DocumentDropzone({
     // Upload to server
     setIsUploading(true)
     try {
-      console.log('Uploading document:', { ownerType, ownerId, docType, fileName: file.name })
       const doc =
         ownerType === 'customer'
           ? await customerDocumentsService.upload(ownerId, docType, file)
           : await collateralDocumentsService.upload(ownerId, docType, file)
-      console.log('Upload successful:', doc)
       setUploadedDoc(doc)
       onUploadComplete?.(doc)
       onFileSelected?.(null)
@@ -164,11 +164,11 @@ export function DocumentDropzone({
     if (!uploadedDoc?.id) return ''
     if (ownerType === 'customer' && (uploadedDoc as CustomerDocument).customer_id) {
       const doc = uploadedDoc as CustomerDocument
-      return `/api/customers/${doc.customer_id}/documents/${doc.id}/file`
+      return `/customers/${doc.customer_id}/documents/${doc.id}/file`
     }
     if (ownerType === 'collateral' && (uploadedDoc as CollateralDocument).collateral_id) {
       const doc = uploadedDoc as CollateralDocument
-      return `/api/collaterals/${doc.collateral_id}/documents/${doc.id}/file`
+      return `/collaterals/${doc.collateral_id}/documents/${doc.id}/file`
     }
     return ''
   })()
@@ -225,7 +225,7 @@ export function DocumentDropzone({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium text-green-800">Uploaded</span>
+                <span className="text-sm font-medium text-green-800">{t('upload.uploaded')}</span>
               </div>
               <p className="mt-1 truncate text-sm text-gray-600">{uploadedDoc.file_name}</p>
               <p className="text-xs text-gray-500">
@@ -278,15 +278,15 @@ export function DocumentDropzone({
           {isUploading ? (
             <div className="flex flex-col items-center">
               <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-              <p className="mt-2 text-sm text-gray-600">Uploading...</p>
+              <p className="mt-2 text-sm text-gray-600">{t('upload.uploading')}</p>
             </div>
           ) : (
             <>
               <Upload className="mx-auto h-8 w-8 text-gray-400" />
               <p className="mt-2 text-sm text-gray-600">
-                <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
+                <span className="font-medium text-blue-600">{t('upload.clickToUpload')}</span> {t('upload.orDragAndDrop')}
               </p>
-              <p className="mt-1 text-xs text-gray-500">JPG, PNG, WebP, or PDF (max 10MB)</p>
+              <p className="mt-1 text-xs text-gray-500">{t('upload.documentTypes')}</p>
             </>
           )}
         </div>

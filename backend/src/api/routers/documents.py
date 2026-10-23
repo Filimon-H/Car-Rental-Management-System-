@@ -2,6 +2,7 @@
 
 from typing import Annotated, Optional
 
+from src.core.errors import AppException
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -17,7 +18,10 @@ router = APIRouter()
 
 class DocumentResponse(BaseModel):
     filename: str
-    filepath: str
+    # The absolute server path was returned to clients, exposing the
+    # deployment's directory layout. Callers need the download URL, not a
+    # path they cannot use.
+    download_url: str
     agreement_id: Optional[int] = None
     inspection_id: Optional[int] = None
     payment_id: Optional[int] = None
@@ -31,7 +35,7 @@ class DocumentListResponse(BaseModel):
 @router.post("/agreements/{agreement_id}/generate", response_model=DocumentResponse)
 async def generate_agreement_document(
     agreement_id: int,
-    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.VIEW_AGREEMENTS))],
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.PRINT_DOCUMENTS))],
     db: Annotated[Session, Depends(get_db)],
     template: str = Query("rental_agreement"),
 ):
@@ -42,9 +46,17 @@ async def generate_agreement_document(
             agreement_id=agreement_id,
             template_name=template,
         )
-        return DocumentResponse(**result)
+        result.pop("filepath", None)
+        return DocumentResponse(
+            **result,
+            download_url=f"/api/documents/download/{result['filename']}",
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except (AppException, HTTPException):
+        # Already carries its own status and message — re-raising unchanged
+        # stops a deliberate 400 being rewrapped as a 500 by the catch-all.
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Document generation failed: {str(e)}")
 
@@ -52,7 +64,7 @@ async def generate_agreement_document(
 @router.post("/agreements/{agreement_id}/receipt", response_model=DocumentResponse)
 async def generate_receipt(
     agreement_id: int,
-    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.VIEW_AGREEMENTS))],
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.PRINT_DOCUMENTS))],
     db: Annotated[Session, Depends(get_db)],
     payment_id: Optional[int] = None,
 ):
@@ -63,9 +75,17 @@ async def generate_receipt(
             agreement_id=agreement_id,
             payment_id=payment_id,
         )
-        return DocumentResponse(**result)
+        result.pop("filepath", None)
+        return DocumentResponse(
+            **result,
+            download_url=f"/api/documents/download/{result['filename']}",
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except (AppException, HTTPException):
+        # Already carries its own status and message — re-raising unchanged
+        # stops a deliberate 400 being rewrapped as a 500 by the catch-all.
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Receipt generation failed: {str(e)}")
 
@@ -73,7 +93,7 @@ async def generate_receipt(
 @router.post("/inspections/{inspection_id}/report", response_model=DocumentResponse)
 async def generate_inspection_report(
     inspection_id: int,
-    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.VIEW_INSPECTIONS))],
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.PRINT_DOCUMENTS))],
     db: Annotated[Session, Depends(get_db)],
 ):
     """Generate an inspection report document."""
@@ -82,16 +102,24 @@ async def generate_inspection_report(
             db=db,
             inspection_id=inspection_id,
         )
-        return DocumentResponse(**result)
+        result.pop("filepath", None)
+        return DocumentResponse(
+            **result,
+            download_url=f"/api/documents/download/{result['filename']}",
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except (AppException, HTTPException):
+        # Already carries its own status and message — re-raising unchanged
+        # stops a deliberate 400 being rewrapped as a 500 by the catch-all.
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
 
 
 @router.get("", response_model=DocumentListResponse)
 async def list_documents(
-    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.VIEW_AGREEMENTS))],
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.PRINT_DOCUMENTS))],
     agreement_id: Optional[int] = None,
 ):
     """List generated documents."""
@@ -102,7 +130,7 @@ async def list_documents(
 @router.get("/download/{filename}")
 async def download_document(
     filename: str,
-    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.VIEW_AGREEMENTS))],
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.PRINT_DOCUMENTS))],
 ):
     """Download a generated document."""
     import os
@@ -118,8 +146,12 @@ async def download_document(
     if not str(filepath.resolve()).startswith(str(output_dir.resolve())):
         raise HTTPException(status_code=403, detail="Access denied")
     
+    # Generated documents are printable HTML; the admin app opens them in a
+    # tab to print or save as PDF. Older .txt files on disk still download.
+    is_html = filepath.suffix == ".html"
     return FileResponse(
         path=str(filepath),
         filename=filename,
-        media_type="application/octet-stream",
+        media_type="text/html; charset=utf-8" if is_html else "application/octet-stream",
+        content_disposition_type="inline" if is_html else "attachment",
     )

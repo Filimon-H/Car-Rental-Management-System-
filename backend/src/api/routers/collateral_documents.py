@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from src.api.routers.customer_documents import sanitize_display_name
 from src.api.deps import get_db, require_permission
 from src.core.rbac import Permission
 from src.models.collateral_document import CollateralDocument
@@ -22,6 +23,8 @@ from src.schemas.collateral_document import (
 router = APIRouter()
 
 UPLOAD_DIR = Path("uploads/collateral_documents")
+from src.core.upload_validation import describe_content, is_real_document
+
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf", ".webp"}
 MAX_FILE_SIZE = 10 * 1024 * 1024
 
@@ -109,6 +112,17 @@ async def upload_collateral_document(
             detail=f"File too large. Maximum size: {MAX_FILE_SIZE // (1024*1024)}MB",
         )
 
+    # The extension and Content-Type are caller-supplied, so confirm the bytes
+    # really are an image or PDF before storing the file.
+    if not is_real_document(content):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"File is not a valid image or PDF (detected: {describe_content(content)}). "
+                "Allowed: JPEG, PNG, WebP, PDF."
+            ),
+        )
+
     unique_id = uuid.uuid4().hex[:12]
     safe_filename = f"{collateral_id}_{doc_type.value}_{unique_id}{ext}"
 
@@ -121,7 +135,7 @@ async def upload_collateral_document(
     document = CollateralDocument(
         collateral_id=collateral_id,
         doc_type=doc_type,
-        file_name=file.filename,
+        file_name=sanitize_display_name(file.filename),
         file_path=str(file_path),
         file_size=file_size,
         mime_type=mime_type,
@@ -163,8 +177,8 @@ async def get_collateral_document_file(
     return FileResponse(
         path=document.file_path,
         filename=document.file_name,
-        media_type="application/octet-stream",
-        headers={"Content-Disposition": f'attachment; filename="{document.file_name}"'},
+        media_type=document.mime_type,
+        content_disposition_type="inline",
     )
 
 

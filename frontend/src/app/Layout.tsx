@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useTranslation } from 'react-i18next'
 import { useMutation } from '@tanstack/react-query'
 import {
+  BarChart2,
   Building2,
   Car,
   ChevronDown,
@@ -16,8 +18,10 @@ import {
   KeyRound,
   LogOut,
   Menu,
+  Moon,
   Settings,
   Shield,
+  Sun,
   UserCheck,
   UserCog,
   Users,
@@ -25,8 +29,10 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/services/auth'
 import apiClient from '@/services/apiClient'
+import { useTheme } from '@/hooks/useTheme'
 
 function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -36,18 +42,18 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     mutationFn: (data: { current_password: string; new_password: string }) =>
       apiClient.post('/me/change-password', data),
     onSuccess: () => onClose(),
-    onError: (err: Error) => setError(err.message || 'Failed to change password'),
+    onError: (err: Error) => setError(err.message || t('account.changeFailed')),
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (newPassword !== confirmPassword) {
-      setError('New passwords do not match')
+      setError(t('account.mismatch'))
       return
     }
     if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters')
+      setError(t('account.tooShort'))
       return
     }
     mutation.mutate({ current_password: currentPassword, new_password: newPassword })
@@ -57,14 +63,14 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Change Password</h3>
+          <h3 className="text-lg font-semibold text-gray-900">{t('account.changePassword')}</h3>
           <button onClick={onClose} className="rounded-md p-1 text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Current Password</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('account.currentPassword')}</label>
             <input
               type="password"
               value={currentPassword}
@@ -74,7 +80,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">New Password</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('account.newPassword')}</label>
             <input
               type="password"
               value={newPassword}
@@ -84,7 +90,9 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Confirm New Password</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t('account.confirmNewPassword')}
+            </label>
             <input
               type="password"
               value={confirmPassword}
@@ -100,14 +108,14 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
               onClick={onClose}
               className="flex-1 rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={mutation.isPending}
               className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
             >
-              {mutation.isPending ? 'Saving...' : 'Save'}
+              {mutation.isPending ? t('forms.saving') : t('common.save')}
             </button>
           </div>
         </form>
@@ -116,67 +124,78 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+// Labels are translation keys, resolved at render time — a module-level
+// constant cannot call t(), and holding English here left the sidebar in
+// English whatever language was selected.
 const navGroups = [
   {
-    label: 'Overview',
-    items: [{ path: '/dashboard', icon: Home, label: 'Dashboard', adminOnly: false }],
+    label: 'nav.overview',
+    items: [{ path: '/dashboard', icon: Home, label: 'nav.dashboard', adminOnly: false }],
   },
   {
-    label: 'Rentals',
+    label: 'nav.rentals',
     items: [
-      { path: '/agreements', icon: FileText, label: 'Agreements', adminOnly: false },
-      { path: '/agreements/wedding', icon: Heart, label: 'Wedding', adminOnly: false },
+      { path: '/agreements', icon: FileText, label: 'nav.agreements', adminOnly: false },
+      { path: '/agreements/wedding', icon: Heart, label: 'nav.wedding', adminOnly: false },
     ],
   },
   {
-    label: 'Fleet & People',
+    label: 'nav.fleetAndPeople',
     items: [
-      { path: '/vehicles', icon: Car, label: 'Vehicles', adminOnly: false },
-      { path: '/drivers', icon: UserCheck, label: 'Drivers', adminOnly: false },
-      { path: '/customers', icon: Users, label: 'Customers', adminOnly: false },
-      { path: '/vendors', icon: Building2, label: 'Vendors', adminOnly: false },
-      { path: '/collaterals', icon: Shield, label: 'Collaterals', adminOnly: false },
+      { path: '/vehicles', icon: Car, label: 'nav.vehicles', adminOnly: false },
+      { path: '/drivers', icon: UserCheck, label: 'nav.drivers', adminOnly: false },
+      { path: '/customers', icon: Users, label: 'nav.customers', adminOnly: false },
+      { path: '/vendors', icon: Building2, label: 'nav.vendors', adminOnly: false },
+      { path: '/collaterals', icon: Shield, label: 'nav.collaterals', adminOnly: false },
     ],
   },
   {
-    label: 'Finance & Ops',
+    label: 'nav.financeAndOps',
     items: [
-      { path: '/ledger', icon: DollarSign, label: 'Ledger', adminOnly: false },
-      { path: '/inspections', icon: ClipboardList, label: 'Inspections', adminOnly: false },
-      { path: '/admin/users', icon: UserCog, label: 'User Management', adminOnly: true },
-      { path: '/admin/lookups', icon: Settings, label: 'Admin Settings', adminOnly: true },
+      { path: '/ledger', icon: DollarSign, label: 'nav.ledger', adminOnly: false },
+      { path: '/reports', icon: BarChart2, label: 'nav.reports', adminOnly: false },
+      { path: '/inspections', icon: ClipboardList, label: 'nav.inspections', adminOnly: false },
+      { path: '/admin/users', icon: UserCog, label: 'nav.userManagement', adminOnly: true },
+      { path: '/admin/lookups', icon: Settings, label: 'nav.adminSettings', adminOnly: true },
     ],
   },
 ]
 
-function getPageTitle(pathname: string): string {
-  if (pathname === '/dashboard') return 'Dashboard'
-  if (pathname.startsWith('/agreements/wedding/new')) return 'New Wedding Agreement'
-  if (pathname.startsWith('/agreements/wedding')) return 'Wedding Agreements'
-  if (pathname.startsWith('/agreements/new') || pathname === '/agreements/new') return 'New Agreement'
-  if (pathname.startsWith('/agreements/') && pathname.endsWith('/print')) return 'Print Agreement'
-  if (pathname.startsWith('/agreements/')) return 'Agreement Details'
-  if (pathname === '/agreements') return 'Agreements'
-  if (pathname.startsWith('/customers/new')) return 'New Customer'
-  if (pathname.includes('/collaterals/new')) return 'New Collateral'
-  if (pathname.includes('/collaterals/') && pathname.endsWith('/edit')) return 'Edit Collateral'
-  if (pathname.includes('/collaterals/')) return 'Collateral Details'
-  if (pathname.startsWith('/customers/') && pathname.endsWith('/edit')) return 'Edit Customer'
-  if (pathname.startsWith('/customers/')) return 'Customer Details'
-  if (pathname === '/customers') return 'Customers'
-  if (pathname.startsWith('/vehicles/new') || pathname === '/vehicles/new') return 'Add Vehicle'
-  if (pathname.startsWith('/vehicles/') && pathname.endsWith('/edit')) return 'Edit Vehicle'
-  if (pathname.startsWith('/vehicles/')) return 'Vehicle Details'
-  if (pathname === '/vehicles') return 'Vehicles'
-  if (pathname === '/vendors') return 'Vendors'
-  if (pathname === '/drivers') return 'Drivers'
-  if (pathname === '/collaterals') return 'Collaterals'
-  if (pathname.startsWith('/collaterals')) return 'Collaterals'
-  if (pathname === '/ledger') return 'Ledger'
-  if (pathname === '/inspections') return 'Inspections'
-  if (pathname === '/admin/users') return 'User Management'
-  if (pathname.startsWith('/admin')) return 'Admin Settings'
-  return 'FleetOps'
+/** Returns a translation key; the caller resolves it with t(). */
+function getPageTitleKey(pathname: string): string {
+  if (pathname === '/dashboard') return 'nav.dashboard'
+  if (pathname.startsWith('/agreements/wedding/new')) return 'pageTitle.newWeddingAgreement'
+  if (pathname.startsWith('/agreements/wedding')) return 'pageTitle.weddingAgreements'
+  if (pathname.startsWith('/agreements/new') || pathname === '/agreements/new')
+    return 'pageTitle.newAgreement'
+  if (pathname.startsWith('/agreements/') && pathname.endsWith('/print'))
+    return 'pageTitle.printAgreement'
+  if (pathname.startsWith('/agreements/')) return 'pageTitle.agreementDetails'
+  if (pathname === '/agreements') return 'nav.agreements'
+  if (pathname.startsWith('/customers/new')) return 'pageTitle.newCustomer'
+  if (pathname.includes('/collaterals/new')) return 'pageTitle.newCollateral'
+  if (pathname.includes('/collaterals/') && pathname.endsWith('/edit'))
+    return 'collateralDetail.editCollateral'
+  if (pathname.includes('/collaterals/')) return 'collateralDetail.title'
+  if (pathname.startsWith('/customers/') && pathname.endsWith('/edit'))
+    return 'customerDetail.editCustomer'
+  if (pathname.startsWith('/customers/')) return 'customerDetail.title'
+  if (pathname === '/customers') return 'nav.customers'
+  if (pathname.startsWith('/vehicles/new') || pathname === '/vehicles/new')
+    return 'pageTitle.addVehicle'
+  if (pathname.startsWith('/vehicles/') && pathname.endsWith('/edit'))
+    return 'pageTitle.editVehicle'
+  if (pathname.startsWith('/vehicles/')) return 'pageTitle.vehicleDetails'
+  if (pathname === '/vehicles') return 'nav.vehicles'
+  if (pathname === '/vendors') return 'nav.vendors'
+  if (pathname === '/drivers') return 'nav.drivers'
+  if (pathname === '/collaterals') return 'nav.collaterals'
+  if (pathname.startsWith('/collaterals')) return 'nav.collaterals'
+  if (pathname === '/ledger') return 'nav.ledger'
+  if (pathname === '/inspections') return 'nav.inspections'
+  if (pathname === '/admin/users') return 'nav.userManagement'
+  if (pathname.startsWith('/admin')) return 'nav.adminSettings'
+  return 'brand.fleetOps'
 }
 
 function UserAvatar({ name }: { name: string }) {
@@ -188,7 +207,7 @@ function UserAvatar({ name }: { name: string }) {
     .toUpperCase()
 
   return (
-    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary font-semibold text-white">
+    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary font-semibold text-white dark:bg-orange-brand">
       {initials}
     </div>
   )
@@ -199,10 +218,20 @@ export default function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const { isDark, toggle: toggleTheme } = useTheme()
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
+  )
   const [langMenuOpen, setLangMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [showChangePassword, setShowChangePassword] = useState(false)
+
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 1024px)')
+    const syncSidebar = (event: MediaQueryListEvent) => setSidebarOpen(event.matches)
+    desktop.addEventListener('change', syncSidebar)
+    return () => desktop.removeEventListener('change', syncSidebar)
+  }, [])
 
   const handleLogout = () => {
     logout()
@@ -226,18 +255,27 @@ export default function Layout() {
   ]
 
   const currentLang = languages.find((item) => item.code === i18n.language) || languages[0]
-  const pageTitle = getPageTitle(location.pathname)
-  const todayLabel = new Intl.DateTimeFormat('en-US', {
+  const pageTitle = t(getPageTitleKey(location.pathname))
+  const todayLabel = new Intl.DateTimeFormat(i18n.language.startsWith('am') ? 'am-ET' : 'en-US', {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
   }).format(new Date())
 
   return (
-    <div className="flex min-h-screen bg-transparent">
+    <div className="flex min-h-screen max-w-full overflow-x-clip bg-transparent">
+      {/* Visible only on keyboard focus: lets keyboard and screen-reader users jump
+          past the sidebar instead of tabbing through every nav link on each page. */}
+      <a
+        href="#main-content"
+        data-visually-hidden="true"
+        className="focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:h-auto focus:w-auto focus:overflow-visible focus:whitespace-normal focus:[clip-path:none] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
+      >
+        {t('common.skipToMain')}
+      </a>
       <button
         type="button"
-        aria-label="Close navigation"
+        aria-label={t('common.closeNavigation')}
         onClick={() => setSidebarOpen(false)}
         className={`fixed inset-0 z-40 bg-slate-950/40 transition-opacity lg:hidden ${
           sidebarOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
@@ -245,30 +283,38 @@ export default function Layout() {
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-hidden bg-slate-900 text-white transition-all duration-300 ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-hidden transition-all duration-300 ${
+          isDark ? 'bg-brand' : 'bg-slate-900'
+        } text-white ${
           sidebarOpen ? 'translate-x-0 lg:w-64' : '-translate-x-full lg:w-[76px] lg:translate-x-0'
         } w-64`}
       >
         <div
-          className={`flex h-16 items-center border-b border-white/10 ${
+          className={`flex h-16 items-center border-b ${isDark ? 'border-white/10' : 'border-white/10'} ${
             sidebarOpen ? 'justify-between px-4' : 'justify-center px-3'
           }`}
         >
           {sidebarOpen ? (
             <>
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+                <div
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg ${isDark ? 'bg-orange-brand' : 'bg-primary'}`}
+                >
                   <Car className="h-4.5 w-4.5 text-white" />
                 </div>
                 <div>
                   <p className="text-base font-bold tracking-tight text-white">FleetOps</p>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Admin</p>
+                  <p
+                    className={`text-[10px] uppercase tracking-[0.2em] ${isDark ? 'text-night-subtle' : 'text-slate-500'}`}
+                  >
+                    Admin
+                  </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setSidebarOpen(false)}
-                className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+                className="rounded-md p-1.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -277,7 +323,7 @@ export default function Layout() {
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary"
+              className={`flex h-9 w-9 items-center justify-center rounded-lg ${isDark ? 'bg-orange-brand' : 'bg-primary'}`}
             >
               <Car className="h-4.5 w-4.5 text-white" />
             </button>
@@ -289,80 +335,94 @@ export default function Layout() {
             <button
               type="button"
               onClick={() => navigate('/agreements/new')}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-700"
+              className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors ${
+                isDark ? 'bg-orange-brand hover:bg-orange-dark' : 'bg-primary hover:bg-primary-700'
+              }`}
             >
               <FileText className="h-4 w-4" />
-              New Agreement
+              {t('nav.newAgreement')}
             </button>
           ) : (
             <button
               type="button"
               onClick={() => navigate('/agreements/new')}
-              className="flex w-full items-center justify-center rounded-xl bg-primary px-3 py-2.5 text-white"
-              title="New Agreement"
+              className={`flex w-full items-center justify-center rounded-xl px-3 py-2.5 text-white ${
+                isDark ? 'bg-orange-brand' : 'bg-primary'
+              }`}
+              title={t('nav.newAgreement')}
             >
               <FileText className="h-4 w-4" />
             </button>
           )}
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-2 py-4">
+        <nav aria-label={t('shell.mainNavigation')} className="flex-1 overflow-y-auto px-2 py-4">
           {navGroups.map((group) => {
             const visibleItems = group.items.filter(
               (item) => !item.adminOnly || user?.role === 'admin'
             )
             if (visibleItems.length === 0) return null
             return (
-            <div key={group.label} className="mb-4">
-              {sidebarOpen && (
-                <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                  {group.label}
-                </p>
-              )}
-              <div className="space-y-1">
-                {visibleItems.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    onClick={handleNavClick}
-                    title={!sidebarOpen ? item.label : undefined}
-                    className={({ isActive }) =>
-                      `flex items-center rounded-xl transition-colors ${
-                        sidebarOpen ? 'gap-3 px-3 py-2.5' : 'justify-center px-2 py-3'
-                      } ${
-                        isActive
-                          ? 'bg-white/10 text-white'
-                          : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                      }`
-                    }
+              <div key={group.label} className="mb-4">
+                {sidebarOpen && (
+                  <p
+                    className={`mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.22em] ${isDark ? 'text-night-subtle/60' : 'text-slate-500'}`}
                   >
-                    <item.icon className="h-[18px] w-[18px] flex-shrink-0" />
-                    {sidebarOpen && (
-                      <span className="truncate text-sm font-medium">
-                        {t(`nav.${item.label.toLowerCase().replace(/\s+/g, '')}`, item.label)}
-                      </span>
-                    )}
-                  </NavLink>
-                ))}
+                    {t(group.label)}
+                  </p>
+                )}
+                <div className="space-y-1">
+                  {visibleItems.map((item) => (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      onClick={handleNavClick}
+                      title={!sidebarOpen ? t(item.label) : undefined}
+                      className={({ isActive }) =>
+                        `flex items-center rounded-xl transition-colors ${
+                          sidebarOpen ? 'gap-3 px-3 py-2.5' : 'justify-center px-2 py-3'
+                        } ${
+                          isActive
+                            ? isDark
+                              ? 'bg-orange-brand/20 text-orange-brand'
+                              : 'bg-white/10 text-white'
+                            : isDark
+                              ? 'text-white/60 hover:bg-white/10 hover:text-white'
+                              : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                        }`
+                      }
+                    >
+                      <item.icon className="h-[18px] w-[18px] flex-shrink-0" />
+                      {sidebarOpen && (
+                        <span className="truncate text-sm font-medium">{t(item.label)}</span>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
               </div>
-            </div>
             )
           })}
         </nav>
 
         <div className="border-t border-white/10 p-3">
           {sidebarOpen && user ? (
-            <div className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-3">
+            <div
+              className={`flex items-center gap-3 rounded-xl px-3 py-3 ${isDark ? 'bg-black/20' : 'bg-white/5'}`}
+            >
               <UserAvatar name={user.full_name} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-white">{user.full_name}</p>
-                <p className="truncate text-xs capitalize text-slate-400">{user.role}</p>
+                <p
+                  className={`truncate text-xs capitalize ${isDark ? 'text-night-subtle/70' : 'text-slate-400'}`}
+                >
+                  {user.role}
+                </p>
               </div>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
-                title="Sign out"
+                className="rounded-md p-1.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+                title={t('account.signOut')}
               >
                 <LogOut className="h-4 w-4" />
               </button>
@@ -371,8 +431,8 @@ export default function Layout() {
             <button
               type="button"
               onClick={handleLogout}
-              className="flex w-full items-center justify-center rounded-xl p-2.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
-              title="Sign out"
+              className="flex w-full items-center justify-center rounded-xl p-2.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+              title={t('account.signOut')}
             >
               <LogOut className="h-4 w-4" />
             </button>
@@ -380,31 +440,47 @@ export default function Layout() {
         </div>
       </aside>
 
-      <div className={`flex flex-1 flex-col transition-[margin] duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-[76px]'}`}>
+      <div
+        className={`flex min-w-0 flex-1 flex-col transition-[margin] duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-[76px]'}`}
+      >
         <header className="sticky top-0 z-30 px-4 pt-4 sm:px-6 lg:px-8">
-          <div className="app-panel flex min-h-[72px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
-            <div className="flex items-center gap-3">
+          <div className="app-panel flex min-h-[72px] min-w-0 items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-6">
+            <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
                 onClick={() => setSidebarOpen((open) => !open)}
+                aria-label={t('common.toggleNavigation')}
+                aria-expanded={sidebarOpen}
                 className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50"
               >
                 <Menu className="h-4 w-4" />
               </button>
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
                   {todayLabel}
                 </p>
-                <h1 className="text-xl font-semibold tracking-tight text-slate-900">{pageTitle}</h1>
+                <h1 className="truncate text-xl font-semibold tracking-tight text-slate-900">
+                  {pageTitle}
+                </h1>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-3">
+              {/* Dark mode toggle */}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                title={isDark ? t('shell.lightMode') : t('shell.darkMode')}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50 dark:border-night-border dark:bg-night-raised dark:text-orange-brand dark:hover:bg-night-hover"
+              >
+                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
+
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setLangMenuOpen((open) => !open)}
-                  className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                  className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 sm:gap-2 sm:px-3"
                 >
                   <Globe className="h-4 w-4 text-primary" />
                   <span>{currentLang.flag}</span>
@@ -415,7 +491,7 @@ export default function Layout() {
                   <>
                     <button
                       type="button"
-                      aria-label="Close language menu"
+                      aria-label={t('shell.closeLanguageMenu')}
                       className="fixed inset-0 z-10"
                       onClick={() => setLangMenuOpen(false)}
                     />
@@ -445,28 +521,31 @@ export default function Layout() {
                   <button
                     type="button"
                     onClick={() => setUserMenuOpen((open) => !open)}
-                    className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors hover:bg-slate-50"
+                    className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1.5 transition-colors hover:bg-slate-50 sm:gap-3 sm:px-3 sm:py-2"
                   >
                     <UserAvatar name={user.full_name} />
                     <div className="hidden sm:block text-left">
                       <p className="text-sm font-medium text-slate-800">{user.full_name}</p>
                       <p className="text-xs capitalize text-slate-400">{user.role}</p>
                     </div>
-                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                    <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
                   </button>
 
                   {userMenuOpen && (
                     <>
                       <button
                         type="button"
-                        aria-label="Close user menu"
+                        aria-label={t('account.closeUserMenu')}
                         className="fixed inset-0 z-10"
                         onClick={() => setUserMenuOpen(false)}
                       />
                       <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
                         <button
                           type="button"
-                          onClick={() => { setUserMenuOpen(false); setShowChangePassword(true) }}
+                          onClick={() => {
+                            setUserMenuOpen(false)
+                            setShowChangePassword(true)
+                          }}
                           className="flex w-full items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                         >
                           <KeyRound className="h-4 w-4 text-slate-400" />
@@ -474,7 +553,10 @@ export default function Layout() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => { setUserMenuOpen(false); handleLogout() }}
+                          onClick={() => {
+                            setUserMenuOpen(false)
+                            handleLogout()
+                          }}
                           className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                         >
                           <LogOut className="h-4 w-4" />
@@ -489,14 +571,16 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-4 pb-8 pt-4 sm:px-6 lg:px-8">
-          <Outlet />
+        <main id="main-content" className="w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-8 pt-4 sm:px-6 lg:px-8">
+          {/* Scoped to the route so a page that throws leaves the nav and header
+              usable, and navigating away clears the error. */}
+          <ErrorBoundary resetKey={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 
-      {showChangePassword && (
-        <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
-      )}
+      {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
     </div>
   )
 }

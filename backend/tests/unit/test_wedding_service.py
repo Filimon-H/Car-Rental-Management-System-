@@ -11,6 +11,7 @@ from src.models.customer import Customer
 from src.models.vendor import Vendor
 from src.models.vehicle import Vehicle, VehicleStatus, VehicleType
 from src.services import ledger_service, wedding_agreement_service
+from src.core.errors import AppException
 
 
 # ---------------------------------------------------------------------------
@@ -227,7 +228,7 @@ class TestCreateWeddingAgreement:
         assert balance == Decimal("4000.00")
 
     def test_no_vehicles_raises(self, db, customer):
-        with pytest.raises(ValueError, match="[Aa]t least one"):
+        with pytest.raises(AppException, match="[Aa]t least one"):
             wedding_agreement_service.create_wedding_agreement(
                 db=db,
                 customer_id=customer.id,
@@ -236,7 +237,7 @@ class TestCreateWeddingAgreement:
             )
 
     def test_inactive_customer_raises(self, db, inactive_customer, v1):
-        with pytest.raises(ValueError, match="[Nn]ot active"):
+        with pytest.raises(AppException, match="[Nn]ot active"):
             wedding_agreement_service.create_wedding_agreement(
                 db=db,
                 customer_id=inactive_customer.id,
@@ -245,7 +246,7 @@ class TestCreateWeddingAgreement:
             )
 
     def test_nonexistent_customer_raises(self, db, v1):
-        with pytest.raises(ValueError, match="[Nn]ot found"):
+        with pytest.raises(AppException, match="[Nn]ot found"):
             wedding_agreement_service.create_wedding_agreement(
                 db=db,
                 customer_id=99999,
@@ -254,7 +255,7 @@ class TestCreateWeddingAgreement:
             )
 
     def test_end_before_start_raises(self, db, customer, v1):
-        with pytest.raises(ValueError, match="[Aa]fter start"):
+        with pytest.raises(AppException, match="[Aa]fter start"):
             wedding_agreement_service.create_wedding_agreement(
                 db=db,
                 customer_id=customer.id,
@@ -265,7 +266,7 @@ class TestCreateWeddingAgreement:
     def test_unavailable_vehicle_raises(self, db, customer, v1):
         v1.status = VehicleStatus.MAINTENANCE
         db.commit()
-        with pytest.raises(ValueError, match="[Nn]ot available"):
+        with pytest.raises(AppException, match="[Nn]ot available"):
             wedding_agreement_service.create_wedding_agreement(
                 db=db,
                 customer_id=customer.id,
@@ -388,7 +389,7 @@ class TestAddVehicleToWedding:
         db.commit()
         start = future(1)
         end = start + timedelta(days=2)
-        with pytest.raises(ValueError, match="[Nn]ot available"):
+        with pytest.raises(AppException, match="[Nn]ot available"):
             wedding_agreement_service.add_vehicle_to_wedding(
                 db=db,
                 agreement_id=ag.id,
@@ -402,7 +403,7 @@ class TestAddVehicleToWedding:
         ag = self._create_wedding(db, customer, v1)
         start = future(3)
         end = start - timedelta(days=2)
-        with pytest.raises(ValueError, match="[Aa]fter start"):
+        with pytest.raises(AppException, match="[Aa]fter start"):
             wedding_agreement_service.add_vehicle_to_wedding(
                 db=db,
                 agreement_id=ag.id,
@@ -434,7 +435,7 @@ class TestAddVehicleToWedding:
         db.add(seg)
         db.commit()
 
-        with pytest.raises(ValueError, match="[Ww]edding"):
+        with pytest.raises(AppException, match="[Ww]edding"):
             wedding_agreement_service.add_vehicle_to_wedding(
                 db=db,
                 agreement_id=ag.id,
@@ -445,7 +446,7 @@ class TestAddVehicleToWedding:
             )
 
     def test_add_vehicle_to_nonexistent_agreement_raises(self, db, v2):
-        with pytest.raises(ValueError, match="[Nn]ot found"):
+        with pytest.raises(AppException, match="[Nn]ot found"):
             wedding_agreement_service.add_vehicle_to_wedding(
                 db=db,
                 agreement_id=99999,
@@ -534,7 +535,7 @@ class TestGetWeddingTotals:
             assert "total" in entry
 
     def test_totals_nonexistent_agreement_raises(self, db):
-        with pytest.raises(ValueError, match="[Nn]ot found"):
+        with pytest.raises(AppException, match="[Nn]ot found"):
             wedding_agreement_service.get_wedding_totals(db, 99999)
 
     def test_per_vehicle_day_calculation(self, db, customer, v1):

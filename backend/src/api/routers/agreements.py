@@ -3,13 +3,16 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from sqlalchemy.orm import Session, joinedload
 
 from src.api.deps.auth import CurrentUser, require_permission
 from src.core.db import get_db
 from src.core.errors import NotFoundError
 from src.core.rbac import Permission
-from src.models.agreement import Agreement, AgreementStatus
+from src.models.agreement import Agreement, AgreementStatus, AgreementType
+from src.models.audit_event import AuditAction
+from src.models.customer import Customer
 from src.models.ledger_entry import LedgerEntryType
 from src.schemas.agreement import (
     AddWeddingVehicleRequest,
@@ -18,6 +21,7 @@ from src.schemas.agreement import (
     AgreementCreate,
     AgreementDetailResponse,
     AgreementExtend,
+    BookingApprovalRequest,
     AgreementListResponse,
     AgreementResponse,
     CollateralSummary,
@@ -34,7 +38,7 @@ from src.schemas.agreement import (
     WeddingAgreementCreate,
     WeddingTotalsResponse,
 )
-from src.services import agreement_service, ledger_service
+from src.services import agreement_service, audit_service, ledger_service
 from src.services import wedding_agreement_service
 
 router = APIRouter()
@@ -81,6 +85,13 @@ def _to_agreement_response(agreement: Agreement) -> AgreementResponse:
         agreed_daily_rate=agreement.agreed_daily_rate,
         deposit_amount=agreement.deposit_amount,
         advance_payment=agreement.advance_payment,
+        pickup_mileage=agreement.pickup_mileage,
+        return_mileage=agreement.return_mileage,
+        mileage_limit_per_day=agreement.mileage_limit_per_day,
+        excess_mileage_rate=agreement.excess_mileage_rate,
+        fuel_level_out=agreement.fuel_level_out,
+        fuel_level_in=agreement.fuel_level_in,
+        fuel_charge_rate=agreement.fuel_charge_rate,
         pickup_location=agreement.pickup_location,
         return_location=agreement.return_location,
         notes=agreement.notes,
@@ -94,18 +105,52 @@ async def list_agreements(
     current_user: Annotated[CurrentUser, Depends(require_permission(Permission.VIEW_AGREEMENTS))],
     db: Annotated[Session, Depends(get_db)],
     status: AgreementStatus | None = None,
+    agreement_type: AgreementType | None = None,
     customer_id: int | None = None,
+    search: str | None = Query(None, max_length=100),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ) -> AgreementListResponse:
-    """List agreements with optional filtering."""
-    query = db.query(Agreement)
-    
+    """List agreements with optional filtering.
+
+    `search` matches the agreement number or the customer's name, and is applied
+    in SQL so it spans the whole result set rather than the current page.
+    """
+    # Eager-load what _to_agreement_response touches, otherwise each row costs up to
+    # three extra queries (customer, driver, collateral_person).
+    query = db.query(Agreement).options(
+        joinedload(Agreement.customer),
+        joinedload(Agreement.driver),
+        joinedload(Agreement.collateral_person),
+    )
+
     if status:
         query = query.filter(Agreement.status == status)
+    if agreement_type:
+        query = query.filter(Agreement.agreement_type == agreement_type)
     if customer_id:
         query = query.filter(Agreement.customer_id == customer_id)
-    
+    if search:
+        term = f"%{search.strip()}%"
+        # join(Customer) would conflict with the joinedload above, so match on the
+        # customer via a correlated subquery instead.
+        query = query.filter(
+            or_(
+                Agreement.agreement_number.ilike(term),
+                Agreement.customer_id.in_(
+                    db.query(Customer.id).filter(
+                        or_(
+                            Customer.first_name.ilike(term),
+                            Customer.last_name.ilike(term),
+                            # So a full name ("Abebe Bekele") matches too, not just
+                            # one half of it.
+                            (Customer.first_name + " " + Customer.last_name).ilike(term),
+                        )
+                    )
+                ),
+            )
+        )
+
     total = query.count()
     items = (
         query.order_by(Agreement.created_at.desc())
@@ -141,6 +186,11 @@ async def create_agreement(
         daily_rate=data.daily_rate,
         deposit_amount=data.deposit_amount,
         advance_payment=data.advance_payment,
+        pickup_mileage=data.pickup_mileage,
+        mileage_limit_per_day=data.mileage_limit_per_day,
+        excess_mileage_rate=data.excess_mileage_rate,
+        fuel_level_out=data.fuel_level_out,
+        fuel_charge_rate=data.fuel_charge_rate,
         pickup_location=data.pickup_location,
         return_location=data.return_location,
         notes=data.notes,
@@ -173,6 +223,32 @@ async def get_agreement(
         for seg in agreement.vehicle_segments
     ]
     
+    # The driver and collateral person are stored on create but this response
+    # was assembled field by field and simply left them out, so the detail
+    # endpoint reported null for both and a with-driver agreement looked
+    # driverless everywhere it was read back.
+    driver_summary = None
+    if agreement.driver:
+        driver_summary = DriverSummary(
+            id=agreement.driver.id,
+            first_name=agreement.driver.first_name,
+            last_name=agreement.driver.last_name,
+            phone_primary=agreement.driver.phone_primary,
+            license_number=agreement.driver.license_number,
+        )
+
+    collateral_summary = None
+    if agreement.collateral_person:
+        collateral_summary = CollateralSummary(
+            id=agreement.collateral_person.id,
+            first_name=agreement.collateral_person.first_name,
+            last_name=agreement.collateral_person.last_name,
+            phone_primary=agreement.collateral_person.phone_primary,
+            id_type=agreement.collateral_person.id_type,
+            id_number=agreement.collateral_person.id_number,
+            relationship_to_customer=agreement.collateral_person.relationship_to_customer,
+        )
+
     return AgreementDetailResponse(
         id=agreement.id,
         agreement_number=agreement.agreement_number,
@@ -180,11 +256,23 @@ async def get_agreement(
         status=agreement.status,
         customer_id=agreement.customer_id,
         customer_name=agreement.customer.full_name,
+        driver_id=agreement.driver_id,
+        driver=driver_summary,
+        collateral_person_id=agreement.collateral_person_id,
+        collateral_person=collateral_summary,
         pickup_datetime=agreement.pickup_datetime,
         expected_return_datetime=agreement.expected_return_datetime,
         actual_return_datetime=agreement.actual_return_datetime,
         agreed_daily_rate=agreement.agreed_daily_rate,
         deposit_amount=agreement.deposit_amount,
+        advance_payment=agreement.advance_payment,
+        pickup_mileage=agreement.pickup_mileage,
+        return_mileage=agreement.return_mileage,
+        mileage_limit_per_day=agreement.mileage_limit_per_day,
+        excess_mileage_rate=agreement.excess_mileage_rate,
+        fuel_level_out=agreement.fuel_level_out,
+        fuel_level_in=agreement.fuel_level_in,
+        fuel_charge_rate=agreement.fuel_charge_rate,
         pickup_location=agreement.pickup_location,
         return_location=agreement.return_location,
         notes=agreement.notes,
@@ -192,7 +280,10 @@ async def get_agreement(
         closed_at=agreement.closed_at,
         vehicle_segments=vehicle_segments,
         balance=summary["balance"],
+        # Gross debits; adjustments are reported separately so this figure
+        # matches the ledger table's charge column.
         total_charges=summary["total_charges"],
+        net_adjustments=summary.get("net_adjustments", 0),
         total_payments=summary["total_payments"],
         deposit_received=summary.get("deposit_received"),
         deposit_applied=summary.get("deposit_applied"),
@@ -359,6 +450,13 @@ async def extend_agreement(
         new_return_datetime=data.new_return_datetime,
         extended_by_id=current_user.id,
     )
+    audit_service.log_agreement_event(
+        db=db,
+        action=AuditAction.AGREEMENT_EXTENDED,
+        agreement_id=agreement_id,
+        actor_id=current_user.id,
+        details={"new_return_datetime": data.new_return_datetime.isoformat()},
+    )
     return _to_agreement_response(agreement)
 
 
@@ -382,6 +480,17 @@ async def close_agreement(
             return_mileage=data.return_mileage,
             closed_by_id=current_user.id,
             notes=data.notes,
+            fuel_level_in=data.fuel_level_in,
+        )
+        audit_service.log_agreement_event(
+            db=db,
+            action=AuditAction.AGREEMENT_CLOSED,
+            agreement_id=agreement_id,
+            actor_id=current_user.id,
+            details={
+                "actual_return_datetime": data.actual_return_datetime.isoformat(),
+                "return_mileage": data.return_mileage,
+            },
         )
         return _to_agreement_response(agreement)
     except Exception as e:
@@ -389,6 +498,30 @@ async def close_agreement(
         logger.error(traceback.format_exc())
         db.rollback()
         raise
+
+
+@router.post("/{agreement_id}/approve-request", response_model=AgreementResponse)
+async def approve_booking_request(
+    agreement_id: int,
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.MANAGE_BOOKINGS))],
+    db: Annotated[Session, Depends(get_db)],
+    data: BookingApprovalRequest | None = None,
+) -> AgreementResponse:
+    """Approve a customer booking request: locks vehicle, posts charge, moves to pending_payment."""
+    agreement = agreement_service.approve_booking_request(
+        db=db,
+        agreement_id=agreement_id,
+        approved_by_id=current_user.id,
+        **(data.model_dump() if data else {}),
+    )
+    audit_service.log_agreement_event(
+        db=db,
+        action=AuditAction.BOOKING_CONVERTED,
+        agreement_id=agreement_id,
+        actor_id=current_user.id,
+        details={"transition": "booking_request_approved"},
+    )
+    return _to_agreement_response(agreement)
 
 
 @router.post("/{agreement_id}/activate", response_model=AgreementResponse)
@@ -402,6 +535,13 @@ async def activate_agreement(
         db=db,
         agreement_id=agreement_id,
         activated_by_id=current_user.id,
+    )
+    audit_service.log_agreement_event(
+        db=db,
+        action=AuditAction.AGREEMENT_UPDATED,
+        agreement_id=agreement_id,
+        actor_id=current_user.id,
+        details={"transition": "activated"},
     )
     return _to_agreement_response(agreement)
 
@@ -420,6 +560,13 @@ async def cancel_agreement(
         cancelled_by_id=current_user.id,
         reason=data.reason,
     )
+    audit_service.log_agreement_event(
+        db=db,
+        action=AuditAction.AGREEMENT_CANCELLED,
+        agreement_id=agreement_id,
+        actor_id=current_user.id,
+        details={"reason": data.reason},
+    )
     return _to_agreement_response(agreement)
 
 
@@ -430,14 +577,26 @@ async def return_agreement(
     current_user: Annotated[CurrentUser, Depends(require_permission(Permission.CLOSE_AGREEMENTS))],
     db: Annotated[Session, Depends(get_db)],
 ) -> AgreementResponse:
-    """Mark agreement as returned (car is back, settlement may still be pending)."""
-    agreement = agreement_service.mark_agreement_returned(
+    """Return the vehicle and complete the agreement settlement."""
+    agreement = agreement_service.close_agreement(
         db=db,
         agreement_id=agreement_id,
         actual_return_datetime=data.actual_return_datetime,
         return_mileage=data.return_mileage,
-        returned_by_id=current_user.id,
+        closed_by_id=current_user.id,
         notes=data.notes,
+        fuel_level_in=data.fuel_level_in,
+    )
+    audit_service.log_agreement_event(
+        db=db,
+        action=AuditAction.AGREEMENT_CLOSED,
+        agreement_id=agreement_id,
+        actor_id=current_user.id,
+        details={
+            "actual_return_datetime": data.actual_return_datetime.isoformat(),
+            "return_mileage": data.return_mileage,
+            "source": "return_action",
+        },
     )
     return _to_agreement_response(agreement)
 
@@ -450,6 +609,14 @@ async def get_agreement_ledger(
 ) -> list[LedgerEntryResponse]:
     """Get all ledger entries for an agreement."""
     entries = ledger_service.get_ledger_entries(db, agreement_id)
+
+    # Which originals have been reversed, and by which entry. The ledger is
+    # append-only, so this relationship is the only way to know an entry no
+    # longer stands.
+    reversed_by = {
+        e.reversed_entry_id: e.id for e in entries if e.reversed_entry_id is not None
+    }
+
     return [
         LedgerEntryResponse(
             id=e.id,
@@ -460,6 +627,9 @@ async def get_agreement_ledger(
             payment_reference=e.payment_reference,
             notes=e.notes,
             created_at=e.created_at,
+            reverses_entry_id=e.reversed_entry_id,
+            is_reversed=e.id in reversed_by,
+            reversed_by_entry_id=reversed_by.get(e.id),
         )
         for e in entries
     ]

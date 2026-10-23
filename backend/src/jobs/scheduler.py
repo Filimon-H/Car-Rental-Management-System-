@@ -22,23 +22,26 @@ async def due_returns_reminder() -> None:
     logger.info("Running due returns reminder job")
     db = SessionLocal()
     try:
-        today = datetime.now(timezone.utc).date()
-        tomorrow = today.replace(day=today.day + 1) if today.day < 28 else (today.replace(month=today.month % 12 + 1, day=1) if today.day >= 28 else today)
-        # Filter at SQL level — don't load all active agreements into Python
+        # Business dates are naive local wall-clock, so "today" and the
+        # window bounds must be too. Using UTC made the job disagree with
+        # the calendar for three hours either side of midnight.
+        from src.services.telegram_bot_service import business_now, format_business_datetime
+
+        today = business_now().date()
         from src.models.customer import Customer
         agreements = (
             db.query(Agreement)
             .join(Customer, Customer.id == Agreement.customer_id)
             .filter(
                 Agreement.status == AgreementStatus.ACTIVE,
-                Agreement.expected_return_datetime >= datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc),
-                Agreement.expected_return_datetime < datetime.combine(today, datetime.max.time()).replace(tzinfo=timezone.utc),
+                Agreement.expected_return_datetime >= datetime.combine(today, datetime.min.time()),
+                Agreement.expected_return_datetime < datetime.combine(today, datetime.max.time()),
             )
             .all()
         )
         due_today = [
             f"{a.agreement_number} | {a.customer.full_name} | "
-            f"{a.expected_return_datetime.astimezone(timezone.utc).strftime('%H:%M UTC')}"
+            f"{format_business_datetime(a.expected_return_datetime, '%H:%M')}"
             for a in agreements
         ]
         logger.info("Agreements due today: %s", ", ".join(due_today) if due_today else "none")
@@ -64,8 +67,10 @@ async def overdue_check() -> None:
     
     db = SessionLocal()
     try:
-        now = datetime.now(timezone.utc)
-        
+        from src.services.telegram_bot_service import business_now, format_business_datetime
+
+        now = business_now()
+
         # Find active agreements past their expected return
         overdue_agreements = (
             db.query(Agreement)
@@ -75,19 +80,33 @@ async def overdue_check() -> None:
             )
             .all()
         )
-        
+
         count = 0
         for agreement in overdue_agreements:
-            agreement.status = AgreementStatus.OVERDUE
-            count += 1
-            logger.info(f"Marked agreement {agreement.agreement_number} as overdue")
-        
+            # Re-assert ACTIVE in the WHERE clause so a concurrent run (or a staff
+            # member closing the agreement mid-job) cannot be overwritten. The row
+            # is only transitioned if it is still ACTIVE at write time.
+            updated = (
+                db.query(Agreement)
+                .filter(
+                    Agreement.id == agreement.id,
+                    Agreement.status == AgreementStatus.ACTIVE,
+                )
+                .update(
+                    {Agreement.status: AgreementStatus.OVERDUE},
+                    synchronize_session=False,
+                )
+            )
+            if updated:
+                count += 1
+                logger.info(f"Marked agreement {agreement.agreement_number} as overdue")
+
         if count > 0:
             db.commit()
             logger.info(f"Marked {count} agreements as overdue")
             alert_lines = [
                 f"{agreement.agreement_number} | {agreement.customer.full_name} | "
-                f"{agreement.expected_return_datetime.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
+                f"{format_business_datetime(agreement.expected_return_datetime)}"
                 for agreement in overdue_agreements[:10]
             ]
             await telegram_bot_service.send_message_to_permission(
@@ -177,6 +196,10 @@ async def outstanding_balance_summary() -> None:
 
 def setup_scheduler() -> None:
     """Configure and start the scheduler."""
+    if not settings.scheduler_enabled:
+        logger.info("Scheduler disabled (scheduler_enabled=false) — no jobs registered")
+        return
+
     # Due returns reminder - daily at 8 AM
     scheduler.add_job(
         due_returns_reminder,
@@ -214,6 +237,8 @@ def setup_scheduler() -> None:
 
 def start_scheduler() -> None:
     """Start the scheduler."""
+    if not settings.scheduler_enabled:
+        return
     if not scheduler.running:
         scheduler.start()
         logger.info("Scheduler started")

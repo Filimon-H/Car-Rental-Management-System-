@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Building2, Search } from 'lucide-react'
 import { customersService, Customer } from '@/services/customers'
+import { useTranslation } from 'react-i18next'
 
 export default function CollateralNewPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
 
@@ -23,12 +25,12 @@ export default function CollateralNewPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="border-b bg-white px-6 py-4">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/collaterals')} className="rounded-lg p-2 hover:bg-gray-100" title="Back">
+          <button onClick={() => navigate('/collaterals')} className="rounded-lg p-2 hover:bg-gray-100" title={t('common.back')}>
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Add Collateral Person</h1>
-            <p className="text-sm text-gray-500">First select the customer this collateral person belongs to</p>
+            <h1 className="text-xl font-bold text-gray-900">{t('collateralDetail.addCollateralPerson')}</h1>
+            <p className="text-sm text-gray-500">{t('collateralNew.selectCustomerFirst')}</p>
           </div>
         </div>
       </div>
@@ -40,16 +42,16 @@ export default function CollateralNewPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search customers by name, phone, or ID..."
-              className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder={t('collateralNew.searchPlaceholder')}
+              className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
           <div className="overflow-hidden rounded-lg border bg-white">
             {isLoading ? (
-              <div className="p-6 text-center text-gray-500">Loading...</div>
+              <div className="p-6 text-center text-gray-500">{t('common.loading')}</div>
             ) : customers.length === 0 ? (
-              <div className="p-6 text-center text-gray-500">No customers found.</div>
+              <div className="p-6 text-center text-gray-500">{t('collateralNew.noCustomers')}</div>
             ) : (
               <div className="divide-y">
                 {customers.map((c) => (
@@ -66,7 +68,7 @@ export default function CollateralNewPage() {
                       <div className="font-medium text-gray-900">{c.full_name}</div>
                       <div className="text-sm text-gray-500">{c.phone_primary}</div>
                     </div>
-                    <div className="text-sm text-gray-400">Select</div>
+                    <div className="text-sm text-gray-500">{t('common.select')}</div>
                   </button>
                 ))}
               </div>

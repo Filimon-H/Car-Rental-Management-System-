@@ -4,8 +4,9 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Search, Car, User, Heart, Plus, Trash2 } from 'lucide-react'
 import { availabilityService, AvailableVehicle } from '@/services/agreements'
-import apiClient from '@/services/apiClient'
+import apiClient, { getErrorMessage } from '@/services/apiClient'
 import { CustomerLookupModal } from '@/components/lookup/LookupModal'
+import { toast } from '@/hooks/use-toast'
 
 interface SelectedVehicle {
   vehicle: AvailableVehicle
@@ -41,9 +42,18 @@ export default function WeddingAgreementCreatePage() {
   const [notes, setNotes] = useState('')
 
   // Fetch available vehicles when event dates are selected
+  /**
+   * Both ends of a wedding rental run from the event time.
+   *
+   * The end was previously sent as 23:59 while the preview compared bare
+   * dates, so a 20 Nov 09:00 to 21 Nov event previewed as 1 day and was
+   * charged as 2 — 38.98 hours rounds up to two 24h blocks on the backend.
+   */
+  const toDatetime = (date: string) => (date ? `${date}T${eventTime}:00` : '')
+
   const canCheckAvailability = eventDate && eventEndDate && eventDate <= eventEndDate
-  const startDatetime = canCheckAvailability ? `${eventDate}T${eventTime}:00` : ''
-  const endDatetime = canCheckAvailability ? `${eventEndDate}T23:59:00` : ''
+  const startDatetime = canCheckAvailability ? toDatetime(eventDate) : ''
+  const endDatetime = canCheckAvailability ? toDatetime(eventEndDate) : ''
 
   const { data: availableVehicles, isLoading: loadingVehicles } = useQuery({
     queryKey: ['availableVehicles', startDatetime, endDatetime],
@@ -57,15 +67,15 @@ export default function WeddingAgreementCreatePage() {
       const vehicles = selectedVehicles.map((sv) => ({
         vehicle_id: sv.vehicle.id,
         daily_rate: sv.dailyRate,
-        start_datetime: `${sv.startDate}T${eventTime}:00`,
-        end_datetime: `${sv.endDate}T23:59:00`,
+        start_datetime: toDatetime(sv.startDate),
+        end_datetime: toDatetime(sv.endDate),
       }))
 
       const payload = {
         customer_id: customerId,
         vehicles: vehicles,
-        event_date: `${eventDate}T${eventTime}:00`,
-        event_end_date: eventEndDate ? `${eventEndDate}T23:59:00` : undefined,
+        event_date: toDatetime(eventDate),
+        event_end_date: eventEndDate ? toDatetime(eventEndDate) : undefined,
         deposit_amount: parseFloat(depositAmount) || 0,
         pickup_location: pickupLocation || undefined,
         return_location: returnLocation || undefined,
@@ -76,7 +86,7 @@ export default function WeddingAgreementCreatePage() {
         return await apiClient.post<{ id: number }>('/agreements/wedding', payload)
       } catch (err: unknown) {
         const error = err as { response?: { data?: { detail?: string } }, message?: string }
-        const detail = error?.response?.data?.detail || error?.message
+        const detail = getErrorMessage(error)
         throw new Error(detail || t('weddingAgreementCreate.errorCreating'))
       }
     },
@@ -86,7 +96,7 @@ export default function WeddingAgreementCreatePage() {
     onError: (error: unknown) => {
       console.error('Wedding agreement creation error:', error)
       const err = error as Error
-      alert(err?.message || t('weddingAgreementCreate.errorCreating'))
+      toast({ description: err?.message || t('weddingAgreementCreate.errorCreating'), variant: 'destructive' })
     },
   })
 
@@ -98,13 +108,14 @@ export default function WeddingAgreementCreatePage() {
   }
 
   // Calculate totals
+  /** Mirrors the backend: whole 24h blocks, any remainder rounds up. */
   const calculateVehicleDays = (startDate: string, endDate: string) => {
     if (!startDate || !endDate) return 0
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-    const diffTime = end.getTime() - start.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays > 0 ? diffDays : 1
+    const start = new Date(toDatetime(startDate))
+    const end = new Date(toDatetime(endDate))
+    const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60)
+    if (!Number.isFinite(hours) || hours <= 0) return 1
+    return Math.max(1, Math.ceil(hours / 24))
   }
 
   const totalVehicleAmount = selectedVehicles.reduce((sum, sv) => {
@@ -145,17 +156,17 @@ export default function WeddingAgreementCreatePage() {
     e.preventDefault()
 
     if (!customerId) {
-      alert(t('weddingAgreementCreate.selectCustomerError'))
+      toast({ description: t('weddingAgreementCreate.selectCustomerError'), variant: 'destructive' })
       return
     }
 
     if (selectedVehicles.length === 0) {
-      alert(t('weddingAgreementCreate.selectVehicleError'))
+      toast({ description: t('weddingAgreementCreate.selectVehicleError'), variant: 'destructive' })
       return
     }
 
     if (!eventDate || !eventEndDate) {
-      alert(t('weddingAgreementCreate.selectDatesError'))
+      toast({ description: t('weddingAgreementCreate.selectDatesError'), variant: 'destructive' })
       return
     }
 

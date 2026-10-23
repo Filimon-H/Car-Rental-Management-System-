@@ -6,6 +6,8 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field
 
+from src.schemas.fields import OptionalEmail
+
 from src.models.ledger_entry import PaymentMethod
 
 
@@ -16,7 +18,7 @@ class VendorBase(BaseModel):
     contact_person: Optional[str] = Field(None, max_length=100)
     phone_primary: str = Field(..., min_length=9, max_length=20)
     phone_secondary: Optional[str] = Field(None, max_length=20)
-    email: Optional[EmailStr] = None
+    email: OptionalEmail = None
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
     bank_name: Optional[str] = Field(None, max_length=100)
@@ -38,7 +40,7 @@ class VendorUpdate(BaseModel):
     contact_person: Optional[str] = Field(None, max_length=100)
     phone_primary: Optional[str] = Field(None, min_length=9, max_length=20)
     phone_secondary: Optional[str] = Field(None, max_length=20)
-    email: Optional[EmailStr] = None
+    email: OptionalEmail = None
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
     bank_name: Optional[str] = Field(None, max_length=100)

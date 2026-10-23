@@ -12,6 +12,29 @@ from src.models.ledger_entry import LedgerEntry, LedgerEntryType, PaymentMethod
 logger = get_logger(__name__)
 
 
+def _not_reversed(query, agreement_id: int, db: Session):
+    """Restrict a type-filtered aggregate to entries that still stand.
+
+    The ledger is append-only: reversing an entry adds a REVERSAL row holding the
+    opposite amount rather than deleting the original. Summing a *signed* set of
+    rows therefore nets out correctly on its own, but these helpers filter by
+    entry_type — which excludes REVERSAL — so without this the original would
+    still be counted and the customer billed for a charge that was undone.
+
+    Excludes any entry that has been reversed. REVERSAL rows themselves carry a
+    type these helpers never select, so they need no extra handling.
+    """
+    reversed_ids = (
+        db.query(LedgerEntry.reversed_entry_id)
+        .filter(
+            LedgerEntry.agreement_id == agreement_id,
+            LedgerEntry.reversed_entry_id.isnot(None),
+        )
+    )
+    return query.filter(~LedgerEntry.id.in_(reversed_ids))
+
+
+
 def get_agreement_balance(db: Session, agreement_id: int) -> Decimal:
     """Get current balance for an agreement.
     
@@ -96,9 +119,42 @@ def post_payment(
     db.add(entry)
     db.commit()
     db.refresh(entry)
-    
+
+    # Acknowledge it. A receipt the customer did not have to ask for is one
+    # of the few things a bot can do that the website cannot.
+    _notify_customer_of_payment(db, agreement_id, amount)
+
     logger.info(f"Posted payment: {amount} via {payment_method.value} to agreement {agreement_id}")
     return entry
+
+
+def _notify_customer_of_payment(
+    db: Session, agreement_id: int, amount: Decimal
+) -> None:
+    """Confirm a payment to the customer, with what is left to pay."""
+    from src.models.agreement import Agreement
+    from src.services import agreement_service
+    from src.services.telegram_bot_service import telegram_bot_service
+
+    try:
+        agreement = db.query(Agreement).filter(Agreement.id == agreement_id).first()
+        if not agreement:
+            return
+        balance = agreement_service.get_balance_breakdown(db, agreement_id)["balance_due"]
+        remaining = (
+            "Paid in full — thank you."
+            if balance <= 0
+            else f"Remaining balance: {balance:,.2f} ETB"
+        )
+        telegram_bot_service.notify_customer_soon(
+            db,
+            agreement.customer_id,
+            f"Payment received: {amount:,.2f} ETB\n"
+            f"{agreement.agreement_number}\n"
+            f"{remaining}",
+        )
+    except Exception as exc:  # never let a receipt undo a posted payment
+        logger.warning("Could not notify payment on agreement %s: %s", agreement_id, exc)
 
 
 def post_deposit(
@@ -284,18 +340,22 @@ def get_ledger_entries(
 
 
 def get_total_charges(db: Session, agreement_id: int) -> Decimal:
-    """Get total charges (CHARGE, LATE_FEE, DAMAGE_CHARGE entry types) for an agreement."""
+    """Get net charges, including credits and debits posted as adjustments."""
     from sqlalchemy import func
     charge_types = [
         LedgerEntryType.CHARGE,
         LedgerEntryType.LATE_FEE,
         LedgerEntryType.DAMAGE_CHARGE,
+        LedgerEntryType.ADJUSTMENT,
     ]
     result = (
-        db.query(func.sum(LedgerEntry.amount))
-        .filter(LedgerEntry.agreement_id == agreement_id)
-        .filter(LedgerEntry.entry_type.in_(charge_types))
-        .scalar()
+        _not_reversed(
+            db.query(func.sum(LedgerEntry.amount))
+            .filter(LedgerEntry.agreement_id == agreement_id)
+            .filter(LedgerEntry.entry_type.in_(charge_types)),
+            agreement_id,
+            db,
+        ).scalar()
     )
     return Decimal(str(result)) if result else Decimal("0")
 
@@ -307,8 +367,8 @@ def get_net_adjustments(db: Session, agreement_id: int) -> Decimal:
         db.query(func.coalesce(func.sum(LedgerEntry.amount), 0))
         .filter(LedgerEntry.agreement_id == agreement_id)
         .filter(LedgerEntry.entry_type == LedgerEntryType.ADJUSTMENT)
-        .scalar()
     )
+    result = _not_reversed(result, agreement_id, db).scalar()
     return Decimal(str(result))
 
 
@@ -322,8 +382,8 @@ def get_total_payments(db: Session, agreement_id: int) -> Decimal:
         db.query(func.sum(LedgerEntry.amount))
         .filter(LedgerEntry.agreement_id == agreement_id)
         .filter(LedgerEntry.entry_type == LedgerEntryType.PAYMENT)
-        .scalar()
     )
+    result = _not_reversed(result, agreement_id, db).scalar()
     return abs(Decimal(str(result))) if result else Decimal("0")
 
 
@@ -333,8 +393,8 @@ def get_deposit_received(db: Session, agreement_id: int) -> Decimal:
         db.query(func.coalesce(func.sum(LedgerEntry.amount), 0))
         .filter(LedgerEntry.agreement_id == agreement_id)
         .filter(LedgerEntry.entry_type == LedgerEntryType.DEPOSIT)
-        .scalar()
     )
+    result = _not_reversed(result, agreement_id, db).scalar()
     # Deposits are stored as negative amounts
     return abs(Decimal(str(result)))
 
@@ -345,8 +405,8 @@ def get_deposit_returned(db: Session, agreement_id: int) -> Decimal:
         db.query(func.coalesce(func.sum(LedgerEntry.amount), 0))
         .filter(LedgerEntry.agreement_id == agreement_id)
         .filter(LedgerEntry.entry_type == LedgerEntryType.DEPOSIT_RETURN)
-        .scalar()
     )
+    result = _not_reversed(result, agreement_id, db).scalar()
     # Deposit returns are stored as positive amounts (increase balance)
     return Decimal(str(result))
 
@@ -357,8 +417,8 @@ def get_deposit_applied(db: Session, agreement_id: int) -> Decimal:
         db.query(func.coalesce(func.sum(LedgerEntry.amount), 0))
         .filter(LedgerEntry.agreement_id == agreement_id)
         .filter(LedgerEntry.entry_type == LedgerEntryType.DEPOSIT_APPLIED)
-        .scalar()
     )
+    result = _not_reversed(result, agreement_id, db).scalar()
     # Deposit applied is stored as negative amounts
     return abs(Decimal(str(result)))
 

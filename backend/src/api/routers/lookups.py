@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from src.api.deps.auth import require_permission
+from src.api.deps.auth import CurrentUser, require_permission
 from src.core.db import get_db
 from src.core.rbac import Permission
 from src.models.staff_user import StaffUser
@@ -15,11 +15,14 @@ from src.schemas.lookup import (
     LookupCategoryResponse,
 )
 
+# Reading the dropdown values needs a staff login: only the admin app uses
+# them, and they were the one staff read open to anyone.
 router = APIRouter()
 
 
 @router.get("/categories", response_model=list[str])
 async def list_categories(
+    current_user: CurrentUser,
     db: Session = Depends(get_db),
 ):
     """List all lookup categories."""
@@ -30,6 +33,7 @@ async def list_categories(
 @router.get("/category/{category}", response_model=list[LookupValueResponse])
 async def get_category_values(
     category: str,
+    current_user: CurrentUser,
     include_inactive: bool = False,
     db: Session = Depends(get_db),
 ):
@@ -43,6 +47,7 @@ async def get_category_values(
 
 @router.get("/defaults", response_model=dict)
 async def get_default_lookups(
+    current_user: CurrentUser,
     db: Session = Depends(get_db),
 ):
     """

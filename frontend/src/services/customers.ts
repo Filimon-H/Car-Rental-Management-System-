@@ -1,4 +1,5 @@
 import apiClient from './apiClient'
+import { stripBlanks } from '@/lib/utils'
 
 export interface Customer {
   id: number
@@ -22,8 +23,10 @@ export interface Customer {
   city: string | null
   emergency_contact_name: string | null
   emergency_contact_phone: string | null
+  telegram_username: string | null
   notes: string | null
   is_active: boolean
+  is_online_registered: boolean
   created_at: string
   updated_at: string
 }
@@ -62,7 +65,31 @@ export interface CreateCustomerData {
   city?: string
   emergency_contact_name?: string
   emergency_contact_phone?: string
+  telegram_username?: string
   notes?: string
+}
+
+export interface BotLinkCodeResponse {
+  code: string
+  expires_at: string
+  customer_name: string
+  phone_primary: string
+  telegram_username: string | null
+  bot_message: string
+}
+
+/** Whether a customer can sign in on the website. */
+export interface OnlineAccount {
+  has_account: boolean
+  email: string | null
+  telegram_linked: boolean
+  invite_expires_at: string | null
+}
+
+export interface OnlineAccountInvite {
+  url: string
+  expires_at: string
+  message: string
 }
 
 export interface DuplicateCheckResult {
@@ -78,6 +105,7 @@ export const customersService = {
     page_size?: number
     search?: string
     is_active?: boolean
+    is_online_registered?: boolean
   }): Promise<CustomerListResponse> {
     return apiClient.get('/customers', params)
   },
@@ -100,15 +128,31 @@ export const customersService = {
   },
 
   async create(data: CreateCustomerData): Promise<Customer> {
-    return apiClient.post('/customers', data)
+    return apiClient.post('/customers', stripBlanks(data))
   },
 
   async update(id: number, data: Partial<CreateCustomerData>): Promise<Customer> {
-    return apiClient.put(`/customers/${id}`, data)
+    return apiClient.put(`/customers/${id}`, stripBlanks(data))
   },
 
   async delete(id: number): Promise<void> {
     return apiClient.delete(`/customers/${id}`)
+  },
+
+  async generateBotLinkCode(id: number): Promise<BotLinkCodeResponse> {
+    return apiClient.post(`/customers/${id}/bot-link-code`)
+  },
+
+  async getOnlineAccount(id: number): Promise<OnlineAccount> {
+    return apiClient.get(`/customers/${id}/online-account`)
+  },
+
+  async createOnlineAccountInvite(id: number): Promise<OnlineAccountInvite> {
+    return apiClient.post(`/customers/${id}/online-account-invite`)
+  },
+
+  async getLedger(id: number): Promise<CustomerLedgerEntry[]> {
+    return apiClient.get(`/customers/${id}/ledger`)
   },
 
   async bulkUpload(file: File): Promise<BulkUploadResult> {
@@ -128,6 +172,21 @@ export const customersService = {
     document.body.removeChild(a)
     window.URL.revokeObjectURL(url)
   },
+}
+
+export interface CustomerLedgerEntry {
+  id: number
+  agreement_id: number
+  agreement_number: string
+  entry_type: string
+  amount: number
+  description: string
+  payment_method: string | null
+  payment_reference: string | null
+  notes: string | null
+  reversed_entry_id: number | null
+  created_by_id: number | null
+  created_at: string
 }
 
 export interface BulkUploadResult {

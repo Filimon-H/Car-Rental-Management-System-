@@ -4,12 +4,89 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 export interface ApiError {
   error_code: string
-  detail: string
+  /**
+   * FastAPI sends a string for handled errors (HTTPException) but an array of
+   * per-field objects for request-validation failures (422). Callers must not
+   * render this directly — use `getErrorMessage` / `getFieldErrors`.
+   */
+  detail: string | ValidationErrorItem[]
+}
+
+/** One entry of FastAPI's 422 `detail` array. */
+export interface ValidationErrorItem {
+  /** Path to the offending value, e.g. ['body', 'email']. */
+  loc: (string | number)[]
+  msg: string
+  type: string
+}
+
+function isValidationDetail(detail: unknown): detail is ValidationErrorItem[] {
+  return (
+    Array.isArray(detail) &&
+    detail.every((item) => !!item && typeof item === 'object' && 'msg' in item)
+  )
+}
+
+/**
+ * Map a 422 response onto its field names, so a form can highlight the inputs
+ * that failed. The leading 'body'/'query' segment of `loc` is dropped, leaving
+ * the field name as the form knows it. Returns {} for non-validation errors.
+ */
+export function getFieldErrors(error: unknown): Record<string, string> {
+  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+  if (!isValidationDetail(detail)) return {}
+
+  const fields: Record<string, string> = {}
+  for (const item of detail) {
+    const path = item.loc.filter((part) => part !== 'body' && part !== 'query')
+    const key = path.join('.') || '_'
+    // Keep the first message per field; later ones are usually less specific.
+    if (!(key in fields)) fields[key] = item.msg
+  }
+  return fields
+}
+
+/**
+ * Human-readable message for any API error. Handles FastAPI's two `detail`
+ * shapes — a plain string, and the 422 array that would otherwise render as
+ * "[object Object]".
+ */
+export function getErrorMessage(error: unknown, fallback = 'Something went wrong'): string {
+  const response = (error as { response?: { data?: { detail?: unknown } } })?.response
+  const detail = response?.data?.detail
+
+  if (typeof detail === 'string' && detail) return detail
+
+  if (isValidationDetail(detail)) {
+    const messages = Object.entries(getFieldErrors(error)).map(([field, msg]) =>
+      field === '_' ? msg : `${field}: ${msg}`
+    )
+    if (messages.length) return messages.join('; ')
+  }
+
+  // The rate limiter answers in its own shape, so this showed axios's
+  // "Request failed with status code 429".
+  if ((response as { status?: number } | undefined)?.status === 429) {
+    return 'Too many attempts. Please wait a minute and try again.'
+  }
+
+  const message = (error as { message?: string })?.message
+  return message || fallback
 }
 
 class ApiClient {
   private client: AxiosInstance
   private accessToken: string | null = null
+  /**
+   * The refresh currently in flight, if any.
+   *
+   * A page that fires several queries at once gets several 401s at once. Each
+   * used to start its own refresh, so the server saw a burst of refresh calls
+   * and — where refresh tokens rotate — all but one would be spending a token
+   * that a sibling had already replaced. Concurrent callers now await the same
+   * promise and retry with whatever it resolves to.
+   */
+  private refreshInFlight: Promise<string> | null = null
 
   constructor() {
     this.client = axios.create({
@@ -40,6 +117,36 @@ class ApiClient {
     return config
   }
 
+  /**
+   * Exchange the refresh token for a new access token, at most once at a time.
+   *
+   * Uses a bare axios call rather than `this.client` so a 401 on the refresh
+   * endpoint itself cannot re-enter this interceptor.
+   */
+  private refreshAccessToken(refreshToken: string): Promise<string> {
+    if (!this.refreshInFlight) {
+      this.refreshInFlight = axios
+        .post<{ access_token: string }>(`${API_BASE_URL}/auth/refresh`, {
+          refresh_token: refreshToken,
+        })
+        .then((response) => {
+          const { access_token } = response.data
+          this.setTokens(access_token, refreshToken)
+          return access_token
+        })
+        .finally(() => {
+          // Cleared either way, so a later 401 can start a fresh attempt.
+          this.refreshInFlight = null
+        })
+    }
+    return this.refreshInFlight
+  }
+
+  private redirectToLogin() {
+    this.clearTokens()
+    window.location.href = '/login'
+  }
+
   private async responseErrorInterceptor(error: AxiosError<ApiError>) {
     const originalRequest = error.config as (typeof error.config & { _retried?: boolean }) | undefined
 
@@ -47,25 +154,19 @@ class ApiClient {
     if (error.response?.status === 401 && originalRequest && !originalRequest._retried) {
       originalRequest._retried = true
       const refreshToken = localStorage.getItem('refresh_token')
-      if (refreshToken) {
-        try {
-          const response = await this.client.post('/auth/refresh', {
-            refresh_token: refreshToken,
-          })
-          const { access_token } = response.data
-          this.setTokens(access_token, refreshToken)
-          originalRequest.headers = originalRequest.headers || {}
-          originalRequest.headers['Authorization'] = `Bearer ${access_token}`
-          return this.client(originalRequest)
-        } catch {
-          // Refresh failed — clear tokens and force re-login
-          this.clearTokens()
-          window.location.href = '/login'
-        }
-      } else {
-        // No refresh token at all — send to login
-        this.clearTokens()
-        window.location.href = '/login'
+      if (!refreshToken) {
+        this.redirectToLogin()
+        return Promise.reject(error)
+      }
+
+      try {
+        const accessToken = await this.refreshAccessToken(refreshToken)
+        originalRequest.headers = originalRequest.headers || {}
+        originalRequest.headers['Authorization'] = `Bearer ${accessToken}`
+        return this.client(originalRequest)
+      } catch {
+        // Refresh failed — clear tokens and force re-login
+        this.redirectToLogin()
       }
     }
 

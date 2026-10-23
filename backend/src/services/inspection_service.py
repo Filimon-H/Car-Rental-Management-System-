@@ -1,6 +1,5 @@
 """Inspection-related business logic."""
 
-from datetime import timezone
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -9,7 +8,6 @@ from src.core.errors import BusinessError, ErrorCode
 from src.models.agreement import AgreementStatus
 from src.models.inspection import Inspection
 from src.models.ledger_entry import LedgerEntryType
-from src.models.vehicle import VehicleStatus
 from src.services import ledger_service
 
 
@@ -36,22 +34,18 @@ def sign_inspection(
     agreement = inspection.agreement
     if agreement and inspection.inspection_type == "return":
         if agreement.status in (AgreementStatus.ACTIVE, AgreementStatus.OVERDUE):
-            actual_return_datetime = inspection.inspection_datetime
-            if actual_return_datetime.tzinfo is None:
-                actual_return_datetime = actual_return_datetime.replace(tzinfo=timezone.utc)
-            else:
-                actual_return_datetime = actual_return_datetime.astimezone(timezone.utc)
+            from src.services.agreement_service import record_inspection_return
 
-            agreement.status = AgreementStatus.RETURNED
-            agreement.actual_return_datetime = actual_return_datetime
-            if inspection.mileage is not None:
-                agreement.return_mileage = inspection.mileage
-
-            for segment in agreement.vehicle_segments:
-                segment.vehicle.status = VehicleStatus.AVAILABLE
-                if inspection.mileage is not None:
-                    segment.end_mileage = segment.end_mileage or inspection.mileage
-                    segment.vehicle.current_mileage = inspection.mileage
+            # Same as returning the car from the agreement page: the late fee,
+            # mileage and fuel charges are posted now, so closing it later
+            # never posts them twice.
+            record_inspection_return(
+                db,
+                agreement,
+                inspection.inspection_datetime,
+                inspection.mileage,
+                int(inspection.fuel_level) if inspection.fuel_level is not None else None,
+            )
 
     damage_total = calculate_damage_total(inspection)
     if agreement and inspection.inspection_type in {"return", "damage_report"} and damage_total > 0:

@@ -2,10 +2,10 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, Numeric, String, Text, func
+from sqlalchemy import CheckConstraint, Boolean, Column, DateTime, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import relationship
 
-from src.core.db import Base
+from src.core.db import Base, UtcDateTime
 
 if TYPE_CHECKING:
     from src.models.vendor_payment import VendorPayment
@@ -15,6 +15,13 @@ class Vendor(Base):
     """Vendor model for external car suppliers (wedding rentals)."""
 
     __tablename__ = "vendors"
+
+    __table_args__ = (
+        CheckConstraint(
+            "commission_rate >= 0 AND commission_rate <= 100",
+            name="ck_vendors_commission_rate_percentage",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     
@@ -49,8 +56,8 @@ class Vendor(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at = Column(UtcDateTime(), server_default=func.now(), nullable=False)
+    updated_at = Column(UtcDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     # Relationships
     vehicles = relationship("Vehicle", back_populates="vendor", lazy="dynamic")

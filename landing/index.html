@@ -2,13 +2,30 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <!-- Was /vite.svg, the Vite starter icon, so tabs showed Vite's logo. -->
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nod Car Rent - Car Rental in Addis Ababa, Ethiopia</title>
     <meta name="description" content="Rent a car in Addis Ababa with Nod Car Rent. Affordable prices, well-maintained vehicles, airport pickup available." />
+    <meta name="theme-color" content="#0b0b0b" />
+    <!--
+      Link previews. Shared on Telegram, WhatsApp or Facebook the site showed
+      a bare URL. og:image and a canonical URL need the production domain
+      (absolute URLs), so they are not set here; add them at deploy time.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Nod Car Rent" />
+    <meta property="og:title" content="Nod Car Rent - Car Rental in Addis Ababa, Ethiopia" />
+    <meta property="og:description" content="Rent a car in Addis Ababa with Nod Car Rent. Affordable prices, well-maintained vehicles, airport pickup available." />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="am_ET" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Nod Car Rent - Car Rental in Addis Ababa, Ethiopia" />
+    <meta name="twitter:description" content="Rent a car in Addis Ababa with Nod Car Rent. Affordable prices, well-maintained vehicles, airport pickup available." />
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

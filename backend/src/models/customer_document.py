@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.db import Base
+from src.core.db import Base, UtcDateTime
 
 if TYPE_CHECKING:
     from src.models.customer import Customer
@@ -49,7 +49,7 @@ class CustomerDocument(Base):
     )
     
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), nullable=False
     )
 
     # Relationships

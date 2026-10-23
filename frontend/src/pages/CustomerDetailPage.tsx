@@ -1,17 +1,45 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, User, Phone, Mail, MapPin, FileText, Edit, Users, Image, Loader2, Calendar, Shield } from 'lucide-react'
-import { customersService } from '@/services/customers'
-import { customerDocumentsService, CustomerDocument } from '@/services/customerDocuments'
+import { ArrowLeft, User, Phone, Mail, MapPin, FileText, Edit, Users, Image, Loader2, Calendar, Shield, Send, Copy, Check } from 'lucide-react'
+import { customersService, BotLinkCodeResponse } from '@/services/customers'
+import { customerDocumentsService } from '@/services/customerDocuments'
 import { collateralsService, CollateralPerson } from '@/services/collaterals'
-import { ImageLightbox } from '@/components/ui/ImageLightbox'
-import { useProtectedFileUrl } from '@/hooks/use-protected-file-url'
+import { ProtectedDocumentCard } from '@/components/documents/ProtectedDocumentCard'
+import { OnlineAccountCard } from '@/components/customers/OnlineAccountCard'
+import { useTranslation } from 'react-i18next'
+import { formatDate as sharedFormatDate, formatDateTime as sharedFormatDateTime } from '@/lib/utils'
 
 export default function CustomerDetailPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { customerId } = useParams<{ customerId: string }>()
   const customerIdNum = parseInt(customerId || '0', 10)
+
+  const [botLinkCode, setBotLinkCode] = useState<BotLinkCodeResponse | null>(null)
+  const [generatingBotCode, setGeneratingBotCode] = useState(false)
+  const [botCodeError, setBotCodeError] = useState('')
+  const [copiedCode, setCopiedCode] = useState(false)
+  const [copiedMsg, setCopiedMsg] = useState(false)
+
+  async function handleGenerateBotCode() {
+    setGeneratingBotCode(true)
+    setBotCodeError('')
+    try {
+      const result = await customersService.generateBotLinkCode(customerIdNum)
+      setBotLinkCode(result)
+    } catch (err: unknown) {
+      setBotCodeError(err instanceof Error ? err.message : 'Failed to generate code')
+    } finally {
+      setGeneratingBotCode(false)
+    }
+  }
+
+  function copyToClipboard(text: string, type: 'code' | 'msg') {
+    navigator.clipboard.writeText(text)
+    if (type === 'code') { setCopiedCode(true); setTimeout(() => setCopiedCode(false), 2000) }
+    else { setCopiedMsg(true); setTimeout(() => setCopiedMsg(false), 2000) }
+  }
 
   // Fetch customer data
   const { data: customer, isLoading: loadingCustomer } = useQuery({
@@ -45,15 +73,28 @@ export default function CustomerDetailPage() {
   if (!customer) {
     return (
       <div className="flex h-screen flex-col items-center justify-center">
-        <p className="text-lg text-gray-600">Customer not found</p>
+        <p className="text-lg text-gray-600">{t('customerDetail.notFound')}</p>
         <button onClick={() => navigate('/customers')} className="mt-4 text-blue-600 hover:underline">
-          Back to Customers
+          {t('customerDetail.backToCustomers')}
         </button>
       </div>
     )
   }
 
   const isIndividual = customer.business_type === 'individual'
+  const businessTypeLabels: Record<string, string> = {
+    individual: t('customerCreate.individual'),
+    company: t('customerCreate.company'),
+    government: t('customerCreate.government'),
+    embassy: t('customerCreate.embassy'),
+    ngo: t('customerCreate.ngo'),
+    church: t('customerCreate.church'),
+  }
+  const idTypeLabels: Record<string, string> = {
+    passport: t('customerCreate.passport'),
+    national_id: t('customerCreate.nationalId'),
+    kebele_id: t('customerCreate.kebeleId'),
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -66,7 +107,7 @@ export default function CustomerDetailPage() {
             </button>
             <div>
               <h1 className="text-xl font-bold text-gray-900">{customer.full_name}</h1>
-              <p className="text-sm text-gray-500">Customer Details</p>
+              <p className="text-sm text-gray-500">{t('customerDetail.title')}</p>
             </div>
           </div>
           <button
@@ -74,7 +115,7 @@ export default function CustomerDetailPage() {
             className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
           >
             <Edit className="h-4 w-4" />
-            Edit Customer
+            {t('customerDetail.editCustomer')}
           </button>
         </div>
       </div>
@@ -87,16 +128,16 @@ export default function CustomerDetailPage() {
             <div className="rounded-lg border bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-gray-700">
                 <User className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Personal Information</h2>
+                <h2 className="text-lg font-semibold">{t('customerCreate.personalInformation')}</h2>
               </div>
               <dl className="space-y-3">
-                <InfoRow label="Full Name" value={customer.full_name} />
-                <InfoRow label="Business Type" value={customer.business_type} />
+                <InfoRow label={t('users.fullName')} value={customer.full_name} />
+                <InfoRow label={t('customerCreate.businessType')} value={businessTypeLabels[customer.business_type] || customer.business_type} />
                 {!isIndividual && customer.company_name && (
-                  <InfoRow label="Company Name" value={customer.company_name} />
+                  <InfoRow label={t('customerDetail.companyName')} value={customer.company_name} />
                 )}
                 {customer.tin_number && (
-                  <InfoRow label="TIN Number" value={customer.tin_number} />
+                  <InfoRow label={t('customerCreate.tinNumber')} value={customer.tin_number} />
                 )}
               </dl>
             </div>
@@ -105,15 +146,15 @@ export default function CustomerDetailPage() {
             <div className="rounded-lg border bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-gray-700">
                 <Phone className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Contact Information</h2>
+                <h2 className="text-lg font-semibold">{t('customerCreate.contactInformation')}</h2>
               </div>
               <dl className="space-y-3">
-                <InfoRow label="Primary Phone" value={customer.phone_primary} />
+                <InfoRow label={t('customerCreate.primaryPhoneRequired').replace(' *', '')} value={customer.phone_primary} />
                 {customer.phone_secondary && (
-                  <InfoRow label="Secondary Phone" value={customer.phone_secondary} />
+                  <InfoRow label={t('customerCreate.secondaryPhone')} value={customer.phone_secondary} />
                 )}
                 {customer.email && (
-                  <InfoRow label="Email" value={customer.email} icon={<Mail className="h-4 w-4" />} />
+                  <InfoRow label={t('customerCreate.email')} value={customer.email} icon={<Mail className="h-4 w-4" />} />
                 )}
               </dl>
             </div>
@@ -123,17 +164,17 @@ export default function CustomerDetailPage() {
               <div className="rounded-lg border bg-white p-6 shadow-sm">
                 <div className="mb-4 flex items-center gap-2 text-gray-700">
                   <FileText className="h-5 w-5" />
-                  <h2 className="text-lg font-semibold">ID & License</h2>
+                  <h2 className="text-lg font-semibold">{t('customerCreate.idAndLicense')}</h2>
                 </div>
                 <dl className="space-y-3">
-                  <InfoRow label="ID Type" value={customer.id_type || '-'} />
-                  <InfoRow label="ID Number" value={customer.id_number || '-'} />
+                  <InfoRow label={t('customerCreate.idTypeRequired').replace(' *', '')} value={customer.id_type ? (idTypeLabels[customer.id_type] || customer.id_type) : '-'} />
+                  <InfoRow label={t('agreementCreate.idNumber')} value={customer.id_number || '-'} />
                   {customer.id_expiry_date && (
-                    <InfoRow label="ID Expiry" value={new Date(customer.id_expiry_date).toLocaleDateString()} icon={<Calendar className="h-4 w-4" />} />
+                    <InfoRow label={t('customerDetail.idExpiry')} value={sharedFormatDate(customer.id_expiry_date)} icon={<Calendar className="h-4 w-4" />} />
                   )}
-                  <InfoRow label="Driver License" value={customer.driver_license_number || '-'} />
+                  <InfoRow label={t('customerCreate.driverLicense')} value={customer.driver_license_number || '-'} />
                   {customer.driver_license_expiry && (
-                    <InfoRow label="License Expiry" value={new Date(customer.driver_license_expiry).toLocaleDateString()} icon={<Calendar className="h-4 w-4" />} />
+                    <InfoRow label={t('drivers.columns.licenseExpiry')} value={sharedFormatDate(customer.driver_license_expiry)} icon={<Calendar className="h-4 w-4" />} />
                   )}
                 </dl>
               </div>
@@ -143,13 +184,13 @@ export default function CustomerDetailPage() {
             <div className="rounded-lg border bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-gray-700">
                 <MapPin className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Address</h2>
+                <h2 className="text-lg font-semibold">{t('customerCreate.address')}</h2>
               </div>
               <dl className="space-y-3">
-                {customer.house_number && <InfoRow label="House Number" value={customer.house_number} />}
-                {customer.wereda && <InfoRow label="Wereda" value={customer.wereda} />}
-                {customer.subcity && <InfoRow label="Subcity" value={customer.subcity} />}
-                <InfoRow label="City" value={customer.city || 'Addis Ababa'} />
+                {customer.house_number && <InfoRow label={t('customerCreate.houseNumber')} value={customer.house_number} />}
+                {customer.wereda && <InfoRow label={t('customerCreate.wereda')} value={customer.wereda} />}
+                {customer.subcity && <InfoRow label={t('customerCreate.subcity')} value={customer.subcity} />}
+                <InfoRow label={t('agreementCreate.city')} value={customer.city || t('customerDetail.defaultCity')} />
               </dl>
             </div>
           </div>
@@ -159,7 +200,7 @@ export default function CustomerDetailPage() {
             <div className="rounded-lg border bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-gray-700">
                 <Image className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Uploaded Documents</h2>
+                <h2 className="text-lg font-semibold">{t('customerDetail.uploadedDocuments')}</h2>
               </div>
               {loadingDocuments ? (
                 <div className="flex items-center justify-center py-8">
@@ -168,11 +209,11 @@ export default function CustomerDetailPage() {
               ) : documentsData?.items && documentsData.items.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
                   {documentsData.items.map((doc) => (
-                    <DocumentCard key={doc.id} document={doc} />
+                    <ProtectedDocumentCard key={doc.id} document={doc} ownerType="customer" ownerId={doc.customer_id} />
                   ))}
                 </div>
               ) : (
-                <p className="py-8 text-center text-gray-500">No documents uploaded</p>
+                <p className="py-8 text-center text-gray-500">{t('customerDetail.noDocumentsUploaded')}</p>
               )}
             </div>
           )}
@@ -182,7 +223,7 @@ export default function CustomerDetailPage() {
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2 text-gray-700">
                 <Shield className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Collateral Persons</h2>
+                <h2 className="text-lg font-semibold">{t('collaterals.title')}</h2>
               </div>
               <button
                 onClick={() => navigate(`/customers/${customerIdNum}/collaterals/new`)}
@@ -202,7 +243,96 @@ export default function CustomerDetailPage() {
                 ))}
               </div>
             ) : (
-              <p className="py-8 text-center text-gray-500">No collateral persons added</p>
+              <p className="py-8 text-center text-gray-500">{t('collateralDetail.noCollateralPersons')}</p>
+            )}
+          </div>
+
+          <OnlineAccountCard customerId={customerIdNum} />
+
+          {/* Telegram Bot Section */}
+          <div className="rounded-lg border bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-gray-700">
+                <Send className="h-5 w-5 text-telegram" />
+                <h2 className="text-lg font-semibold">{t('customerDetail.telegramBotAccess')}</h2>
+              </div>
+              {customer.telegram_username && (
+                <span className="text-sm text-telegram font-medium">@{customer.telegram_username.replace('@', '')}</span>
+              )}
+            </div>
+
+            {!botLinkCode ? (
+              <div>
+                <p className="text-sm text-gray-500 mb-4">
+                  {t('customerDetail.botCodeIntro')}
+                  {customer.telegram_username && (
+                    <> {t('customerDetail.sendViaTelegram')}<span className="font-medium">@{customer.telegram_username.replace('@', '')}</span>.</>
+                  )}
+                  {!customer.telegram_username && customer.phone_primary && (
+                    <> {t('customerDetail.sendViaSms')}<span className="font-medium">{customer.phone_primary}</span>.</>
+                  )}
+                </p>
+                {botCodeError && <p className="text-red-500 text-sm mb-3">{botCodeError}</p>}
+                <button
+                  onClick={handleGenerateBotCode}
+                  disabled={generatingBotCode}
+                  className="flex items-center gap-2 bg-telegram hover:bg-telegram-dark disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                >
+                  <Send className="h-4 w-4" />
+                  {generatingBotCode ? t('customerDetail.generatingCode') : t('customerDetail.generateBotCode')}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1 font-medium uppercase tracking-wide">{t('customerDetail.linkCode')}</p>
+                  <div className="flex items-center gap-2 bg-gray-50 border rounded-lg px-4 py-3">
+                    <code className="text-xl font-mono font-bold text-gray-900 tracking-widest flex-1">/link {botLinkCode.code}</code>
+                    <button
+                      onClick={() => copyToClipboard(`/link ${botLinkCode.code}`, 'code')}
+                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 transition-colors"
+                    >
+                      {copiedCode ? <><Check className="h-4 w-4 text-green-500" /><span className="text-green-500">{t('common.copied')}</span></> : <><Copy className="h-4 w-4" />{t('common.copy')}</>}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {t('customerDetail.expiresSingleUse', { time: sharedFormatDateTime(botLinkCode.expires_at) })}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500 mb-1 font-medium uppercase tracking-wide">{t('customerDetail.readyToSendMessage')}</p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-gray-700 whitespace-pre-wrap font-mono">
+                    {botLinkCode.bot_message}
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(botLinkCode.bot_message, 'msg')}
+                    className="mt-2 flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                  >
+                    {copiedMsg ? <><Check className="h-3.5 w-3.5" />{t('common.copied')}</> : <><Copy className="h-3.5 w-3.5" />{t('customerDetail.copyFullMessage')}</>}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2 border-t">
+                  {botLinkCode.telegram_username && (
+                    <a
+                      href={`https://t.me/${botLinkCode.telegram_username.replace('@', '')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1.5 text-sm text-telegram hover:underline"
+                    >
+                      <Send className="h-4 w-4" />
+                      {t('customerDetail.openOnTelegram', { username: botLinkCode.telegram_username })}
+                    </a>
+                  )}
+                  <button
+                    onClick={() => { setBotLinkCode(null); handleGenerateBotCode() }}
+                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {t('customerDetail.generateNewCode')}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 
@@ -211,7 +341,7 @@ export default function CustomerDetailPage() {
             <div className="rounded-lg border bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-gray-700">
                 <FileText className="h-5 w-5" />
-                <h2 className="text-lg font-semibold">Notes</h2>
+                <h2 className="text-lg font-semibold">{t('agreementCreate.notes')}</h2>
               </div>
               <p className="text-gray-600 whitespace-pre-wrap">{customer.notes}</p>
             </div>
@@ -220,10 +350,10 @@ export default function CustomerDetailPage() {
           {/* Metadata */}
           <div className="rounded-lg border bg-gray-50 p-4 text-sm text-gray-500">
             <div className="flex gap-6">
-              <span>Created: {new Date(customer.created_at).toLocaleString()}</span>
-              <span>Updated: {new Date(customer.updated_at).toLocaleString()}</span>
+              <span>{t('customerDetail.created')}: {sharedFormatDateTime(customer.created_at)}</span>
+              <span>{t('customerDetail.updated')}: {sharedFormatDateTime(customer.updated_at)}</span>
               <span className={`font-medium ${customer.is_active ? 'text-green-600' : 'text-red-600'}`}>
-                {customer.is_active ? 'Active' : 'Inactive'}
+                {customer.is_active ? t('common.active') : t('common.inactive')}
               </span>
             </div>
           </div>
@@ -241,60 +371,6 @@ function InfoRow({ label, value, icon }: { label: string; value: string; icon?: 
         {icon}
         {value}
       </dd>
-    </div>
-  )
-}
-
-function DocumentCard({ document }: { document: CustomerDocument }) {
-  const isImage = document.mime_type?.startsWith('image/')
-  const docTypeLabels: Record<string, string> = {
-    passport: 'Passport',
-    national_id: 'National ID',
-    kebele_id: 'Kebele ID',
-    driver_license: 'Driver License',
-  }
-
-  const [open, setOpen] = useState(false)
-  const imagePath = `/api/customers/${document.customer_id}/documents/${document.id}/file`
-  const { fileUrl: imageSrc, isLoading } = useProtectedFileUrl(imagePath, isImage)
-
-  return (
-    <div className="rounded-lg border bg-gray-50 p-3">
-      <div className="mb-2 aspect-square overflow-hidden rounded-lg bg-white">
-        {isImage ? (
-          imageSrc ? (
-            <img
-              src={imageSrc}
-              alt={document.file_name}
-              className="h-full w-full cursor-zoom-in object-cover"
-              onClick={() => setOpen(true)}
-            />
-          ) : isLoading ? (
-            <div className="flex h-full items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-            </div>
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <FileText className="h-12 w-12 text-gray-400" />
-            </div>
-          )
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <FileText className="h-12 w-12 text-gray-400" />
-          </div>
-        )}
-      </div>
-      <p className="text-xs font-medium text-gray-700">{docTypeLabels[document.doc_type] || document.doc_type}</p>
-      <p className="truncate text-xs text-gray-500">{document.file_name}</p>
-
-      {isImage && imageSrc && (
-        <ImageLightbox
-          open={open}
-          src={imageSrc}
-          alt={document.file_name}
-          onClose={() => setOpen(false)}
-        />
-      )}
     </div>
   )
 }

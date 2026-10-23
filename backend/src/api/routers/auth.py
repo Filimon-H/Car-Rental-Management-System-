@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
+from src.core.config import settings
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
@@ -12,9 +13,11 @@ from src.api.deps.auth import get_client_ip, get_user_agent
 from src.core.db import get_db
 from src.core.errors import UnauthorizedError
 from src.core.security import (
+    ISSUER_STAFF,
     create_access_token,
     create_refresh_token,
     decode_token,
+    verify_issuer,
     verify_password,
     verify_token_type,
 )
@@ -22,7 +25,7 @@ from src.models.staff_user import StaffUser
 from src.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
 from src.services import audit_service
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=get_remote_address, enabled=settings.rate_limit_enabled)
 router = APIRouter()
 
 
@@ -97,6 +100,9 @@ async def refresh_token(
 
     if not verify_token_type(payload, "refresh"):
         raise UnauthorizedError("Invalid token type")
+
+    if not verify_issuer(payload, ISSUER_STAFF):
+        raise UnauthorizedError("Invalid token issuer")
 
     user_id = payload.get("sub")
     if user_id is None:

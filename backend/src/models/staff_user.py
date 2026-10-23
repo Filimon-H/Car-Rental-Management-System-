@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Boolean, DateTime, Enum, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.db import Base
+from src.core.db import Base, UtcDateTime
 from src.core.rbac import Role
 
 if TYPE_CHECKING:
@@ -27,12 +27,12 @@ class StaffUser(Base):
     role: Mapped[Role] = mapped_column(Enum(Role), nullable=False, default=Role.SALES)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        UtcDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False
     )
-    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_login_at: Mapped[datetime | None] = mapped_column(UtcDateTime(), nullable=True)
     token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     # Relationships

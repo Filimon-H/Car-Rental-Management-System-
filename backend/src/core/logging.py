@@ -59,15 +59,39 @@ def setup_logging() -> None:
     """Configure application logging."""
     log_format = "%(asctime)s | %(levelname)-8s | %(name)s:%(lineno)d | %(message)s"
 
+    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
+
+    # Optional rotating file handler. Without this, a redirected stdout grows without
+    # bound — a single dev session with the Telegram bot failing produced 31MB.
+    if settings.log_file:
+        from logging.handlers import RotatingFileHandler
+        from pathlib import Path
+
+        Path(settings.log_file).parent.mkdir(parents=True, exist_ok=True)
+        handlers.append(
+            RotatingFileHandler(
+                settings.log_file,
+                maxBytes=settings.log_max_bytes,
+                backupCount=settings.log_backup_count,
+                encoding="utf-8",
+            )
+        )
+
     logging.basicConfig(
         level=logging.DEBUG if settings.debug else logging.INFO,
         format=log_format,
-        handlers=[logging.StreamHandler(sys.stdout)],
+        handlers=handlers,
+        force=True,
     )
 
-    # Reduce noise from third-party libraries
+    # Reduce noise from third-party libraries. httpx/httpcore log every connection
+    # step at DEBUG; with the Telegram poller retrying they dominate the log volume.
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    # apscheduler.scheduler logs every wake-up and next-run calculation at DEBUG,
+    # which alone produced ~1.4k lines in 30 seconds.
+    for noisy in ("httpcore", "httpx", "apscheduler", "asyncio"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
 
 def get_logger(name: str) -> logging.Logger:

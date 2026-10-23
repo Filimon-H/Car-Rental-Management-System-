@@ -2,10 +2,12 @@ import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, User, Phone, Mail, MapPin, FileText, Building2, CheckCircle, AlertTriangle, ExternalLink, Upload, X } from 'lucide-react'
+import { ArrowLeft, User, Phone, Mail, MapPin, FileText, Building2, CheckCircle, AlertTriangle, ExternalLink, Upload, X, Send } from 'lucide-react'
 import { customersService, CreateCustomerData, DuplicateCheckResult } from '@/services/customers'
 import { DocumentDropzone } from '@/components/documents/DocumentDropzone'
 import { customerDocumentsService, DocumentType } from '@/services/customerDocuments'
+import { getErrorMessage, getFieldErrors } from '@/services/apiClient'
+import { toast } from '@/hooks/use-toast'
 
 // Phone normalization: 09XXXXXXXX -> +2519XXXXXXXX
 function normalizeEthiopianPhone(phone: string): string {
@@ -137,7 +139,9 @@ export default function CustomerCreatePage() {
   // Staged documents (Create page has no customerId yet)
   const [stagedDocuments, setStagedDocuments] = useState<Partial<Record<DocumentType, File>>>({})
 
-  const [fieldErrors, setFieldErrors] = useState<{ email?: string; phone_primary?: string; phone_secondary?: string }>({})
+  // Keyed by field name so a 422 naming any field can be shown against it,
+  // not just the three the client validates itself.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({})
   const [emailTouched, setEmailTouched] = useState(false)
 
   const validateEmail = (value: string): string | undefined => {
@@ -200,8 +204,18 @@ export default function CustomerCreatePage() {
     mutationFn: customersService.create,
     onError: (error: unknown) => {
       console.error('Create customer error:', error)
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || t('customerCreate.errorCreating'))
+      // A native toast({ description: , variant: 'destructive' }) blocks the whole page until dismissed and shows the
+      // backend's raw text. Map any 422 onto the fields it names, and report
+      // the rest in a toast so the form stays usable.
+      const apiFieldErrors = getFieldErrors(error)
+      if (Object.keys(apiFieldErrors).length > 0) {
+        setFieldErrors((prev) => ({ ...prev, ...apiFieldErrors }))
+      }
+      toast({
+        title: t('customerCreate.errorCreatingTitle'),
+        description: getErrorMessage(error, t('customerCreate.errorCreating')),
+        variant: 'destructive',
+      })
     },
   })
 
@@ -396,11 +410,11 @@ export default function CustomerCreatePage() {
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs text-white">1</div>
                 <span className="text-sm font-medium">{t('customerCreate.customer')}</span>
               </div>
-              <div className="flex items-center gap-2 px-3 py-2 text-gray-400">
+              <div className="flex items-center gap-2 px-3 py-2 text-gray-500">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs">2</div>
                 <span className="text-sm">{t('customerCreate.collateral')}</span>
               </div>
-              <div className="flex items-center gap-2 px-3 py-2 text-gray-400">
+              <div className="flex items-center gap-2 px-3 py-2 text-gray-500">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs">3</div>
                 <span className="text-sm">{t('customerCreate.agreement')}</span>
               </div>
@@ -445,7 +459,7 @@ export default function CustomerCreatePage() {
                         updateField('company_name', '')
                       }
                     }}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="individual">{t('customerCreate.individual')}</option>
                     <option value="company">{t('customerCreate.company')}</option>
@@ -463,7 +477,7 @@ export default function CustomerCreatePage() {
                       value={formData.company_name}
                       onChange={(e) => updateField('company_name', e.target.value)}
                       required={!isIndividual}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
                 )}
@@ -475,7 +489,7 @@ export default function CustomerCreatePage() {
                       value={formData.tin_number}
                       onChange={(e) => updateField('tin_number', e.target.value)}
                       placeholder={t('customerCreate.tinPlaceholder')}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
                 )}
@@ -493,7 +507,7 @@ export default function CustomerCreatePage() {
                     onChange={(e) => updateField('first_name', e.target.value)}
                     onBlur={() => handleNameBlur('first_name')}
                     required
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -504,7 +518,7 @@ export default function CustomerCreatePage() {
                     onChange={(e) => updateField('last_name', e.target.value)}
                     onBlur={() => handleNameBlur('last_name')}
                     required
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
@@ -522,7 +536,7 @@ export default function CustomerCreatePage() {
                     onBlur={() => handlePhoneBlur('phone_primary')}
                     required
                     placeholder={t('customerCreate.phonePlaceholder')}
-                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_primary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_primary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                   />
                   <p className="mt-1 text-xs text-gray-500">{t('customerCreate.phoneFormatHint')}</p>
                   {fieldErrors.phone_primary && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone_primary}</p>}
@@ -535,7 +549,7 @@ export default function CustomerCreatePage() {
                     onChange={(e) => updateField('phone_secondary', e.target.value)}
                     onBlur={() => handlePhoneBlur('phone_secondary')}
                     placeholder={t('customerCreate.phonePlaceholder')}
-                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_secondary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_secondary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                   />
                   {fieldErrors.phone_secondary && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone_secondary}</p>}
                 </div>
@@ -550,7 +564,7 @@ export default function CustomerCreatePage() {
                     onChange={(e) => updateField('email', e.target.value)}
                     onBlur={handleEmailBlur}
                     placeholder={t('customerCreate.emailPlaceholder')}
-                    className={`w-full rounded-lg border py-2 pl-10 pr-3 focus:outline-none focus:ring-1 ${emailTouched && fieldErrors.email ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className={`w-full rounded-lg border py-2 pl-10 pr-3 focus:outline-none focus:ring-1 ${emailTouched && fieldErrors.email ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                   />
                 </div>
                 {emailTouched && fieldErrors.email && <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>}
@@ -583,7 +597,7 @@ export default function CustomerCreatePage() {
             {isIndividual && (
               <Section icon={<FileText className="h-5 w-5" />} title={t('customerCreate.idAndLicense')}>
                 {checkingDuplicate && (
-                  <div className="mb-4 text-sm text-gray-500">Checking for duplicates...</div>
+                  <div className="mb-4 text-sm text-gray-500">{t('forms.checkingDuplicates')}</div>
                 )}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -591,7 +605,7 @@ export default function CustomerCreatePage() {
                     <select
                       value={formData.id_type}
                       onChange={(e) => updateField('id_type', e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     >
                       <option value="passport">{t('customerCreate.passport')}</option>
                       <option value="national_id">{t('customerCreate.nationalId')}</option>
@@ -606,7 +620,7 @@ export default function CustomerCreatePage() {
                       onChange={(e) => updateField('id_number', e.target.value)}
                       onBlur={handleIdNumberBlur}
                       required={isIndividual}
-                      className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${duplicateWarning?.match === 'id_number' ? 'border-yellow-400 focus:border-yellow-500 focus:ring-yellow-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                      className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${duplicateWarning?.match === 'id_number' ? 'border-yellow-400 focus:border-yellow-500 focus:ring-yellow-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                     />
                   </div>
                 </div>
@@ -618,7 +632,7 @@ export default function CustomerCreatePage() {
                     onChange={(e) => updateField('driver_license_number', e.target.value)}
                     onBlur={handleLicenseBlur}
                     required={isIndividual}
-                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${duplicateWarning?.match === 'license_number' ? 'border-yellow-400 focus:border-yellow-500 focus:ring-yellow-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${duplicateWarning?.match === 'license_number' ? 'border-yellow-400 focus:border-yellow-500 focus:ring-yellow-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                   />
                 </div>
               </Section>
@@ -635,7 +649,7 @@ export default function CustomerCreatePage() {
                   <DocumentDropzone
                     customerId={null}
                     docType={formData.id_type as DocumentType}
-                    label={`${formData.id_type === 'passport' ? 'Passport' : formData.id_type === 'national_id' ? 'National ID' : 'Kebele ID'} Document`}
+                    label={t('forms.idDocument', { type: formData.id_type === 'passport' ? t('customerCreate.passport') : formData.id_type === 'national_id' ? t('customerCreate.nationalId') : t('customerCreate.kebeleId') })}
                     disabled={false}
                     onFileSelected={(file) =>
                       setStagedDocuments((prev) => {
@@ -654,7 +668,7 @@ export default function CustomerCreatePage() {
                   <DocumentDropzone
                     customerId={null}
                     docType="driver_license"
-                    label="Driver License"
+                    label={t('customerCreate.driverLicense')}
                     disabled={false}
                     onFileSelected={(file) =>
                       setStagedDocuments((prev) => {
@@ -680,7 +694,7 @@ export default function CustomerCreatePage() {
                     type="text"
                     value={formData.house_number}
                     onChange={(e) => updateField('house_number', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -690,7 +704,7 @@ export default function CustomerCreatePage() {
                     value={formData.wereda}
                     onChange={(e) => updateField('wereda', e.target.value)}
                     onBlur={() => handleLocationBlur('wereda')}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
@@ -700,7 +714,7 @@ export default function CustomerCreatePage() {
                   <select
                     value={formData.subcity}
                     onChange={(e) => updateField('subcity', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="">{t('customerCreate.selectSubcity')}</option>
                     {SUBCITIES.map((sc) => (
@@ -715,9 +729,31 @@ export default function CustomerCreatePage() {
                     value={formData.city}
                     onChange={(e) => updateField('city', e.target.value)}
                     onBlur={() => handleLocationBlur('city')}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
+              </div>
+            </Section>
+
+            {/* Telegram Section */}
+            <Section icon={<Send className="h-5 w-5 text-telegram" />} title="Telegram">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('telegram.username')}<span className="text-gray-500 font-normal">(optional)</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">@</span>
+                  <input
+                    type="text"
+                    value={formData.telegram_username || ''}
+                    onChange={(e) => updateField('telegram_username', e.target.value.replace('@', ''))}
+                    placeholder="username"
+                    className="w-full rounded-lg border border-gray-300 pl-7 pr-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  After saving, you can generate a bot link code from the customer detail page to invite them to @Novacar67_bot.
+                </p>
               </div>
             </Section>
 
@@ -728,7 +764,7 @@ export default function CustomerCreatePage() {
                 onChange={(e) => updateField('notes', e.target.value)}
                 rows={3}
                 placeholder={t('customerCreate.notesPlaceholder')}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </Section>
 

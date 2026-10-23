@@ -4,11 +4,13 @@ import apiClient from '@/services/apiClient'
 interface ProtectedFileState {
   fileUrl: string | null
   isLoading: boolean
+  hasError: boolean
 }
 
 export function useProtectedFileUrl(path: string | null, enabled = true): ProtectedFileState {
   const [fileUrl, setFileUrl] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [hasError, setHasError] = useState(false)
 
   useEffect(() => {
     let isActive = true
@@ -17,11 +19,13 @@ export function useProtectedFileUrl(path: string | null, enabled = true): Protec
     if (!path || !enabled) {
       setFileUrl(null)
       setIsLoading(false)
+      setHasError(false)
       return
     }
 
     setIsLoading(true)
     setFileUrl(null)
+    setHasError(false)
 
     void apiClient
       .getBlob(path)
@@ -31,12 +35,14 @@ export function useProtectedFileUrl(path: string | null, enabled = true): Protec
         }
         objectUrl = URL.createObjectURL(blob)
         setFileUrl(objectUrl)
+        setHasError(false)
       })
       .catch(() => {
         if (!isActive) {
           return
         }
         setFileUrl(null)
+        setHasError(true)
       })
       .finally(() => {
         if (isActive) {
@@ -52,5 +58,5 @@ export function useProtectedFileUrl(path: string | null, enabled = true): Protec
     }
   }, [enabled, path])
 
-  return { fileUrl, isLoading }
+  return { fileUrl, isLoading, hasError }
 }

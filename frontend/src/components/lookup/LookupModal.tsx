@@ -193,7 +193,7 @@ export default function LookupModal({ type, isOpen, onClose, onSelect, available
                   </div>
                   <div className="text-right">
                     <div className="font-medium text-primary">{formatCurrency(vehicle.daily_rate)}</div>
-                    <div className={`text-xs ${vehicle.status === 'available' ? 'text-green-600' : 'text-gray-400'}`}>
+                    <div className={`text-xs ${vehicle.status === 'available' ? 'text-green-600' : 'text-gray-500'}`}>
                       {vehicle.status}
                     </div>
                   </div>

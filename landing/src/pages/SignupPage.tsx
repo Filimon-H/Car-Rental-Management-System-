@@ -1,0 +1,191 @@
+import { useCallback, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useAuthStore, type AccountClaim } from '../services/auth'
+import { returnTarget, returnToFrom } from '../lib/returnTo'
+import ConfirmOnTelegram from '../components/ConfirmOnTelegram'
+
+export default function SignupPage() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const signup = useAuthStore((s) => s.signup)
+  const signInWithToken = useAuthStore((s) => s.signInWithToken)
+  const [claim, setClaim] = useState<AccountClaim | null>(null)
+
+  const [form, setForm] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirm: '',
+  })
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((prev) => ({ ...prev, [field]: e.target.value }))
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    if (form.password !== form.confirm) {
+      setError('Passwords do not match')
+      return
+    }
+    if (form.password.length < 8) {
+      setError('Password must be at least 8 characters')
+      return
+    }
+    setLoading(true)
+    try {
+      const result = await signup({
+        first_name: form.first_name,
+        last_name: form.last_name,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+      })
+      if (result.kind === 'confirm_identity') {
+        setClaim(result.claim)
+        return
+      }
+      navigate(...returnTarget(location))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Registration failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const finishClaim = useCallback(
+    async (token: string) => {
+      await signInWithToken(token)
+      navigate(...returnTarget(location))
+    },
+    [signInWithToken, navigate, location]
+  )
+
+  return (
+    <div className="min-h-screen bg-dark flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md">
+        <Link to="/" className="flex justify-center mb-8">
+          <img
+            src="/logo.png"
+            alt="Nod Car Rent"
+            className="w-56 h-auto"
+          />
+        </Link>
+
+        <div className="bg-dark-200 rounded-2xl p-8">
+          {claim ? (
+            <ConfirmOnTelegram claim={claim} onSignedIn={finishClaim} onStartAgain={() => setClaim(null)} />
+          ) : (
+          <>
+          <h1 className="text-2xl font-bold text-white mb-1">Create account</h1>
+          <p className="text-gray-400 text-sm mb-6">Book cars, track your rentals</p>
+
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 mb-4 text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="signup-first-name" className="block text-sm text-gray-400 mb-1.5">First name</label>
+                <input
+                  id="signup-first-name"
+                  required
+                  value={form.first_name}
+                  onChange={set('first_name')}
+                  className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
+                  placeholder="Abebe"
+                />
+              </div>
+              <div>
+                <label htmlFor="signup-last-name" className="block text-sm text-gray-400 mb-1.5">Last name</label>
+                <input
+                  id="signup-last-name"
+                  required
+                  value={form.last_name}
+                  onChange={set('last_name')}
+                  className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
+                  placeholder="Kebede"
+                />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="signup-email" className="block text-sm text-gray-400 mb-1.5">Email address</label>
+              <input
+                id="signup-email"
+                type="email"
+                required
+                value={form.email}
+                onChange={set('email')}
+                className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
+                placeholder="you@example.com"
+              />
+            </div>
+            <div>
+              <label htmlFor="signup-phone" className="block text-sm text-gray-400 mb-1.5">Phone number</label>
+              <input
+                id="signup-phone"
+                type="tel"
+                required
+                value={form.phone}
+                onChange={set('phone')}
+                className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
+                placeholder="+251 91 123 4567"
+              />
+            </div>
+            <div>
+              <label htmlFor="signup-password" className="block text-sm text-gray-400 mb-1.5">Password</label>
+              <input
+                id="signup-password"
+                type="password"
+                required
+                value={form.password}
+                onChange={set('password')}
+                className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
+                placeholder="min 8 characters"
+              />
+            </div>
+            <div>
+              <label htmlFor="signup-confirm" className="block text-sm text-gray-400 mb-1.5">Confirm password</label>
+              <input
+                id="signup-confirm"
+                type="password"
+                required
+                value={form.confirm}
+                onChange={set('confirm')}
+                className="w-full bg-dark-300 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-gold"
+                placeholder="••••••••"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gold hover:bg-gold-light text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-60"
+            >
+              {loading ? 'Creating account…' : 'Create account'}
+            </button>
+          </form>
+
+          <p className="text-center text-gray-500 text-sm mt-6">
+            Already have an account?{' '}
+            <Link
+              to="/login"
+              state={returnToFrom(location) ? { from: returnToFrom(location) } : undefined}
+              className="text-gold hover:text-gold-light"
+            >
+              Sign in
+            </Link>
+          </p>
+          </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

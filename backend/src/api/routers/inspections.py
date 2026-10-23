@@ -1,10 +1,10 @@
 """Inspections API router."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
 from src.api.deps.auth import CurrentUser, require_permission
@@ -69,6 +69,13 @@ class InspectionResponse(BaseModel):
     inspector_id: Optional[int]
     inspector_name: Optional[str]
     customer_name: Optional[str]
+    # Context the detail page needs. customer_name is only set when an
+    # inspection is signed, so without these a linked inspection showed a
+    # dash where the agreement and its customer should be.
+    template_name: Optional[str] = None
+    agreement_number: Optional[str] = None
+    agreement_customer_name: Optional[str] = None
+    vehicle_plate: Optional[str] = None
     mileage: Optional[int]
     fuel_level: Optional[float]
     checklist_results: dict
@@ -82,6 +89,18 @@ class InspectionResponse(BaseModel):
     class Config:
         from_attributes = True
 
+    @classmethod
+    def from_inspection(cls, inspection) -> "InspectionResponse":
+        """Build a response with the related names resolved."""
+        model = cls.model_validate(inspection)
+        model.template_name = inspection.template.name if inspection.template else None
+        if inspection.agreement:
+            model.agreement_number = inspection.agreement.agreement_number
+            customer = getattr(inspection.agreement, "customer", None)
+            model.agreement_customer_name = customer.full_name if customer else None
+        model.vehicle_plate = inspection.vehicle.plate_number if inspection.vehicle else None
+        return model
+
 
 class InspectionListResponse(BaseModel):
     items: list[InspectionResponse]
@@ -90,13 +109,64 @@ class InspectionListResponse(BaseModel):
     page_size: int
 
 
+class ChecklistItem(BaseModel):
+    """One line of a template's checklist.
+
+    Typed rather than a bare dict: the API accepted any JSON, so a list of
+    plain strings could be stored and the UI — which groups by category —
+    rendered the heading as "UNDEFINED".
+    """
+
+    id: str = Field(..., min_length=1, max_length=60)
+    label: str = Field(..., min_length=1, max_length=120)
+    category: str = Field(default="general", max_length=60)
+    required: bool = True
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_plain_string(cls, value: object) -> object:
+        """Read rows stored before this shape was enforced.
+
+        Templates created while checklist_items was untyped hold plain
+        strings. Rejecting them would make those rows unreadable, so promote
+        a string to a labelled item instead.
+        """
+        if isinstance(value, str):
+            return {"id": value.strip().lower().replace(" ", "_"), "label": value}
+        return value
+
+
+class TemplateCreateRequest(BaseModel):
+    """Create or replace an inspection template.
+
+    checklist_items is a list of {id, label, category, required} objects;
+    damage_categories a list of area names offered when logging damage.
+    """
+
+    name: str = Field(..., min_length=1, max_length=100)
+    description: Optional[str] = None
+    template_type: str = Field(default="general", max_length=20)
+    checklist_items: list[ChecklistItem] = Field(default_factory=list)
+    damage_categories: list[str] = Field(default_factory=list)
+    is_active: bool = True
+
+
+class TemplateUpdateRequest(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    description: Optional[str] = None
+    template_type: Optional[str] = Field(None, max_length=20)
+    checklist_items: Optional[list[ChecklistItem]] = None
+    damage_categories: Optional[list[str]] = None
+    is_active: Optional[bool] = None
+
+
 class TemplateResponse(BaseModel):
     id: int
     name: str
     description: Optional[str]
     template_type: str
-    checklist_items: list
-    damage_categories: list
+    checklist_items: list[ChecklistItem]
+    damage_categories: list[str]
     is_active: bool
     created_at: datetime
 
@@ -132,6 +202,59 @@ async def get_template(
     return TemplateResponse.model_validate(template)
 
 
+@router.post("/templates", response_model=TemplateResponse, status_code=201)
+async def create_template(
+    data: TemplateCreateRequest,
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.MANAGE_INSPECTIONS))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Create an inspection template."""
+    template = InspectionTemplate(**data.model_dump())
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+    return TemplateResponse.model_validate(template)
+
+
+@router.put("/templates/{template_id}", response_model=TemplateResponse)
+async def update_template(
+    template_id: int,
+    data: TemplateUpdateRequest,
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.MANAGE_INSPECTIONS))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Update an inspection template."""
+    template = db.query(InspectionTemplate).filter(InspectionTemplate.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(template, field, value)
+    db.commit()
+    db.refresh(template)
+    return TemplateResponse.model_validate(template)
+
+
+@router.delete("/templates/{template_id}", status_code=204)
+async def delete_template(
+    template_id: int,
+    current_user: Annotated[CurrentUser, Depends(require_permission(Permission.MANAGE_INSPECTIONS))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Retire a template.
+
+    Deactivated rather than deleted: inspections reference the template they
+    were taken from, and removing the row would orphan that history.
+    """
+    template = db.query(InspectionTemplate).filter(InspectionTemplate.id == template_id).first()
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    template.is_active = False
+    db.commit()
+    return None
+
+
 # Inspection endpoints
 @router.get("", response_model=InspectionListResponse)
 async def list_inspections(
@@ -161,7 +284,7 @@ async def list_inspections(
     inspections = query.order_by(Inspection.created_at.desc()).offset(offset).limit(page_size).all()
     
     return InspectionListResponse(
-        items=[InspectionResponse.model_validate(i) for i in inspections],
+        items=[InspectionResponse.from_inspection(i) for i in inspections],
         total=total,
         page=page,
         page_size=page_size,
@@ -178,7 +301,7 @@ async def get_inspection(
     inspection = db.query(Inspection).filter(Inspection.id == inspection_id).first()
     if not inspection:
         raise HTTPException(status_code=404, detail="Inspection not found")
-    return InspectionResponse.model_validate(inspection)
+    return InspectionResponse.from_inspection(inspection)
 
 
 @router.post("", response_model=InspectionResponse, status_code=201)
@@ -208,7 +331,7 @@ async def create_inspection(
     db.commit()
     db.refresh(inspection)
     
-    return InspectionResponse.model_validate(inspection)
+    return InspectionResponse.from_inspection(inspection)
 
 
 @router.put("/{inspection_id}", response_model=InspectionResponse)
@@ -246,7 +369,7 @@ async def update_inspection(
     db.commit()
     db.refresh(inspection)
     
-    return InspectionResponse.model_validate(inspection)
+    return InspectionResponse.from_inspection(inspection)
 
 
 @router.post("/{inspection_id}/complete", response_model=InspectionResponse)
@@ -264,11 +387,12 @@ async def complete_inspection(
         raise HTTPException(status_code=400, detail="Inspection already completed")
     
     inspection.status = "completed"
-    inspection.completed_at = datetime.now()
+    # Stored in UTC like every other timestamp, so it reads back aware.
+    inspection.completed_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(inspection)
     
-    return InspectionResponse.model_validate(inspection)
+    return InspectionResponse.from_inspection(inspection)
 
 
 class SignInspectionRequest(BaseModel):
@@ -294,4 +418,4 @@ async def sign_inspection(
         customer_name=data.customer_name,
         customer_signature=data.customer_signature,
     )
-    return InspectionResponse.model_validate(inspection)
+    return InspectionResponse.from_inspection(inspection)

@@ -7,6 +7,9 @@ import { customersService } from '@/services/customers'
 import { DocumentDropzone } from '@/components/documents/DocumentDropzone'
 import { DocumentType } from '@/services/customerDocuments'
 import { collateralDocumentsService, CollateralDocument } from '@/services/collateralDocuments'
+import { getErrorMessage } from '@/services/apiClient'
+import { useTranslation } from 'react-i18next'
+import { toast } from '@/hooks/use-toast'
 
 // Phone normalization: 09XXXXXXXX -> +2519XXXXXXXX
 function normalizeEthiopianPhone(phone: string): string {
@@ -44,6 +47,7 @@ const RELATIONSHIPS = [
 ]
 
 export default function CollateralEditPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { customerId, collateralId } = useParams<{ customerId: string; collateralId: string }>()
   const customerIdNum = customerId ? parseInt(customerId, 10) : null
@@ -136,8 +140,7 @@ export default function CollateralEditPage() {
     },
     onError: (error: unknown) => {
       console.error('Update collateral error:', error)
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || 'Failed to update collateral person')
+      toast({ description: getErrorMessage(error, 'Failed to update collateral person'), variant: 'destructive' })
     },
   })
 
@@ -284,9 +287,9 @@ export default function CollateralEditPage() {
   if (!customer) {
     return (
       <div className="flex h-screen flex-col items-center justify-center">
-        <p className="text-lg text-gray-600">Customer not found</p>
+        <p className="text-lg text-gray-600">{t('customerDetail.notFound')}</p>
         <button onClick={() => navigate('/customers')} className="mt-4 text-blue-600 hover:underline">
-          Back to Customers
+          {t('customerDetail.backToCustomers')}
         </button>
       </div>
     )
@@ -295,9 +298,9 @@ export default function CollateralEditPage() {
   if (!collateral) {
     return (
       <div className="flex h-screen flex-col items-center justify-center">
-        <p className="text-lg text-gray-600">Collateral person not found</p>
+        <p className="text-lg text-gray-600">{t('collateralDetail.notFound')}</p>
         <button onClick={() => navigate(`/customers/${customerIdNum}`)} className="mt-4 text-blue-600 hover:underline">
-          Back to Customer
+          {t('customerDetail.backToCustomer')}
         </button>
       </div>
     )
@@ -308,11 +311,11 @@ export default function CollateralEditPage() {
       {/* Header */}
       <div className="border-b bg-white px-6 py-4">
         <div className="flex items-center gap-4">
-          <button onClick={handleBack} className="rounded-lg p-2 hover:bg-gray-100" title="Back to Customer">
+          <button onClick={handleBack} className="rounded-lg p-2 hover:bg-gray-100" title={t('customerDetail.backToCustomer')}>
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Edit Collateral Person</h1>
+            <h1 className="text-xl font-bold text-gray-900">{t('collateralDetail.editCollateralPerson')}</h1>
             <p className="text-sm text-gray-500">{collateral.first_name} {collateral.last_name}</p>
           </div>
         </div>
@@ -321,28 +324,28 @@ export default function CollateralEditPage() {
       <div className="flex">
         {/* Left Sidebar - Progress Checklist */}
         <div className="w-64 border-r bg-white p-6">
-          <h3 className="mb-4 text-sm font-semibold text-gray-500 uppercase">Progress</h3>
+          <h3 className="mb-4 text-sm font-semibold text-gray-500 uppercase">{t('customerCreate.progress')}</h3>
           <div className="space-y-3">
-            <ChecklistItem label="Personal Info" complete={isPersonalComplete} />
-            <ChecklistItem label="Contact Info" complete={isContactComplete} />
-            <ChecklistItem label="ID Info" complete={isIdComplete} />
-            <ChecklistItem label="Relationship" complete={isRelationshipComplete} />
+            <ChecklistItem label={t('forms.personalInfo')} complete={isPersonalComplete} />
+            <ChecklistItem label={t('forms.contactInfo')} complete={isContactComplete} />
+            <ChecklistItem label={t('forms.idInfo')} complete={isIdComplete} />
+            <ChecklistItem label={t('agreementCreate.relationship')} complete={isRelationshipComplete} />
           </div>
 
           <div className="mt-8 border-t pt-6">
-            <h3 className="mb-4 text-sm font-semibold text-gray-500 uppercase">Wizard Steps</h3>
+            <h3 className="mb-4 text-sm font-semibold text-gray-500 uppercase">{t('customerCreate.wizardSteps')}</h3>
             <div className="space-y-2">
-              <div className="flex items-center gap-2 px-3 py-2 text-gray-400">
+              <div className="flex items-center gap-2 px-3 py-2 text-gray-500">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs">1</div>
-                <span className="text-sm">Customer</span>
+                <span className="text-sm">{t('agreementCreate.customer')}</span>
               </div>
               <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-blue-700">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs text-white">2</div>
-                <span className="text-sm font-medium">Collateral</span>
+                <span className="text-sm font-medium">{t('customerCreate.collateral')}</span>
               </div>
-              <div className="flex items-center gap-2 px-3 py-2 text-gray-400">
+              <div className="flex items-center gap-2 px-3 py-2 text-gray-500">
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs">3</div>
-                <span className="text-sm">Agreement</span>
+                <span className="text-sm">{t('customerCreate.agreement')}</span>
               </div>
             </div>
           </div>
@@ -352,7 +355,7 @@ export default function CollateralEditPage() {
         <div className="flex-1 p-6">
           <form className="mx-auto max-w-3xl space-y-8">
             {/* Personal Info Section */}
-            <Section icon={<User className="h-5 w-5" />} title="Personal Information">
+            <Section icon={<User className="h-5 w-5" />} title={t('customerCreate.personalInformation')}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">First Name *</label>
@@ -362,7 +365,7 @@ export default function CollateralEditPage() {
                     onChange={(e) => updateField('first_name', e.target.value)}
                     onBlur={() => handleNameBlur('first_name')}
                     required
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -373,7 +376,7 @@ export default function CollateralEditPage() {
                     onChange={(e) => updateField('last_name', e.target.value)}
                     onBlur={() => handleNameBlur('last_name')}
                     required
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
@@ -383,18 +386,18 @@ export default function CollateralEditPage() {
                   value={formData.relationship_to_customer}
                   onChange={(e) => updateField('relationship_to_customer', e.target.value)}
                   required
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 >
-                  <option value="">Select relationship...</option>
+                  <option value="">{t('forms.selectRelationship')}</option>
                   {RELATIONSHIPS.map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
+                    <option key={r.value} value={r.value}>{t(`options.${r.value}`, r.label)}</option>
                   ))}
                 </select>
               </div>
             </Section>
 
             {/* Contact Info Section */}
-            <Section icon={<Phone className="h-5 w-5" />} title="Contact Information">
+            <Section icon={<Phone className="h-5 w-5" />} title={t('customerCreate.contactInformation')}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Primary Phone *</label>
@@ -405,26 +408,26 @@ export default function CollateralEditPage() {
                     onBlur={() => handlePhoneBlur('phone_primary')}
                     required
                     placeholder="09XXXXXXXX or +251..."
-                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_primary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_primary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                   />
                   <p className="mt-1 text-xs text-gray-500">Will auto-format to +251 format</p>
                   {fieldErrors.phone_primary && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone_primary}</p>}
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Secondary Phone</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.secondaryPhone')}</label>
                   <input
                     type="tel"
                     value={formData.phone_secondary}
                     onChange={(e) => updateFieldWithValidation('phone_secondary', e.target.value)}
                     onBlur={() => handlePhoneBlur('phone_secondary')}
                     placeholder="09XXXXXXXX or +251..."
-                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_secondary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 ${fieldErrors.phone_secondary ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                   />
                   {fieldErrors.phone_secondary && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone_secondary}</p>}
                 </div>
               </div>
               <div className="mt-4">
-                <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.email')}</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <input
@@ -433,7 +436,7 @@ export default function CollateralEditPage() {
                     onChange={(e) => updateFieldWithValidation('email', e.target.value)}
                     onBlur={handleEmailBlur}
                     placeholder="collateral@example.com"
-                    className={`w-full rounded-lg border py-2 pl-10 pr-3 focus:outline-none focus:ring-1 ${emailTouched && fieldErrors.email ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className={`w-full rounded-lg border py-2 pl-10 pr-3 focus:outline-none focus:ring-1 ${emailTouched && fieldErrors.email ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-primary focus:ring-primary'}`}
                   />
                 </div>
                 {emailTouched && fieldErrors.email && <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>}
@@ -441,18 +444,18 @@ export default function CollateralEditPage() {
             </Section>
 
             {/* ID Section */}
-            <Section icon={<FileText className="h-5 w-5" />} title="Identification">
+            <Section icon={<FileText className="h-5 w-5" />} title={t('customerDetail.identification')}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">ID Type *</label>
                   <select
                     value={formData.id_type}
                     onChange={(e) => updateField('id_type', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
-                    <option value="national_id">National ID</option>
-                    <option value="passport">Passport</option>
-                    <option value="kebele_id">Kebele ID</option>
+                    <option value="national_id">{t('customerCreate.nationalId')}</option>
+                    <option value="passport">{t('customerCreate.passport')}</option>
+                    <option value="kebele_id">{t('customerCreate.kebeleId')}</option>
                   </select>
                 </div>
                 <div>
@@ -462,14 +465,14 @@ export default function CollateralEditPage() {
                     value={formData.id_number}
                     onChange={(e) => updateField('id_number', e.target.value)}
                     required
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
             </Section>
 
             {/* Document Upload Section */}
-            <Section icon={<Upload className="h-5 w-5" />} title="Document Uploads">
+            <Section icon={<Upload className="h-5 w-5" />} title={t('customerCreate.documentUploads')}>
               <p className="mb-4 text-sm text-gray-500">
                 Upload or replace photos/scans of collateral person's ID documents.
               </p>
@@ -479,7 +482,7 @@ export default function CollateralEditPage() {
                   ownerType="collateral"
                   collateralId={collateralIdNum}
                   docType={formData.id_type as DocumentType}
-                  label={`${formData.id_type === 'passport' ? 'Passport' : formData.id_type === 'national_id' ? 'National ID' : 'Kebele ID'} Document`}
+                  label={t('forms.idDocument', { type: formData.id_type === 'passport' ? t('customerCreate.passport') : formData.id_type === 'national_id' ? t('customerCreate.nationalId') : t('customerCreate.kebeleId') })}
                   disabled={false}
                   existingDocument={getDocumentByType(formData.id_type as DocumentType)}
                   onUploadComplete={() => queryClient.invalidateQueries({ queryKey: ['collateral-documents', collateralIdNum] })}
@@ -488,96 +491,96 @@ export default function CollateralEditPage() {
             </Section>
 
             {/* Employment Section */}
-            <Section icon={<Briefcase className="h-5 w-5" />} title="Employment (Optional)">
+            <Section icon={<Briefcase className="h-5 w-5" />} title={t('customerDetail.employmentOptional')}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Occupation</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerDetail.occupation')}</label>
                   <input
                     type="text"
                     value={formData.occupation}
                     onChange={(e) => updateField('occupation', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Employer Name</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerDetail.employerName')}</label>
                   <input
                     type="text"
                     value={formData.employer_name}
                     onChange={(e) => updateField('employer_name', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
               <div className="mt-4">
-                <label className="mb-1 block text-sm font-medium text-gray-700">Employer Phone</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerDetail.employerPhone')}</label>
                 <input
                   type="tel"
                   value={formData.employer_phone}
                   onChange={(e) => updateField('employer_phone', e.target.value)}
                   onBlur={() => handlePhoneBlur('employer_phone')}
                   placeholder="09XXXXXXXX or +251..."
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
             </Section>
 
             {/* Address Section */}
-            <Section icon={<MapPin className="h-5 w-5" />} title="Address">
+            <Section icon={<MapPin className="h-5 w-5" />} title={t('customerCreate.address')}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">House Number</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.houseNumber')}</label>
                   <input
                     type="text"
                     value={formData.house_number}
                     onChange={(e) => updateField('house_number', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Wereda</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.wereda')}</label>
                   <input
                     type="text"
                     value={formData.wereda}
                     onChange={(e) => updateField('wereda', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Subcity</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('customerCreate.subcity')}</label>
                   <select
                     value={formData.subcity}
                     onChange={(e) => updateField('subcity', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
-                    <option value="">Select Subcity</option>
+                    <option value="">{t('customerCreate.selectSubcity')}</option>
                     {SUBCITIES.map((sc) => (
                       <option key={sc} value={sc}>{sc}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">City</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementCreate.city')}</label>
                   <input
                     type="text"
                     value={formData.city}
                     onChange={(e) => updateField('city', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
             </Section>
 
             {/* Notes Section */}
-            <Section icon={<FileText className="h-5 w-5" />} title="Additional Notes">
+            <Section icon={<FileText className="h-5 w-5" />} title={t('customerCreate.additionalNotes')}>
               <textarea
                 value={formData.notes}
                 onChange={(e) => updateField('notes', e.target.value)}
                 rows={3}
-                placeholder="Any additional notes about this collateral person..."
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder={t('forms.collateralNotesPlaceholder')}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </Section>
 
@@ -596,7 +599,7 @@ export default function CollateralEditPage() {
                 disabled={!canSave}
                 className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
               >
-                {isLoading ? 'Saving...' : 'Save Changes'}
+                {isLoading ? t('forms.saving') : t('forms.saveChanges')}
               </button>
             </div>
           </form>

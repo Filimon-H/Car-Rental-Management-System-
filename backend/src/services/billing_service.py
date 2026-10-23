@@ -36,26 +36,81 @@ def calculate_rental_days(start: datetime, end: datetime) -> int:
     return max(1, days)
 
 
+DAYS_PER_WEEK = 7
+DAYS_PER_MONTH = 30
+
+
+def calculate_tiered_charge(
+    days: int,
+    daily_rate: Decimal,
+    weekly_rate: Decimal | None = None,
+    monthly_rate: Decimal | None = None,
+) -> Decimal:
+    """Price a number of days using the cheapest valid tier combination.
+
+    Whole months are taken first, then whole weeks, then daily for the remainder.
+    Each step keeps the cheaper of "use the tier" and "charge the remaining days
+    daily", so a tier is never applied when it would cost the customer more — a
+    6-day remainder is not rounded up to a full week if daily is cheaper.
+
+    Tiers are optional: with neither set this is exactly days x daily_rate, which
+    is why existing agreements are unaffected.
+    """
+    if days <= 0:
+        return Decimal("0")
+
+    remaining = days
+    total = Decimal("0")
+
+    if monthly_rate is not None and monthly_rate > 0:
+        months, remaining_after = divmod(remaining, DAYS_PER_MONTH)
+        if months:
+            total += monthly_rate * months
+            remaining = remaining_after
+
+    if weekly_rate is not None and weekly_rate > 0:
+        weeks, remaining_after = divmod(remaining, DAYS_PER_WEEK)
+        if weeks:
+            total += weekly_rate * weeks
+            remaining = remaining_after
+
+    # Price the leftover daily, but never charge more than the next tier up would.
+    leftover = daily_rate * remaining
+    if weekly_rate is not None and weekly_rate > 0 and remaining > 0:
+        leftover = min(leftover, weekly_rate)
+    if monthly_rate is not None and monthly_rate > 0 and remaining > 0:
+        leftover = min(leftover, monthly_rate)
+
+    total += leftover
+
+    # A tiered total must never exceed the plain daily price.
+    return min(total, daily_rate * days)
+
+
 def calculate_rental_charge(
     start: datetime,
     end: datetime,
     daily_rate: Decimal,
+    weekly_rate: Decimal | None = None,
+    monthly_rate: Decimal | None = None,
 ) -> tuple[int, Decimal]:
     """Calculate rental charge for a period.
-    
+
     Args:
         start: Rental start datetime
         end: Rental end datetime
         daily_rate: Daily rate in ETB
-    
+        weekly_rate: Optional 7-day rate; used when it beats the daily price
+        monthly_rate: Optional 30-day rate; used when it beats the daily price
+
     Returns:
         Tuple of (number_of_days, total_charge)
     """
     days = calculate_rental_days(start, end)
-    total = daily_rate * days
-    
+    total = calculate_tiered_charge(days, daily_rate, weekly_rate, monthly_rate)
+
     logger.debug(f"Calculated rental: {start} to {end} = {days} days @ {daily_rate} = {total}")
-    
+
     return days, total
 
 

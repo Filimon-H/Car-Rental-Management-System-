@@ -34,7 +34,7 @@ def upgrade() -> None:
         sa.Column('file_size', sa.Integer(), nullable=False),
         sa.Column('mime_type', sa.String(length=100), nullable=False),
         sa.Column('uploaded_by_id', sa.Integer(), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(['collateral_id'], ['collateral_persons.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['uploaded_by_id'], ['staff_users.id']),
         sa.PrimaryKeyConstraint('id'),

@@ -3,7 +3,9 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, field_validator
+
+from src.schemas.fields import OptionalEmail, normalize_ethiopian_phone
 
 
 class DriverBase(BaseModel):
@@ -12,7 +14,7 @@ class DriverBase(BaseModel):
     last_name: str = Field(..., min_length=1, max_length=100)
     phone_primary: str = Field(..., min_length=9, max_length=20)
     phone_secondary: Optional[str] = Field(None, max_length=20)
-    email: Optional[EmailStr] = None
+    email: OptionalEmail = None
     id_type: Optional[str] = Field(None, max_length=50)
     id_number: Optional[str] = Field(None, max_length=50)
     license_number: str = Field(..., min_length=3, max_length=50)
@@ -26,6 +28,10 @@ class DriverBase(BaseModel):
     emergency_contact_phone: Optional[str] = Field(None, max_length=20)
     notes: Optional[str] = None
 
+    _normalize_phones = field_validator(
+        "phone_primary", "phone_secondary", "emergency_contact_phone", mode="before"
+    )(normalize_ethiopian_phone)
+
 
 class DriverCreate(DriverBase):
     """Schema for creating a driver."""
@@ -38,7 +44,7 @@ class DriverUpdate(BaseModel):
     last_name: Optional[str] = Field(None, min_length=1, max_length=100)
     phone_primary: Optional[str] = Field(None, min_length=9, max_length=20)
     phone_secondary: Optional[str] = Field(None, max_length=20)
-    email: Optional[EmailStr] = None
+    email: OptionalEmail = None
     id_type: Optional[str] = Field(None, max_length=50)
     id_number: Optional[str] = Field(None, max_length=50)
     license_number: Optional[str] = Field(None, min_length=3, max_length=50)
@@ -52,6 +58,10 @@ class DriverUpdate(BaseModel):
     emergency_contact_phone: Optional[str] = Field(None, max_length=20)
     notes: Optional[str] = None
     is_active: Optional[bool] = None
+
+    _normalize_phones = field_validator(
+        "phone_primary", "phone_secondary", "emergency_contact_phone", mode="before"
+    )(normalize_ethiopian_phone)
 
 
 class DriverResponse(DriverBase):

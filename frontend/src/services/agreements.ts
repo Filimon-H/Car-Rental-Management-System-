@@ -35,7 +35,7 @@ export interface Agreement {
   id: number
   agreement_number: string
   agreement_type: AgreementType
-  status: 'draft' | 'pending_payment' | 'active' | 'returned' | 'closed' | 'overdue' | 'cancelled'
+  status: 'booking_requested' | 'draft' | 'pending_payment' | 'active' | 'returned' | 'closed' | 'overdue' | 'cancelled'
   customer_id: number
   customer_name: string
   driver_id?: number
@@ -48,6 +48,13 @@ export interface Agreement {
   agreed_daily_rate: number
   deposit_amount: number
   advance_payment?: number
+  pickup_mileage?: number
+  return_mileage?: number
+  mileage_limit_per_day?: number
+  excess_mileage_rate?: number
+  fuel_level_out?: number
+  fuel_level_in?: number
+  fuel_charge_rate?: number
   pickup_location: string | null
   return_location: string | null
   notes: string | null
@@ -59,6 +66,7 @@ export interface AgreementDetail extends Agreement {
   vehicle_segments: VehicleSegment[]
   balance: number
   total_charges: number
+  net_adjustments?: number
   total_payments: number
 
   deposit_received?: number
@@ -92,6 +100,16 @@ export interface PostChargeData {
   notes?: string
 }
 
+export interface BookingApprovalData {
+  deposit_amount?: number
+  advance_payment?: number
+  pickup_mileage?: number
+  mileage_limit_per_day?: number
+  excess_mileage_rate?: number
+  fuel_level_out?: number
+  fuel_charge_rate?: number
+}
+
 export interface AgreementListResponse {
   items: Agreement[]
   total: number
@@ -110,6 +128,24 @@ export interface LedgerEntry {
   created_at: string
   created_by_name: string | null
   reversed_entry_id: number | null
+  /** Set when this entry reverses another. */
+  reverses_entry_id?: number | null
+  /** True when this entry has been undone by a later reversal. */
+  is_reversed?: boolean
+  reversed_by_entry_id?: number | null
+}
+
+export interface AgreementBalance {
+  agreement_id: number
+  balance: number
+  total_charges: number
+  net_adjustments: number
+  total_payments: number
+  deposit_received: number
+  deposit_held: number
+  deposit_applied: number
+  deposit_returned: number
+  balance_due: number
 }
 
 export interface CreateAgreementData {
@@ -123,6 +159,11 @@ export interface CreateAgreementData {
   daily_rate: number
   deposit_amount?: number
   advance_payment?: number
+  pickup_mileage?: number
+  mileage_limit_per_day?: number
+  excess_mileage_rate?: number
+  fuel_level_out?: number
+  fuel_charge_rate?: number
   pickup_location?: string
   return_location?: string
   notes?: string
@@ -139,7 +180,9 @@ export interface PostPaymentData {
 export const agreementsService = {
   async list(params?: {
     status?: string
+    agreement_type?: string
     customer_id?: number
+    search?: string
     page?: number
     page_size?: number
   }): Promise<AgreementListResponse> {
@@ -175,6 +218,10 @@ export const agreementsService = {
     return apiClient.get(`/agreements/${id}/ledger`)
   },
 
+  async getBalance(id: number): Promise<AgreementBalance> {
+    return apiClient.get(`/ledger/${id}/balance`)
+  },
+
   async postPayment(id: number, data: PostPaymentData): Promise<LedgerEntry> {
     return apiClient.post(`/agreements/${id}/payments`, data)
   },
@@ -206,13 +253,26 @@ export const agreementsService = {
     return apiClient.post(`/agreements/${id}/adjustments`, data)
   },
 
+  /** Add a vehicle to an existing wedding agreement. */
+  async addVehicleToWedding(
+    id: number,
+    data: {
+      vehicle_id: number
+      daily_rate: number
+      start_datetime: string
+      end_datetime: string
+    }
+  ): Promise<unknown> {
+    return apiClient.post(`/agreements/${id}/vehicles`, data)
+  },
+
   async activate(id: number): Promise<Agreement> {
     return apiClient.post(`/agreements/${id}/activate`)
   },
 
   async markReturned(
     id: number,
-    data: { actual_return_datetime: string; return_mileage?: number; notes?: string }
+    data: { actual_return_datetime: string; return_mileage?: number; fuel_level_in?: number; notes?: string }
   ): Promise<Agreement> {
     return apiClient.post(`/agreements/${id}/return`, data)
   },
@@ -220,11 +280,47 @@ export const agreementsService = {
   async cancel(id: number, reason?: string): Promise<Agreement> {
     return apiClient.post(`/agreements/${id}/cancel`, { reason: reason || null })
   },
+
+  async approveRequest(id: number, data: BookingApprovalData = {}): Promise<Agreement> {
+    return apiClient.post(`/agreements/${id}/approve-request`, data)
+  },
+}
+
+export interface PeriodSummary {
+  period: string
+  total_charged: number
+  total_payments: number
+  total_deposits: number
+  vendor_paid: number
+  net_revenue: number
 }
 
 export const ledgerService = {
   async reverseEntry(entryId: number, reason: string): Promise<LedgerEntry> {
     return apiClient.post(`/ledger/entries/${entryId}/reverse`, { reason })
+  },
+
+  async getSummary(granularity: 'daily' | 'monthly' | 'yearly'): Promise<PeriodSummary[]> {
+    return apiClient.get('/ledger/summary/periods', { granularity })
+  },
+
+  /** Downloads the ledger as CSV, filtered the same way the views are. */
+  async exportCsv(params?: {
+    agreement_id?: number
+    entry_type?: string
+    date_from?: string
+    date_to?: string
+  }): Promise<void> {
+    const blob = await apiClient.getBlob('/ledger/export/csv', params)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `ledger-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    // Released on the next tick so the click has taken the URL.
+    setTimeout(() => URL.revokeObjectURL(url), 0)
   },
 }
 
@@ -247,7 +343,28 @@ export interface AvailableVehicle {
   daily_rate: number
 }
 
+export interface VehicleBooking {
+  agreement_id: number
+  agreement_number: string
+  start: string
+  end: string
+  status: string
+  customer_name: string
+}
+
 export const availabilityService = {
+  /** Bookings touching a window — used to offer the agreements a vehicle has. */
+  async getVehicleBookings(
+    vehicleId: number,
+    startDate: string,
+    endDate: string
+  ): Promise<{ vehicle_id: number; plate_number: string; bookings: VehicleBooking[] }> {
+    return apiClient.get(`/availability/bookings/${vehicleId}`, {
+      start_date: startDate,
+      end_date: endDate,
+    })
+  },
+
   async getAvailableVehicles(
     startDatetime: string,
     endDatetime: string,

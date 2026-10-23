@@ -8,6 +8,9 @@ import { CustomerLookupModal } from '@/components/lookup/LookupModal'
 import { driversService, Driver } from '@/services/drivers'
 import { collateralsService, CollateralPerson } from '@/services/collaterals'
 import { customersService } from '@/services/customers'
+import { getErrorMessage } from '@/services/apiClient'
+import { toast } from '@/hooks/use-toast'
+import { datetimeLocalToWallClockIso, parseOptionalNumber } from '@/lib/utils'
 
 type AgreementType = 'customer_vehicle' | 'customer_vehicle_driver' | 'vendor_vehicle'
 
@@ -43,8 +46,13 @@ export default function AgreementCreatePage() {
   const [returnDate, setReturnDate] = useState('')
   const [returnTime, setReturnTime] = useState('09:00')
   const [dailyRate, setDailyRate] = useState('')
-  const [depositAmount, setDepositAmount] = useState('0')
-  const [advancePayment, setAdvancePayment] = useState('0')
+  const [depositAmount, setDepositAmount] = useState('')
+  const [advancePayment, setAdvancePayment] = useState('')
+  const [pickupMileage, setPickupMileage] = useState('')
+  const [mileageLimitPerDay, setMileageLimitPerDay] = useState('')
+  const [excessMileageRate, setExcessMileageRate] = useState('')
+  const [fuelLevelOut, setFuelLevelOut] = useState('')
+  const [fuelChargeRate, setFuelChargeRate] = useState('')
   const [pickupLocation, setPickupLocation] = useState('')
   const [returnLocation, setReturnLocation] = useState('')
   const [notes, setNotes] = useState('')
@@ -89,6 +97,18 @@ export default function AgreementCreatePage() {
     }
   }, [customerId, collateralPersonId, collateralsData])
 
+  // A single driver reads as already chosen, so select it rather than
+  // failing on submit with "Please select a driver".
+  useEffect(() => {
+    if (agreementType !== 'customer_vehicle_driver') return
+    if (driverId) return
+    const only = driversData?.items?.length === 1 ? driversData.items[0] : null
+    if (only) {
+      setDriverId(only.id)
+      setSelectedDriver(only)
+    }
+  }, [agreementType, driverId, driversData])
+
   const insuranceExpiryLabel = useMemo(() => {
     if (!selectedVehicle?.insurance_expiry) return '—'
     return selectedVehicle.insurance_expiry.split('T')[0]
@@ -101,8 +121,7 @@ export default function AgreementCreatePage() {
     },
     onError: (error: unknown) => {
       console.error('Agreement creation error:', error)
-      const err = error as { response?: { data?: { detail?: string } } }
-      alert(err?.response?.data?.detail || t('agreementCreate.errorCreating'))
+      toast({ description: getErrorMessage(error, t('agreementCreate.errorCreating')), variant: 'destructive' })
     },
   })
 
@@ -117,6 +136,7 @@ export default function AgreementCreatePage() {
   }
 
   const rentalDays = calculateRentalDays()
+  const datesInverted = Boolean(pickupDate && returnDate && `${returnDate}T${returnTime}` <= `${pickupDate}T${pickupTime}`)
   const totalAmount = rentalDays * (parseFloat(dailyRate) || 0)
 
   const handleVehicleSelect = (vehicle: AvailableVehicle) => {
@@ -129,19 +149,24 @@ export default function AgreementCreatePage() {
     e.preventDefault()
 
     if (!customerId || !vehicleId || !pickupDate || !returnDate || !dailyRate) {
-      alert(t('agreementCreate.fillRequiredFields'))
+      toast({ description: t('agreementCreate.fillRequiredFields'), variant: 'destructive' })
+      return
+    }
+
+    if (datesInverted) {
+      toast({ description: t('agreementCreate.returnBeforePickup'), variant: 'destructive' })
       return
     }
 
     // Validate driver for driver agreements
     if (agreementType === 'customer_vehicle_driver' && !driverId) {
-      alert(t('agreementCreate.selectDriverError'))
+      toast({ description: t('agreementCreate.selectDriverError'), variant: 'destructive' })
       return
     }
 
     // Validate collateral for customer agreements
     if (!collateralPersonId) {
-      alert(t('agreementCreate.selectCollateralError'))
+      toast({ description: t('agreementCreate.selectCollateralError'), variant: 'destructive' })
       return
     }
 
@@ -151,11 +176,16 @@ export default function AgreementCreatePage() {
       vehicle_id: vehicleId,
       driver_id: driverId || undefined,
       collateral_person_id: collateralPersonId,
-      pickup_datetime: `${pickupDate}T${pickupTime}:00Z`,
-      expected_return_datetime: `${returnDate}T${returnTime}:00Z`,
+      pickup_datetime: datetimeLocalToWallClockIso(`${pickupDate}T${pickupTime}`),
+      expected_return_datetime: datetimeLocalToWallClockIso(`${returnDate}T${returnTime}`),
       daily_rate: parseFloat(dailyRate),
       deposit_amount: parseFloat(depositAmount) || 0,
       advance_payment: parseFloat(advancePayment) || undefined,
+      pickup_mileage: parseOptionalNumber(pickupMileage) ?? undefined,
+      mileage_limit_per_day: parseOptionalNumber(mileageLimitPerDay) ?? undefined,
+      excess_mileage_rate: parseOptionalNumber(excessMileageRate) ?? undefined,
+      fuel_level_out: parseOptionalNumber(fuelLevelOut) ?? undefined,
+      fuel_charge_rate: parseOptionalNumber(fuelChargeRate) ?? undefined,
       pickup_location: pickupLocation || undefined,
       return_location: returnLocation || undefined,
       notes: notes || undefined,
@@ -377,8 +407,16 @@ export default function AgreementCreatePage() {
                   value={returnDate}
                   onChange={(e) => setReturnDate(e.target.value)}
                   required
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                  aria-invalid={datesInverted || undefined}
+                  className={`w-full rounded-lg border px-3 py-2 ${
+                    datesInverted ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
+                {datesInverted && (
+                  <p role="alert" className="mt-1 text-sm text-red-600">
+                    {t('agreementCreate.returnBeforePickup')}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -434,6 +472,26 @@ export default function AgreementCreatePage() {
                   className="w-full rounded-lg border border-gray-300 px-3 py-2"
                   placeholder={t('agreementCreate.optionalAdvance')}
                 />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementCreate.pickupMileage')}</label>
+                <input type="number" min="0" value={pickupMileage} onChange={(e) => setPickupMileage(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementCreate.mileageLimitPerDay')}</label>
+                <input type="number" min="1" value={mileageLimitPerDay} onChange={(e) => setMileageLimitPerDay(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementCreate.excessMileageRate')}</label>
+                <input type="number" min="0" step="0.01" value={excessMileageRate} onChange={(e) => setExcessMileageRate(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementCreate.fuelLevelOut')}</label>
+                <input type="number" min="0" max="100" value={fuelLevelOut} onChange={(e) => setFuelLevelOut(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('agreementCreate.fuelChargeRate')}</label>
+                <input type="number" min="0" step="0.01" value={fuelChargeRate} onChange={(e) => setFuelChargeRate(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2" />
               </div>
             </div>
           </div>
@@ -632,7 +690,7 @@ export default function AgreementCreatePage() {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={createMutation.isPending || !customerId || !vehicleId}
+            disabled={createMutation.isPending || !customerId || !vehicleId || datesInverted}
             className="w-full rounded-lg bg-primary py-3 font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
           >
             {createMutation.isPending ? t('agreementCreate.creating') : t('agreementCreate.createAgreement')}

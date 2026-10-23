@@ -6,6 +6,9 @@ import { ArrowLeft, Plus, Trash2, CheckCircle, XCircle, MinusCircle } from 'luci
 import apiClient from '@/services/apiClient'
 import { VehicleLookupModal } from '@/components/lookup/LookupModal'
 import { VehicleSearchResult } from '@/services/vehicles'
+import { toast } from '@/hooks/use-toast'
+import { localNowWallClockIso } from '@/lib/utils'
+import { availabilityService } from '@/services/agreements'
 
 interface ChecklistItem {
   id: string
@@ -46,6 +49,9 @@ export default function InspectionCreatePage() {
   // Form state
   const [templateId, setTemplateId] = useState<number | null>(null)
   const [vehicleId, setVehicleId] = useState<number | null>(null)
+  const [linkedAgreementId, setLinkedAgreementId] = useState<number | null>(
+    agreementId ? Number.parseInt(agreementId, 10) : null
+  )
   const [vehicleInfo, setVehicleInfo] = useState('')
   const [inspectionType, setInspectionType] = useState<string>('pickup')
   const [mileage, setMileage] = useState('')
@@ -60,6 +66,25 @@ export default function InspectionCreatePage() {
   const { data: templates } = useQuery({
     queryKey: ['inspectionTemplates'],
     queryFn: () => apiClient.get<InspectionTemplate[]>('/inspections/templates'),
+  })
+
+  // Bookings around now for the chosen vehicle, so the inspection can be
+  // attached to the rental it belongs to. The API supports agreement_id; the
+  // form simply never offered a way to set it.
+  const { data: vehicleBookings } = useQuery({
+    queryKey: ['vehicle-bookings', vehicleId],
+    queryFn: () => {
+      const from = new Date()
+      from.setMonth(from.getMonth() - 3)
+      const to = new Date()
+      to.setMonth(to.getMonth() + 3)
+      return availabilityService.getVehicleBookings(
+        vehicleId as number,
+        from.toISOString(),
+        to.toISOString()
+      )
+    },
+    enabled: vehicleId !== null,
   })
 
   const selectedTemplate = templates?.find(t => t.id === templateId)
@@ -124,16 +149,16 @@ export default function InspectionCreatePage() {
     e.preventDefault()
 
     if (!vehicleId) {
-      alert('Please select a vehicle')
+      toast({ description: t('validation.selectVehicle'), variant: 'destructive' })
       return
     }
 
     createMutation.mutate({
       template_id: templateId,
-      agreement_id: agreementId ? parseInt(agreementId) : null,
+      agreement_id: linkedAgreementId,
       vehicle_id: vehicleId,
       inspection_type: inspectionType,
-      inspection_datetime: new Date().toISOString(),
+      inspection_datetime: localNowWallClockIso(),
       mileage: mileage ? parseInt(mileage) : null,
       fuel_level: parseFloat(fuelLevel),
       checklist_results: checklistResults,
@@ -150,7 +175,7 @@ export default function InspectionCreatePage() {
         className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-800"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back
+        {t('common.back')}
       </button>
 
       <h1 className="mb-6 text-2xl font-bold text-gray-800">
@@ -160,16 +185,16 @@ export default function InspectionCreatePage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Info */}
         <div className="rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-4 text-lg font-semibold">Basic Information</h2>
+          <h2 className="mb-4 text-lg font-semibold">{t('sections.basicInformation')}</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium">Template</label>
+              <label className="mb-1 block text-sm font-medium">{t('inspection.template')}</label>
               <select
                 value={templateId || ''}
                 onChange={(e) => setTemplateId(e.target.value ? parseInt(e.target.value) : null)}
                 className="w-full rounded-lg border px-3 py-2"
               >
-                <option value="">Select template (optional)</option>
+                <option value="">{t('inspection.selectTemplateOptional')}</option>
                 {templates?.map(t => (
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
@@ -183,10 +208,10 @@ export default function InspectionCreatePage() {
                 required
                 className="w-full rounded-lg border px-3 py-2"
               >
-                <option value="pickup">Pickup</option>
-                <option value="return">Return</option>
-                <option value="periodic">Periodic</option>
-                <option value="damage_report">Damage Report</option>
+                <option value="pickup">{t('agreementActions.pickup')}</option>
+                <option value="return">{t('agreementActions.return')}</option>
+                <option value="periodic">{t('inspection.periodic')}</option>
+                <option value="damage_report">{t('inspection.damageReport')}</option>
               </select>
             </div>
             <div>
@@ -194,7 +219,7 @@ export default function InspectionCreatePage() {
               {vehicleId ? (
                 <div className="flex items-center justify-between rounded-lg border px-3 py-2">
                   <span>{vehicleInfo}</span>
-                  <button type="button" onClick={() => setShowVehicleLookup(true)} className="text-sm text-blue-600">Change</button>
+                  <button type="button" onClick={() => setShowVehicleLookup(true)} className="text-sm text-blue-600">{t('agreementCreate.change')}</button>
                 </div>
               ) : (
                 <button
@@ -207,7 +232,34 @@ export default function InspectionCreatePage() {
               )}
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Mileage (km)</label>
+              <label htmlFor="linked-agreement" className="mb-1 block text-sm font-medium">
+                {t('inspection.linkedAgreement')}
+              </label>
+              <select
+                id="linked-agreement"
+                value={linkedAgreementId ?? ''}
+                onChange={(e) => {
+                  const parsed = Number.parseInt(e.target.value, 10)
+                  setLinkedAgreementId(Number.isFinite(parsed) ? parsed : null)
+                }}
+                disabled={!vehicleId}
+                className="w-full rounded-lg border px-3 py-2"
+              >
+                <option value="">{t('inspection.noAgreement')}</option>
+                {vehicleBookings?.bookings.map((booking) => (
+                  <option key={booking.agreement_id} value={booking.agreement_id}>
+                    {booking.agreement_number} — {booking.customer_name}
+                  </option>
+                ))}
+              </select>
+              {vehicleId && vehicleBookings?.bookings.length === 0 && (
+                <p className="mt-1 text-sm text-gray-500">
+                  {t('inspection.noAgreementForVehicle')}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">{t('inspection.mileageKm')}</label>
               <input
                 type="number"
                 value={mileage}
@@ -216,7 +268,7 @@ export default function InspectionCreatePage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Fuel Level (%)</label>
+              <label className="mb-1 block text-sm font-medium">{t('inspection.fuelLevel')}</label>
               <input
                 type="number"
                 value={fuelLevel}
@@ -227,7 +279,7 @@ export default function InspectionCreatePage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Condition Rating</label>
+              <label className="mb-1 block text-sm font-medium">{t('inspection.conditionRating')}</label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map(rating => (
                   <button
@@ -249,7 +301,7 @@ export default function InspectionCreatePage() {
         {/* Checklist */}
         {selectedTemplate && groupedItems && (
           <div className="rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-semibold">Checklist</h2>
+            <h2 className="mb-4 text-lg font-semibold">{t('inspection.checklist')}</h2>
             {Object.entries(groupedItems).map(([category, items]) => (
               <div key={category} className="mb-6">
                 <h3 className="mb-3 text-sm font-medium uppercase text-gray-500">{category}</h3>
@@ -282,7 +334,7 @@ export default function InspectionCreatePage() {
                       </div>
                       <input
                         type="text"
-                        placeholder="Notes"
+                        placeholder={t('agreementCreate.notes')}
                         value={checklistResults[item.id]?.notes || ''}
                         onChange={(e) => handleItemNotesChange(item.id, e.target.value)}
                         className="w-40 rounded border px-2 py-1 text-sm"
@@ -298,17 +350,17 @@ export default function InspectionCreatePage() {
         {/* Damage Records */}
         <div className="rounded-lg bg-white p-6 shadow">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Damage Records</h2>
+            <h2 className="text-lg font-semibold">{t('inspection.damageRecords')}</h2>
             <button
               type="button"
               onClick={addDamageRecord}
               className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
             >
-              <Plus className="h-4 w-4" /> Add Damage
+              <Plus className="h-4 w-4" /> {t('agreementActions.addDamage')}
             </button>
           </div>
           {damageRecords.length === 0 ? (
-            <p className="text-center text-gray-500 py-4">No damage recorded</p>
+            <p className="text-center text-gray-500 py-4">{t('inspection.noDamageRecorded')}</p>
           ) : (
             <div className="space-y-4">
               {damageRecords.map(damage => (
@@ -331,7 +383,7 @@ export default function InspectionCreatePage() {
                     </select>
                     <input
                       type="text"
-                      placeholder="Location"
+                      placeholder={t('inspectionForm.location')}
                       value={damage.location}
                       onChange={(e) => updateDamageRecord(damage.id, { location: e.target.value })}
                       className="rounded border px-2 py-1"
@@ -341,20 +393,20 @@ export default function InspectionCreatePage() {
                       onChange={(e) => updateDamageRecord(damage.id, { severity: e.target.value as 'minor' | 'moderate' | 'severe' })}
                       className="rounded border px-2 py-1"
                     >
-                      <option value="minor">Minor</option>
-                      <option value="moderate">Moderate</option>
-                      <option value="severe">Severe</option>
+                      <option value="minor">{t('inspection.minor')}</option>
+                      <option value="moderate">{t('inspection.moderate')}</option>
+                      <option value="severe">{t('inspection.severe')}</option>
                     </select>
                     <input
                       type="number"
-                      placeholder="Est. Cost"
+                      placeholder={t('inspectionForm.estCost')}
                       value={damage.estimated_cost || ''}
                       onChange={(e) => updateDamageRecord(damage.id, { estimated_cost: parseFloat(e.target.value) || 0 })}
                       className="rounded border px-2 py-1"
                     />
                   </div>
                   <textarea
-                    placeholder="Description"
+                    placeholder={t('sections.description')}
                     value={damage.description}
                     onChange={(e) => updateDamageRecord(damage.id, { description: e.target.value })}
                     className="mt-2 w-full rounded border px-2 py-1"
@@ -368,13 +420,13 @@ export default function InspectionCreatePage() {
 
         {/* Notes */}
         <div className="rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-4 text-lg font-semibold">Additional Notes</h2>
+          <h2 className="mb-4 text-lg font-semibold">{t('customerCreate.additionalNotes')}</h2>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={4}
             className="w-full rounded-lg border px-3 py-2"
-            placeholder="Enter any additional notes..."
+            placeholder={t('forms.notesPlaceholder')}
           />
         </div>
 
@@ -385,14 +437,14 @@ export default function InspectionCreatePage() {
             onClick={() => navigate(-1)}
             className="rounded-lg border px-6 py-2 hover:bg-gray-50"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
             disabled={createMutation.isPending || !vehicleId}
             className="rounded-lg bg-blue-500 px-6 py-2 text-white hover:bg-blue-600 disabled:opacity-50"
           >
-            {createMutation.isPending ? 'Creating...' : 'Create Inspection'}
+            {createMutation.isPending ? t('forms.creating') : t('inspectionForm.create')}
           </button>
         </div>
       </form>
